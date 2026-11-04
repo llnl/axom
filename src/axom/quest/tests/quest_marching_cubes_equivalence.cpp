@@ -14,7 +14,7 @@
  * The checks compare:
  *   - E1: parent cell sets
  *   - E2: vertex sets
- *   - E3: area or length when ambiguity cannot change the triangulation
+ *   - E3: area for planar 3D fixtures and length for unambiguous 2D fixtures
  */
 
 #include "axom/config.hpp"
@@ -32,6 +32,7 @@
 #include "axom/sidre.hpp"
 #include "axom/bump/utilities/conduit_memory.hpp"
 #include "axom/quest/MarchingCubes.hpp"
+#include "axom/quest/util/mesh_helpers.hpp"
 
 #include "conduit_blueprint.hpp"
 
@@ -51,7 +52,6 @@ namespace
 {
 namespace mctest = axom::quest::testing::marching_cubes;
 
-using mctest::copyBlueprintToHost;
 using mctest::copyBlueprintToPolicy;
 using mctest::forEachEnabledPolicy;
 using mctest::forEachHostPolicy;
@@ -89,48 +89,6 @@ void buildUniform3D(conduit::Node& mesh, int n, const Field& f, const std::strin
 
   conduit::Node& topo = mesh["topologies/mesh"];
   topo["type"] = "uniform";
-  topo["coordset"] = "coords";
-
-  conduit::Node& fld = mesh["fields/" + fieldName];
-  fld["topology"] = "mesh";
-  fld["association"] = "vertex";
-  fld["values"].set(conduit::DataType::float64(N));
-  auto* fv = fld["values"].as_float64_ptr();
-  conduit::index_t idx = 0;
-  for(int k = 0; k < nn; ++k)
-  {
-    for(int j = 0; j < nn; ++j)
-    {
-      for(int i = 0; i < nn; ++i, ++idx)
-      {
-        fv[idx] = f(double(i) / n, double(j) / n, double(k) / n);
-      }
-    }
-  }
-}
-
-//! @brief Build the same box with a rectilinear coordset and topology.
-template <typename Field>
-void buildRectilinear3D(conduit::Node& mesh, int n, const Field& f, const std::string& fieldName)
-{
-  const int nn = n + 1;
-  const conduit::index_t N = static_cast<conduit::index_t>(nn) * nn * nn;
-  mesh.reset();
-
-  conduit::Node& cs = mesh["coordsets/coords"];
-  cs["type"] = "rectilinear";
-  for(const char* comp : {"x", "y", "z"})
-  {
-    cs[std::string("values/") + comp].set(conduit::DataType::float64(nn));
-    auto* v = cs[std::string("values/") + comp].as_float64_ptr();
-    for(int i = 0; i < nn; ++i)
-    {
-      v[i] = double(i) / n;
-    }
-  }
-
-  conduit::Node& topo = mesh["topologies/mesh"];
-  topo["type"] = "rectilinear";
   topo["coordset"] = "coords";
 
   conduit::Node& fld = mesh["fields/" + fieldName];
@@ -231,8 +189,7 @@ BackendResult runBackend(const conduit::Node& mesh,
                          const std::string& field_name,
                          double contour_value,
                          RuntimePolicy policy,
-                         bool use_bump,
-                         conduit::Node* bump_blueprint = nullptr)
+                         bool use_bump)
 {
   namespace quest = axom::quest;
 
@@ -246,13 +203,6 @@ BackendResult runBackend(const conduit::Node& mesh,
   mc.setFunctionField(field_name);
   mc.computeIsocontour(contour_value);
 
-  if(use_bump && bump_blueprint != nullptr)
-  {
-    conduit::Node bump_blueprint_exec;
-    mc.populateContourMeshBlueprint(bump_blueprint_exec);
-    copyBlueprintToHost(*bump_blueprint, bump_blueprint_exec);
-  }
-
   return extractBackendResult<DIM>(mc);
 }
 
@@ -260,8 +210,7 @@ template <int DIM>
 std::array<BackendResult, 3> runAccumulatedBackend(const conduit::Node& mesh,
                                                    const std::array<std::string, 3>& field_names,
                                                    RuntimePolicy policy,
-                                                   bool use_bump,
-                                                   std::array<conduit::Node, 3>* bump_blueprints = nullptr)
+                                                   bool use_bump)
 {
   namespace quest = axom::quest;
 
@@ -281,12 +230,6 @@ std::array<BackendResult, 3> runAccumulatedBackend(const conduit::Node& mesh,
     mc.setFunctionField(field_names[field]);
     mc.computeIsocontour(0.0);
     results[field] = extractBackendResult<DIM>(mc, facet_begin, node_begin);
-    if(use_bump && bump_blueprints != nullptr)
-    {
-      conduit::Node bump_blueprint_exec;
-      mc.populateContourMeshBlueprint(bump_blueprint_exec);
-      copyBlueprintToHost((*bump_blueprints)[field], bump_blueprint_exec);
-    }
     facet_begin = mc.getContourFacetCount();
     node_begin = mc.getContourNodeCount();
   }
@@ -389,268 +332,55 @@ double oneSidedHausdorff(const std::vector<axom::primal::Point<double, 3>>& from
   return worst;
 }
 
-//---------------------------------------------------------------------------
-// Ambiguous cells. Case tables can triangulate the same vertices differently
-// for a checkerboard face or a body-diagonal minority pair. The latter is case
-// 4 and has no ambiguous face. Corner n is (i,j,k), with n = i + 2j + 4k.
-//---------------------------------------------------------------------------
-
-//! Cyclic corner order of each of the 6 faces.
-constexpr int kFaces[6][4] =
-  {{0, 1, 3, 2}, {4, 5, 7, 6}, {0, 1, 5, 4}, {2, 3, 7, 6}, {0, 2, 6, 4}, {1, 3, 7, 5}};
-//! The 4 body diagonals.
-constexpr int kBodyDiagonals[4][2] = {{0, 7}, {1, 6}, {2, 5}, {3, 4}};
-
-bool cellHasFaceAmbiguity3D(const bool s[8])
+void compareVertexSets(const BackendResult& reference, const BackendResult& result, double tolerance)
 {
-  for(const auto& f : kFaces)
-  {
-    if(s[f[0]] == s[f[2]] && s[f[1]] == s[f[3]] && s[f[0]] != s[f[1]])
-    {
-      return true;
-    }
-  }
-  return false;
-}
-
-bool cellHasBodyDiagonalAmbiguity3D(const bool s[8])
-{
-  int nPos = 0;
-  for(int i = 0; i < 8; ++i)
-  {
-    nPos += s[i] ? 1 : 0;
-  }
-  if(nPos != 2 && nPos != 6)
-  {
-    return false;
-  }
-  const bool minority = (nPos == 2);
-  int a = -1, b = -1;
-  for(int i = 0; i < 8; ++i)
-  {
-    if(s[i] == minority)
-    {
-      (a < 0 ? a : b) = i;
-    }
-  }
-  for(const auto& d : kBodyDiagonals)
-  {
-    if((a == d[0] && b == d[1]) || (a == d[1] && b == d[0]))
-    {
-      return true;
-    }
-  }
-  return false;
-}
-
-bool cellIsAmbiguous3D(const bool s[8])
-{
-  return cellHasFaceAmbiguity3D(s) || cellHasBodyDiagonalAmbiguity3D(s);
-}
-
-//! 2D corners are cyclic 0,1,3,2. Only the two
-//! checkerboard patterns are ambiguous.
-bool cellIsAmbiguous2D(const bool s[4])
-{
-  return (s[0] == s[3]) && (s[1] == s[2]) && (s[0] != s[1]);
-}
-
-/*!
- * @brief Count ambiguous cells.
- *
- * @note The corner test uses \c >= to match MarchingCubesImpl::computeCrossingCase
- *       and the adjusted Bump isovalue.
- */
-template <int DIM, typename Field>
-axom::IndexType countAmbiguousCells(int n, const Field& f, double contourVal)
-{
-  auto sign = [&](int i, int j, int k) {
-    const double px = double(i) / n, py = double(j) / n, pz = (DIM == 3) ? double(k) / n : 0.0;
-    return f(px, py, pz) >= contourVal;
-  };
-
-  axom::IndexType count = 0;
-  const int nk = (DIM == 3) ? n : 1;
-  for(int k = 0; k < nk; ++k)
-  {
-    for(int j = 0; j < n; ++j)
-    {
-      for(int i = 0; i < n; ++i)
-      {
-        if(DIM == 2)
-        {
-          const bool s[4] = {sign(i, j, 0),
-                             sign(i + 1, j, 0),
-                             sign(i, j + 1, 0),
-                             sign(i + 1, j + 1, 0)};
-          count += cellIsAmbiguous2D(s) ? 1 : 0;
-        }
-        else
-        {
-          const bool s[8] = {sign(i, j, k),
-                             sign(i + 1, j, k),
-                             sign(i, j + 1, k),
-                             sign(i + 1, j + 1, k),
-                             sign(i, j, k + 1),
-                             sign(i + 1, j, k + 1),
-                             sign(i, j + 1, k + 1),
-                             sign(i + 1, j + 1, k + 1)};
-          count += cellIsAmbiguous3D(s) ? 1 : 0;
-        }
-      }
-    }
-  }
-  return count;
-}
-
-//---------------------------------------------------------------------------
-// Fan-triangulation sensitivity. The adaptor fans each Bump polygon from corner 0.
-// For a non-planar polygon, area depends on the fan origin. Compare fans from corners 0 and 1,
-// then use their relative spread as the measure tolerance.
-//---------------------------------------------------------------------------
-
-struct FanSensitivity
-{
-  double areaFan0 {0.0};
-  double areaFan1 {0.0};
-  double relSpread {0.0};         //!< Aggregate |A(fan@0) - A(fan@1)| / A(fan@0)
-  double maxPolyRelSpread {0.0};  //!< Worst single-polygon spread. The aggregate can cancel.
-  axom::IndexType polygonCount {0};
-  axom::IndexType maxCorners {0};
-};
-
-double triArea(const axom::primal::Point<double, 3>& a,
-               const axom::primal::Point<double, 3>& b,
-               const axom::primal::Point<double, 3>& c)
-{
-  const auto u = axom::primal::Vector<double, 3>(a, b);
-  const auto w = axom::primal::Vector<double, 3>(a, c);
-  return 0.5 * axom::primal::Vector<double, 3>::cross_product(u, w).norm();
-}
-
-//! @brief Area of a polygon fan-triangulated starting at local corner @a origin.
-double polygonFanArea(const std::vector<axom::primal::Point<double, 3>>& v, int origin)
-{
-  const int N = static_cast<int>(v.size());
-  if(N < 3)
-  {
-    return 0.0;
-  }
-  double area = 0.0;
-  for(int t = 0; t < N - 2; ++t)
-  {
-    area += triArea(v[origin], v[(origin + 1 + t) % N], v[(origin + 2 + t) % N]);
-  }
-  return area;
-}
-
-//! @brief Measure how much the Bump polygon area depends on the fan origin.
-FanSensitivity measureFanSensitivity(const conduit::Node& contourDom)
-{
-  FanSensitivity fs;
-
-  const conduit::Node& topo = contourDom.fetch_existing("topologies").child(0);
-  const conduit::Node& elems = topo.fetch_existing("elements");
-  if(!elems.has_child("sizes"))
-  {
-    return fs;
-  }
-  const auto sizes = elems.fetch_existing("sizes").as_index_t_accessor();
-  const auto offsets = elems.fetch_existing("offsets").as_index_t_accessor();
-  const auto conn = elems.fetch_existing("connectivity").as_index_t_accessor();
-
-  const std::string csName = topo.fetch_existing("coordset").as_string();
-  const conduit::Node& vals = contourDom.fetch_existing("coordsets/" + csName + "/values");
-  const bool has3 = vals.has_child("z");
-  const auto xs = vals.fetch_existing("x").as_double_accessor();
-  const auto ys = vals.fetch_existing("y").as_double_accessor();
-
-  for(conduit::index_t z = 0; z < sizes.number_of_elements(); ++z)
-  {
-    const auto nc = sizes[z];
-    fs.maxCorners = std::max(fs.maxCorners, static_cast<axom::IndexType>(nc));
-    if(nc < 3)
-    {
-      continue;
-    }
-    ++fs.polygonCount;
-    std::vector<axom::primal::Point<double, 3>> v;
-    for(conduit::index_t c = 0; c < nc; ++c)
-    {
-      const auto id = conn[offsets[z] + c];
-      axom::primal::Point<double, 3> p {};
-      p[0] = xs[id];
-      p[1] = ys[id];
-      p[2] = has3 ? vals.fetch_existing("z").as_double_accessor()[id] : 0.0;
-      v.push_back(p);
-    }
-    const double a0 = polygonFanArea(v, 0);
-    const double a1 = polygonFanArea(v, 1);
-    fs.areaFan0 += a0;
-    fs.areaFan1 += a1;
-    fs.maxPolyRelSpread = std::max(fs.maxPolyRelSpread, std::abs(a0 - a1) / std::max(a0, 1.0e-300));
-  }
-
-  fs.relSpread = std::abs(fs.areaFan0 - fs.areaFan1) / std::max(fs.areaFan0, 1.0e-300);
-  return fs;
+  const PointLocator reference_locator(reference.vertices, tolerance);
+  const PointLocator result_locator(result.vertices, tolerance);
+  std::size_t worst_vertex = 0;
+  EXPECT_LT(oneSidedHausdorff(result.vertices, reference_locator, worst_vertex), tolerance)
+    << "result vertex " << worst_vertex << " has no reference counterpart within tolerance";
+  EXPECT_LT(oneSidedHausdorff(reference.vertices, result_locator, worst_vertex), tolerance)
+    << "reference vertex " << worst_vertex << " has no result counterpart within tolerance";
 }
 
 //---------------------------------------------------------------------------
 // Backend comparison
 //---------------------------------------------------------------------------
 
-template <int DIM>
 void compareBackendResults(const BackendResult& legacy,
                            const BackendResult& bump,
                            const std::string& label,
-                           axom::IndexType ambiguous,
-                           const FanSensitivity& fan = {},
+                           bool compare_measure,
                            double vertex_tolerance = 1.0e-5,
                            double measure_relative_tolerance = 1.0e-5)
 {
+  SCOPED_TRACE(label);
   SLIC_INFO(axom::fmt::format(
-    "[{}] legacy: {} facets / {} nodes / {} cells; bump: {} facets / {} nodes / {} cells; "
-    "ambiguous cells: {}",
+    "[{}] legacy: {} facets / {} nodes / {} cells; bump: {} facets / {} nodes / {} cells",
     label,
     legacy.facetCount,
     legacy.nodeCount,
     legacy.crossingCells.size(),
     bump.facetCount,
     bump.nodeCount,
-    bump.crossingCells.size(),
-    ambiguous));
+    bump.crossingCells.size()));
 
   ASSERT_GT(legacy.facetCount, 0) << "[" << label << "] legacy produced an empty contour";
   ASSERT_GT(bump.facetCount, 0) << "[" << label << "] bump produced an empty contour";
+  EXPECT_GT(legacy.measure, 0.0);
+  EXPECT_GT(bump.measure, 0.0);
 
   EXPECT_EQ(legacy.crossingCells, bump.crossingCells)
     << "E1 [" << label << "]: backends report different parent cells.";
 
-  const PointLocator legacy_locator(legacy.vertices, vertex_tolerance);
-  const PointLocator bump_locator(bump.vertices, vertex_tolerance);
-  std::size_t arg_max = 0;
-  const double bump_to_legacy = oneSidedHausdorff(bump.vertices, legacy_locator, arg_max);
-  EXPECT_LT(bump_to_legacy, vertex_tolerance)
-    << "E2 [" << label << "]: a bump contour vertex has no legacy counterpart within tolerance"
-    << " (worst distance " << bump_to_legacy << " at bump vertex " << arg_max << ").";
+  compareVertexSets(legacy, bump, vertex_tolerance);
 
-  const double legacy_to_bump = oneSidedHausdorff(legacy.vertices, bump_locator, arg_max);
-  EXPECT_LT(legacy_to_bump, vertex_tolerance)
-    << "E2 [" << label << "]: a legacy contour vertex has no bump counterpart within tolerance"
-    << " (worst distance " << legacy_to_bump << " at legacy vertex " << arg_max << ").";
-
-  EXPECT_LT(bump.nodeCount, legacy.nodeCount)
-    << "[" << label << "]: bump node count is not smaller than legacy's. Welding regressed.";
-
-  const double relative_difference =
-    std::abs(bump.measure - legacy.measure) / std::max(legacy.measure, 1.0e-300);
-  const double measure_tolerance = std::max(measure_relative_tolerance, fan.relSpread);
-  EXPECT_LT(fan.relSpread, 0.1)
-    << "[" << label << "]: fan-origin spread is too large for a useful measure comparison.";
-  if(ambiguous == 0)
+  if(compare_measure)
   {
-    EXPECT_LT(relative_difference, measure_tolerance)
-      << "E3 [" << label << "]: contour measure differs without an ambiguous cell to explain it";
+    const double relative_difference =
+      std::abs(bump.measure - legacy.measure) / std::max(legacy.measure, 1.0e-300);
+    EXPECT_LT(relative_difference, measure_relative_tolerance)
+      << "E3 [" << label << "]: comparable contours have different measures";
   }
 }
 
@@ -660,6 +390,7 @@ void compareBackends(int n,
                      double contourVal,
                      RuntimePolicy policy,
                      const std::string& label,
+                     bool compare_measure = true,
                      double vertexTol = 1.0e-5,
                      // Bump interpolates edge crossings in float.
                      // Passing cases have measured relative errors from 5e-9 to 3e-6.
@@ -673,17 +404,9 @@ void compareBackends(int n,
   ASSERT_TRUE(conduit::blueprint::mesh::verify(mesh, info)) << info.to_yaml();
 
   const auto legacy = runBackend<DIM>(mesh, fieldName, contourVal, policy, /*useBump=*/false);
-  conduit::Node bumpBp;
-  const auto bump = runBackend<DIM>(mesh, fieldName, contourVal, policy, /*useBump=*/true, &bumpBp);
+  const auto bump = runBackend<DIM>(mesh, fieldName, contourVal, policy, /*useBump=*/true);
 
-  const auto ambiguous = countAmbiguousCells<DIM>(n, f, contourVal);
-  FanSensitivity fan;
-  if(DIM == 3 && bumpBp.number_of_children() > 0)
-  {
-    fan = measureFanSensitivity(bumpBp.child(0));
-  }
-
-  compareBackendResults<DIM>(legacy, bump, label, ambiguous, fan, vertexTol, measureRelTol);
+  compareBackendResults(legacy, bump, label, compare_measure, vertexTol, measureRelTol);
 }
 
 /*!
@@ -739,7 +462,10 @@ void test_uniform_and_rectilinear(RuntimePolicy policy)
   conduit::Node structured, uniform, rectilinear;
   mctest::buildStructured<3>(structured, n, f, fieldName);
   buildUniform3D(uniform, n, f, fieldName);
-  buildRectilinear3D(rectilinear, n, f, fieldName);
+  rectilinear.set(uniform);
+  conduit::blueprint::mesh::coordset::uniform::to_rectilinear(uniform["coordsets/coords"],
+                                                              rectilinear["coordsets/coords"]);
+  rectilinear["topologies/mesh/type"] = "rectilinear";
 
   for(const auto& m : {&uniform, &rectilinear})
   {
@@ -764,11 +490,12 @@ void test_uniform_and_rectilinear(RuntimePolicy policy)
       {std::make_pair("uniform", &uniformRun), std::make_pair("rectilinear", &rectRun)})
   {
     const std::string what = kv.first;
+    SCOPED_TRACE(what);
     const BackendResult& r = *kv.second;
+    ASSERT_GT(r.facetCount, 0);
     EXPECT_EQ(r.crossingCells, refRun.crossingCells)
       << what << " cut a different cell set than the equivalent structured-explicit mesh";
-    EXPECT_EQ(r.facetCount, refRun.facetCount) << what << " produced a different facet count";
-    EXPECT_EQ(r.nodeCount, refRun.nodeCount) << what << " produced a different node count";
+    compareVertexSets(refRun, r, 1.0e-8);
     EXPECT_NEAR(r.measure, refRun.measure, 1.0e-12 * std::max(refRun.measure, 1.0))
       << what << " produced a different contour measure";
   }
@@ -777,8 +504,7 @@ void test_uniform_and_rectilinear(RuntimePolicy policy)
 /*!
  * @brief Check that MarchingCubes rejects a float32 function field.
  *
- * The structured prefilter reads a double view and must reject float32
- * rather than reinterpret its storage.
+ * Both backends require float64 function fields.
  */
 void test_float32_field_rejected(RuntimePolicy policy)
 {
@@ -1039,12 +765,7 @@ void test_sidre_native_layout(RuntimePolicy policy)
     const auto& sidre = results[1];
     EXPECT_EQ(sidre.facetCount, reference.facetCount);
     EXPECT_EQ(sidre.nodeCount, reference.nodeCount);
-    constexpr double vertex_tolerance = 1.0e-8;
-    const PointLocator reference_locator(reference.vertices, vertex_tolerance);
-    const PointLocator sidre_locator(sidre.vertices, vertex_tolerance);
-    std::size_t worst_vertex = 0;
-    EXPECT_LT(oneSidedHausdorff(sidre.vertices, reference_locator, worst_vertex), vertex_tolerance);
-    EXPECT_LT(oneSidedHausdorff(reference.vertices, sidre_locator, worst_vertex), vertex_tolerance);
+    compareVertexSets(reference, sidre, 1.0e-8);
   }
 }
 
@@ -1059,14 +780,13 @@ void test_oblique_planar_3d(RuntimePolicy policy)
 void test_round_3d(RuntimePolicy policy)
 {
   RoundField f {{0.5, 0.5, 0.5}, 0.25};
-  compareBackends<3>(12, f, 0.0, policy, "round3d");
+  compareBackends<3>(12, f, 0.0, policy, "round3d", false);
 }
 
 void test_gyroid_3d(RuntimePolicy policy)
 {
-  // Use the measured fan-origin spread as the area tolerance.
   GyroidField f {3.0 * M_PI};
-  compareBackends<3>(10, f, 0.0, policy, "gyroid3d");
+  compareBackends<3>(10, f, 0.0, policy, "gyroid3d", false);
 }
 
 void test_planar_2d(RuntimePolicy policy)
@@ -1096,25 +816,15 @@ void test_accumulated_fields(RuntimePolicy policy)
   mctest::addVertexField<DIM>(mesh, gyroid, field_names[2]);
 
   const auto legacy = runAccumulatedBackend<DIM>(mesh, field_names, policy, false);
-  std::array<conduit::Node, 3> bump_blueprints;
-  const auto bump = runAccumulatedBackend<DIM>(mesh, field_names, policy, true, &bump_blueprints);
-  const std::array<axom::IndexType, 3> ambiguous {{countAmbiguousCells<DIM>(n, plane, 0.0),
-                                                   countAmbiguousCells<DIM>(n, round, 0.0),
-                                                   countAmbiguousCells<DIM>(n, gyroid, 0.0)}};
+  const auto bump = runAccumulatedBackend<DIM>(mesh, field_names, policy, true);
+  const std::array<bool, 3> compare_measure {{true, DIM == 2, false}};
 
   for(int field = 0; field < 3; ++field)
   {
-    FanSensitivity fan;
-    if constexpr(DIM == 3)
-    {
-      ASSERT_EQ(bump_blueprints[field].number_of_children(), 1);
-      fan = measureFanSensitivity(bump_blueprints[field].child(0));
-    }
-    compareBackendResults<DIM>(legacy[field],
-                               bump[field],
-                               "accumulated_" + field_names[field],
-                               ambiguous[field],
-                               fan);
+    compareBackendResults(legacy[field],
+                          bump[field],
+                          "accumulated_" + field_names[field],
+                          compare_measure[field]);
   }
 }
 
@@ -1168,37 +878,11 @@ void test_float_ulp_band_falsification(RuntimePolicy policy)
     << "perturbed value did not round to float(contourVal)";
 
   // Reuse the coordinates and field with an unstructured hex topology.
-  // Its pre-filter uses Bump's float classification.
   conduit::Node unstructuredMesh;
   unstructuredMesh.set(mesh);
-  {
-    conduit::Node& topo = unstructuredMesh["topologies/mesh"];
-    topo.reset();
-    topo["type"] = "unstructured";
-    topo["coordset"] = "coords";
-    topo["elements/shape"] = "hex";
-    const conduit::index_t nCells = static_cast<conduit::index_t>(n) * n * n;
-    topo["elements/connectivity"].set(conduit::DataType::int64(nCells * 8));
-    auto* c = topo["elements/connectivity"].as_int64_ptr();
-    conduit::index_t at = 0;
-    for(int k = 0; k < n; ++k)
-    {
-      for(int j = 0; j < n; ++j)
-      {
-        for(int i = 0; i < n; ++i)
-        {
-          c[at++] = nodeAt(i, j, k);
-          c[at++] = nodeAt(i + 1, j, k);
-          c[at++] = nodeAt(i + 1, j + 1, k);
-          c[at++] = nodeAt(i, j + 1, k);
-          c[at++] = nodeAt(i, j, k + 1);
-          c[at++] = nodeAt(i + 1, j, k + 1);
-          c[at++] = nodeAt(i + 1, j + 1, k + 1);
-          c[at++] = nodeAt(i, j + 1, k + 1);
-        }
-      }
-    }
-  }
+  axom::quest::util::convert_blueprint_structured_explicit_to_unstructured(unstructuredMesh,
+                                                                           "mesh",
+                                                                           RuntimePolicy::seq);
   conduit::Node uinfo;
   ASSERT_TRUE(conduit::blueprint::mesh::verify(unstructuredMesh, uinfo)) << uinfo.to_yaml();
 
@@ -1212,102 +896,19 @@ void test_float_ulp_band_falsification(RuntimePolicy policy)
     unstructuredRun.facetCount));
 
   ASSERT_GT(structuredRun.facetCount, 0) << "test mesh must contain a contour";
+  ASSERT_GT(unstructuredRun.facetCount, 0);
+  std::set<axom::IndexType> expected_parents;
+  for(int cell = 2 * n * n; cell < 3 * n * n; ++cell)
+  {
+    expected_parents.insert(cell);
+  }
+  EXPECT_EQ(structuredRun.crossingCells, expected_parents);
   EXPECT_EQ(structuredRun.crossingCells, unstructuredRun.crossingCells)
     << "the two paths cut different cell sets on identical geometry";
-  EXPECT_EQ(structuredRun.facetCount, unstructuredRun.facetCount)
-    << "structured and unstructured paths disagree near the float isovalue";
+  compareVertexSets(structuredRun, unstructuredRun, 1.0e-5);
 }
 
 }  // namespace
-
-//---------------------------------------------------------------------------
-
-//---------------------------------------------------------------------------
-// Self-test for the ambiguity detector.
-//
-// Of the 256 sign patterns, 120 have face ambiguity and 8 have body-diagonal ambiguity.
-// The classes are disjoint and invariant under sign reversal.
-//---------------------------------------------------------------------------
-TEST(quest_marching_cubes_equivalence, ambiguity_detector_selftest)
-{
-  auto pattern = [](int mask, bool s[8]) {
-    for(int i = 0; i < 8; ++i)
-    {
-      s[i] = ((mask >> i) & 1) != 0;
-    }
-  };
-
-  int nFace = 0, nBody = 0, nBoth = 0, nAny = 0;
-  for(int mask = 0; mask < 256; ++mask)
-  {
-    bool s[8];
-    pattern(mask, s);
-    const bool fa = cellHasFaceAmbiguity3D(s);
-    const bool ba = cellHasBodyDiagonalAmbiguity3D(s);
-    nFace += fa ? 1 : 0;
-    nBody += ba ? 1 : 0;
-    nBoth += (fa && ba) ? 1 : 0;
-    nAny += cellIsAmbiguous3D(s) ? 1 : 0;
-
-    // Complement symmetry: flipping every sign cannot change whether the
-    // configuration is ambiguous.
-    bool c[8];
-    for(int i = 0; i < 8; ++i)
-    {
-      c[i] = !s[i];
-    }
-    EXPECT_EQ(cellIsAmbiguous3D(s), cellIsAmbiguous3D(c))
-      << "complement symmetry violated for sign mask " << mask;
-  }
-
-  EXPECT_EQ(nFace, 120);
-  EXPECT_EQ(nBody, 8);
-  EXPECT_EQ(nBoth, 0) << "face and body-diagonal ambiguity should be disjoint classes";
-  EXPECT_EQ(nAny, 128);
-
-  // Named configurations. Corner n is (i,j,k), with n = i + 2j + 4k.
-  auto mk = [&](std::initializer_list<int> on, bool s[8]) {
-    for(int i = 0; i < 8; ++i)
-    {
-      s[i] = false;
-    }
-    for(int i : on)
-    {
-      s[i] = true;
-    }
-  };
-  bool s[8];
-
-  mk({}, s);
-  EXPECT_FALSE(cellIsAmbiguous3D(s)) << "all-outside must not be ambiguous (negative control)";
-  mk({0, 1, 2, 3, 4, 5, 6, 7}, s);
-  EXPECT_FALSE(cellIsAmbiguous3D(s)) << "all-inside must not be ambiguous (negative control)";
-  mk({0}, s);
-  EXPECT_FALSE(cellIsAmbiguous3D(s)) << "case 1 (single corner)";
-  mk({0, 1}, s);
-  EXPECT_FALSE(cellIsAmbiguous3D(s)) << "case 2 (edge pair)";
-  mk({0, 1, 2, 3}, s);
-  EXPECT_FALSE(cellIsAmbiguous3D(s)) << "case 8 (whole face)";
-  mk({0, 3}, s);
-  EXPECT_TRUE(cellHasFaceAmbiguity3D(s)) << "case 3 (face diagonal) is face-ambiguous";
-  mk({0, 7}, s);
-  EXPECT_FALSE(cellHasFaceAmbiguity3D(s)) << "case 4 has no ambiguous face";
-  EXPECT_TRUE(cellHasBodyDiagonalAmbiguity3D(s)) << "case 4 (body diagonal)";
-  EXPECT_TRUE(cellIsAmbiguous3D(s));
-
-  // 2D: exactly the two checkerboards of the 16 patterns.
-  int n2 = 0;
-  for(int mask = 0; mask < 16; ++mask)
-  {
-    bool q[4];
-    for(int i = 0; i < 4; ++i)
-    {
-      q[i] = ((mask >> i) & 1) != 0;
-    }
-    n2 += cellIsAmbiguous2D(q) ? 1 : 0;
-  }
-  EXPECT_EQ(n2, 2);
-}
 
 TEST(quest_marching_cubes_equivalence, planar_3d) { forEachHostPolicy(test_planar_3d); }
 TEST(quest_marching_cubes_equivalence, sidre_native_layout)

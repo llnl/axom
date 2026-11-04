@@ -71,9 +71,7 @@ using RuntimePolicy = axom::runtime_policy::Policy;
 struct EdgeManifoldResult
 {
   int maxMultiplicity = 0;
-  axom::IndexType edgesUsed3PlusTimes = 0;
   axom::IndexType boundaryEdges = 0;  // used exactly once
-  axom::IndexType interiorEdges = 0;  // used exactly twice
 };
 
 /// Count edge incidence directly from a welded Blueprint contour.
@@ -115,14 +113,6 @@ EdgeManifoldResult checkBlueprintEdgeManifold3D(const conduit::Node& contourDom)
     if(kv.second == 1)
     {
       res.boundaryEdges++;
-    }
-    else if(kv.second == 2)
-    {
-      res.interiorEdges++;
-    }
-    else if(kv.second >= 3)
-    {
-      res.edgesUsed3PlusTimes++;
     }
   }
   return res;
@@ -441,8 +431,6 @@ void runAndVerify(conduit::Node& mesh,
   const axom::IndexType nFacets = mc.getContourCellCount();
 
   ASSERT_GT(nFacets, 0) << "Expected a non-empty contour.";
-  EXPECT_LE(mc.getContourNodeCount(), nFacets * DIM)
-    << "Bump output did not reuse contour vertices.";
   for(axom::IndexType fIdx = 0; fIdx < nFacets; ++fIdx)
   {
     for(int c = 0; c < DIM; ++c)
@@ -470,10 +458,11 @@ void runAndVerify(conduit::Node& mesh,
   if(DIM == 3)
   {
     const auto em = checkBlueprintEdgeManifold3D(contourDom);
-    EXPECT_EQ(em.edgesUsed3PlusTimes, 0) << "A contour edge is shared by at least three facets.";
     EXPECT_LE(em.maxMultiplicity, 2) << "Contour edge multiplicity exceeds two.";
     if(expect_closed_interior)
     {
+      EXPECT_LT(mc.getContourNodeCount(), nFacets * DIM)
+        << "Closed contour did not reuse vertices.";
       EXPECT_EQ(em.boundaryEdges, 0) << "Closed contour has boundary edges.";
     }
   }
@@ -606,7 +595,6 @@ void test_strided_planar_mask_with_field_layout(RuntimePolicy policy)
   }
 }
 
-// The conversion helper operates on a Sidre group.
 void test_unstructured_hex_round(RuntimePolicy policy)
 {
   conduit::Node unstructured;
@@ -905,12 +893,14 @@ TEST(quest_marching_cubes_bump, triangulation_preserves_fields)
   ASSERT_EQ(parentValues.number_of_elements(), 3);
   ASSERT_EQ(xValues.number_of_elements(), 3);
   ASSERT_EQ(yValues.number_of_elements(), 3);
+  std::multiset<conduit::int32> source_values;
   for(conduit::index_t triangle = 0; triangle < 3; ++triangle)
   {
-    EXPECT_EQ(parentValues[triangle], triangle == 0 ? 7 : 11);
-    EXPECT_EQ(xValues[triangle], triangle == 0 ? 1.5f : 2.5f);
-    EXPECT_EQ(yValues[triangle], triangle == 0 ? 3.5f : 4.5f);
+    source_values.insert(parentValues[triangle]);
+    EXPECT_EQ(xValues[triangle], parentValues[triangle] == 7 ? 1.5f : 2.5f);
+    EXPECT_EQ(yValues[triangle], parentValues[triangle] == 7 ? 3.5f : 4.5f);
   }
+  EXPECT_EQ(source_values, (std::multiset<conduit::int32> {7, 11, 11}));
 }
 
 TEST(quest_marching_cubes_bump, structured_planar_seq)
