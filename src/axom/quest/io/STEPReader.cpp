@@ -265,6 +265,11 @@ opencascade::handle<Geom2d_BSplineCurve> refinePeriodicPcurve(
       error =
         std::max(error,
                  std::min({xyz.Distance(start), xyz.Distance(end), projection.LowerDistance()}));
+      // Further samples cannot change the decision to try refining this pcurve.
+      if(error > tolerance)
+      {
+        break;
+      }
     }
     error = std::max({error,
                       pointOnSurface(curve, curve->FirstParameter()).Distance(start),
