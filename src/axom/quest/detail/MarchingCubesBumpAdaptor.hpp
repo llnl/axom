@@ -56,6 +56,7 @@
 #include "axom/core/numerics/floating_point_limits.hpp"
 #include "axom/slic/interface/slic_macros.hpp"
 
+#include "axom/bump/FieldSlicer.hpp"
 #include "axom/bump/utilities/blueprint_utilities.hpp"
 #include "axom/bump/utilities/conduit_memory.hpp"
 #include "axom/bump/views/NodeArrayView.hpp"
@@ -100,59 +101,6 @@ AXOM_HOST_DEVICE inline axom::IndexType facetsPerZone(axom::IndexType nCorners)
   }
   // DIM == 2: a line segment.
   return nCorners >= 2 ? 1 : 0;
-}
-
-template <typename ExecSpace, typename InValuesView, typename OutValuesView, typename CountsView, typename OffsetsView>
-void duplicateElementValuesForTriangulationViews(InValuesView inValues,
-                                                 OutValuesView outValues,
-                                                 CountsView zoneFacetCounts,
-                                                 OffsetsView zoneFacetOffsets)
-{
-  const axom::IndexType inputZoneCount = static_cast<axom::IndexType>(inValues.size());
-  axom::for_all<ExecSpace>(inputZoneCount, [=] AXOM_HOST_DEVICE(axom::IndexType z) {
-    const axom::IndexType outBegin = zoneFacetOffsets[z];
-    const axom::IndexType nOut = zoneFacetCounts[z];
-    for(axom::IndexType f = 0; f < nOut; ++f)
-    {
-      outValues[outBegin + f] = inValues[z];
-    }
-  });
-}
-
-template <typename ExecSpace, typename CountsView, typename OffsetsView>
-void duplicateElementValuesForTriangulation(conduit::Node& n_values,
-                                            axom::IndexType outputZoneCount,
-                                            CountsView zoneFacetCounts,
-                                            OffsetsView zoneFacetOffsets,
-                                            int allocatorID)
-{
-  namespace bpviews = axom::bump::views;
-
-  if(n_values.number_of_children() > 0)
-  {
-    for(conduit::index_t i = 0; i < n_values.number_of_children(); ++i)
-    {
-      duplicateElementValuesForTriangulation<ExecSpace>(n_values[i],
-                                                        outputZoneCount,
-                                                        zoneFacetCounts,
-                                                        zoneFacetOffsets,
-                                                        allocatorID);
-    }
-    return;
-  }
-
-  conduit::Node newValues;
-  newValues.set_allocator(axom::sidre::ConduitMemory::axomAllocIdToConduit(allocatorID));
-  newValues.set(conduit::DataType(n_values.dtype().id(), outputZoneCount));
-
-  bpviews::nodeToArrayViewSame(n_values, newValues, [&](auto inValues, auto outValues) {
-    duplicateElementValuesForTriangulationViews<ExecSpace>(inValues,
-                                                           outValues,
-                                                           zoneFacetCounts,
-                                                           zoneFacetOffsets);
-  });
-
-  n_values.move(newValues);
 }
 
 template <int DIM, typename ExecSpace, typename SizesView, typename OffsetsView, typename ConnView>
@@ -218,6 +166,8 @@ void triangulateBlueprintMeshViews(conduit::Node& n_output,
   auto newSizesView = bputils::make_array_view<ConnectivityType>(newSizes);
   auto newOffsetsView = bputils::make_array_view<ConnectivityType>(newOffsets);
   auto newShapesView = bputils::make_array_view<ConnectivityType>(newShapes);
+  axom::Array<axom::IndexType> sourceZones(outputZoneCount, outputZoneCount, allocatorID);
+  auto sourceZonesView = sourceZones.view();
 
   axom::for_all<ExecSpace>(inputZoneCount, [=] AXOM_HOST_DEVICE(axom::IndexType z) {
     const axom::IndexType nFacets = zoneFacetCountsView[z];
@@ -234,11 +184,15 @@ void triangulateBlueprintMeshViews(conduit::Node& n_output,
       newSizesView[tri] = static_cast<ConnectivityType>(3);
       newOffsetsView[tri] = static_cast<ConnectivityType>(outConn);
       newShapesView[tri] = static_cast<ConnectivityType>(bpviews::Tri_ShapeID);
+      sourceZonesView[tri] = z;
     }
   });
 
   if(n_output.has_child("fields"))
   {
+    axom::bump::FieldSlicer<ExecSpace> slicer;
+    slicer.setAllocatorID(allocatorID);
+    axom::bump::SliceData slice {sourceZonesView};
     conduit::Node& n_fields = n_output["fields"];
     for(conduit::index_t i = 0; i < n_fields.number_of_children(); ++i)
     {
@@ -247,11 +201,9 @@ void triangulateBlueprintMeshViews(conduit::Node& n_output,
          n_field.has_path("topology") && n_field["topology"].as_string() == topologyName &&
          n_field.has_child("values"))
       {
-        duplicateElementValuesForTriangulation<ExecSpace>(n_field["values"],
-                                                          outputZoneCount,
-                                                          zoneFacetCountsView,
-                                                          zoneFacetOffsetsView,
-                                                          allocatorID);
+        conduit::Node slicedField;
+        slicer.execute(slice, n_field, slicedField);
+        n_field["values"].move(slicedField["values"]);
       }
     }
   }

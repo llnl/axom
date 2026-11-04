@@ -330,9 +330,9 @@ endif()
 
 #------------------------------------------------------------------------------
 # MarchingCubes tests for the Bump backend on structured meshes and
-# single-shape unstructured hex meshes. Fixture conversion requires Sidre.
+# single-shape unstructured hex meshes.
 #------------------------------------------------------------------------------
-if(CONDUIT_FOUND AND AXOM_ENABLE_BUMP AND AXOM_ENABLE_SIDRE)
+if(CONDUIT_FOUND AND AXOM_ENABLE_BUMP)
     set(quest_mc_bump_depends ${quest_tests_depends} conduit::conduit)
     blt_list_append(TO quest_mc_bump_depends IF RAJA_FOUND ELEMENTS RAJA)
     blt_list_append(TO quest_mc_bump_depends IF AXOM_ENABLE_MPI ELEMENTS conduit::conduit_mpi)
@@ -342,40 +342,24 @@ if(CONDUIT_FOUND AND AXOM_ENABLE_BUMP AND AXOM_ENABLE_SIDRE)
         set(quest_mc_bump_mpi_tasks 1)
     endif()
 
-    axom_add_executable(
-        NAME        quest_marching_cubes_bump_test
-        HEADERS     quest_marching_cubes_testing_helpers.hpp
-        SOURCES     quest_marching_cubes_bump.cpp
-        OUTPUT_DIR  ${TEST_OUTPUT_DIRECTORY}
-        DEPENDS_ON  ${quest_mc_bump_depends}
-        FOLDER      axom/quest/tests
-        )
+    foreach(_suite quest_marching_cubes_bump
+                   quest_marching_cubes_equivalence)
+        axom_add_executable(
+            NAME        ${_suite}_test
+            HEADERS     quest_marching_cubes_testing_helpers.hpp
+            SOURCES     ${_suite}.cpp
+            OUTPUT_DIR  ${TEST_OUTPUT_DIRECTORY}
+            DEPENDS_ON  ${quest_mc_bump_depends}
+            FOLDER      axom/quest/tests
+            )
 
-    # The test binary exercises every enabled execution policy, so register it once.
-    axom_add_test(
-        NAME    quest_marching_cubes_bump
-        COMMAND quest_marching_cubes_bump_test
-        NUM_MPI_TASKS ${quest_mc_bump_mpi_tasks}
-        )
-    set_tests_properties(quest_marching_cubes_bump PROPERTIES PROCESSORS 1)
-
-    # Compare the legacy and Bump backends on structured meshes with explicit coordinates.
-    # The fixtures are built in memory and do not require HDF5.
-    axom_add_executable(
-        NAME        quest_marching_cubes_equivalence_test
-        HEADERS     quest_marching_cubes_testing_helpers.hpp
-        SOURCES     quest_marching_cubes_equivalence.cpp
-        OUTPUT_DIR  ${TEST_OUTPUT_DIRECTORY}
-        DEPENDS_ON  ${quest_mc_bump_depends}
-        FOLDER      axom/quest/tests
-        )
-
-    axom_add_test(
-        NAME    quest_marching_cubes_equivalence
-        COMMAND quest_marching_cubes_equivalence_test
-        NUM_MPI_TASKS ${quest_mc_bump_mpi_tasks}
-        )
-    set_tests_properties(quest_marching_cubes_equivalence PROPERTIES PROCESSORS 1)
+        axom_add_test(
+            NAME    ${_suite}
+            COMMAND ${_suite}_test
+            NUM_MPI_TASKS ${quest_mc_bump_mpi_tasks}
+            )
+        set_tests_properties(${_suite} PROPERTIES PROCESSORS 1)
+    endforeach()
 endif()
 
 #------------------------------------------------------------------------------

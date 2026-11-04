@@ -26,6 +26,7 @@
 #endif
 
 #include <conduit/conduit.hpp>
+#include <gtest/gtest.h>
 
 #include <cmath>
 #include <string>
@@ -56,6 +57,31 @@ inline std::vector<RuntimePolicy> enabledPolicies()
 inline std::string policyName(RuntimePolicy policy)
 {
   return axom::runtime_policy::policyToName(policy);
+}
+
+template <typename Func>
+void forEachEnabledPolicy(Func&& func)
+{
+  for(const auto policy : enabledPolicies())
+  {
+    SCOPED_TRACE(policyName(policy));
+    func(policy);
+  }
+}
+
+template <typename Func>
+void forEachHostPolicy(Func&& func)
+{
+  {
+    SCOPED_TRACE(policyName(RuntimePolicy::seq));
+    func(RuntimePolicy::seq);
+  }
+#if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
+  {
+    SCOPED_TRACE(policyName(RuntimePolicy::omp));
+    func(RuntimePolicy::omp);
+  }
+#endif
 }
 
 //---------------------------------------------------------------------------
