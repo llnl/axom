@@ -25,6 +25,9 @@
 
 #include "mfem.hpp"
 
+#include <ranges>
+#include <variant>
+
 namespace axom::quest
 {
 
@@ -146,17 +149,40 @@ public:
   using PointType = primal::Point<double, NDIMS>;
   using BoundingBoxType = primal::BoundingBox<double, NDIMS>;
   using MomentType = GWNMomentData<double, NDIMS, ORDER>;
-  using BVHType = axom::spin::BVH<NDIMS, ExecSpace>;
+  using SinglePrimitiveBVHType = axom::spin::BVH<NDIMS, ExecSpace>;
+  using BucketedBVHType =
+    axom::spin::BVH<NDIMS, ExecSpace, double, axom::spin::BVHType::BucketedLinearBVH>;
+  using BVHVariant = std::variant<SinglePrimitiveBVHType, BucketedBVHType>;
 
   FastGWNQuery() = default;
 
+  /// Set the maximum number of source primitives in each BVH leaf.
+  /// A size of one selects the single-primitive BVH. Changes take effect on initialize().
+  void setBucketSize(axom::IndexType bucket_size)
+  {
+    SLIC_ERROR_IF(bucket_size <= 0, "Quest: Bucket size must be positive.");
+    if(bucket_size > 0)
+    {
+      m_bucket_size = bucket_size;
+    }
+  }
+
+  /// Set the space-filling curve used to order BVH leaves on initialize().
+  void setBVHOrdering(axom::spin::SpaceFillingCurve ordering) { m_bvh_ordering = ordering; }
+
+  /// Set the grouping policy used for bucketed BVH leaves on initialize().
+  void setBucketGrouping(axom::spin::BucketedBVHGrouping grouping) { m_bucket_grouping = grouping; }
+
   /// Returns whether this query has acceleration data available.
-  bool isInitialized() const { return m_bvh.isInitialized(); }
+  bool isInitialized() const
+  {
+    return std::visit([](const auto& bvh) { return bvh.isInitialized(); }, m_bvh);
+  }
 
   /// \brief Clear all acceleration data.
   void clear()
   {
-    m_bvh = BVHType {};
+    m_bvh.template emplace<SinglePrimitiveBVHType>();
     m_internal_moments.clear();
     m_source_primitive_count = 0;
   }
@@ -168,7 +194,7 @@ public:
    *         and `GWNMomentData`.
    * \param [in] source_primitives The processed source primitives, in BVH order.
    *
-   * Builds bounding boxes, initializes `m_bvh`, and reduces source-primtiive
+   * Builds bounding boxes, initializes `m_bvh`, and reduces source-primitive
    * moments into `m_internal_moments`.
    */
   template <typename SourceGeometry>
@@ -193,19 +219,47 @@ public:
       axom::for_all<ExecSpace>(source_primitive_count, [=] AXOM_HOST_DEVICE(axom::IndexType i) {
         geometry_boxes_view[i] = source_primitives[i].boundingBox();
       });
-      m_bvh.initialize(geometry_boxes_view, source_primitive_count);
+      if(m_bucket_size == 1)
+      {
+        auto& bvh = m_bvh.template emplace<SinglePrimitiveBVHType>();
+        bvh.initialize(geometry_boxes_view, source_primitive_count, {.ordering = m_bvh_ordering});
+      }
+      else
+      {
+        auto& bvh = m_bvh.template emplace<BucketedBVHType>();
+        bvh.initialize(
+          geometry_boxes_view,
+          source_primitive_count,
+          {.maxBucketSize = m_bucket_size, .ordering = m_bvh_ordering, .grouping = m_bucket_grouping});
+      }
     }
 
     {
       AXOM_ANNOTATE_SCOPE("moment_precomputation");
-      const auto compute_moments =
-        [source_primitives](std::int32_t source_primitive_index) -> MomentType {
-        return source_primitive_index >= 0 && source_primitive_index < source_primitives.size()
-          ? MomentType(source_primitives[source_primitive_index])
-          : MomentType {};
+      const auto compute_moments = [source_primitives](const auto& leaf) -> MomentType {
+        // If the leaf type is a range of indices, loop over them to populate moments
+        if constexpr(std::ranges::range<decltype(leaf)>)
+        {
+          MomentType bucket_moments {};
+          for(const auto primitive_id : leaf)
+          {
+            MomentType primitive_moments(source_primitives[primitive_id]);
+            bucket_moments = bucket_moments + primitive_moments;
+          }
+          return bucket_moments;
+        }
+        else
+        {
+          return MomentType(source_primitives[leaf]);
+        }
       };
-      const auto traverser = m_bvh.getTraverser();
-      m_internal_moments = traverser.template reduce_leaves<ExecSpace, MomentType>(compute_moments);
+      std::visit(
+        [&](const auto& bvh) {
+          const auto traverser = bvh.getTraverser();
+          m_internal_moments =
+            traverser.template reduce_leaves<ExecSpace, MomentType>(compute_moments);
+        },
+        m_bvh);
     }
   }
 
@@ -253,17 +307,21 @@ public:
                           "initialized for {} source primitives.",
                           evaluation_primitives.size(),
                           m_source_primitive_count));
-      const auto traverser = m_bvh.getTraverser();
-      const auto internal_moments_view = m_internal_moments.view();
-      axom::for_all<ExecSpace>(num_query_points, [=, &winding, &inout](axom::IndexType index) {
-        const double gwn = fast_approximate_winding_number(query_point(index),
-                                                           traverser,
-                                                           evaluation_primitives,
-                                                           internal_moments_view,
-                                                           tolerances_copy);
-        winding[static_cast<int>(index)] = gwn;
-        inout[static_cast<int>(index)] = std::lround(gwn);
-      });
+      std::visit(
+        [&](const auto& bvh) {
+          const auto traverser = bvh.getTraverser();
+          const auto internal_moments_view = m_internal_moments.view();
+          axom::for_all<ExecSpace>(num_query_points, [=, &winding, &inout](axom::IndexType index) {
+            const double gwn = fast_approximate_winding_number(query_point(index),
+                                                               traverser,
+                                                               evaluation_primitives,
+                                                               internal_moments_view,
+                                                               tolerances_copy);
+            winding[static_cast<int>(index)] = gwn;
+            inout[static_cast<int>(index)] = std::lround(gwn);
+          });
+        },
+        m_bvh);
     }
     else
     {
@@ -282,9 +340,12 @@ public:
   }
 
 private:
-  BVHType m_bvh;
+  BVHVariant m_bvh;
   axom::Array<MomentType> m_internal_moments;
   axom::IndexType m_source_primitive_count {0};
+  axom::IndexType m_bucket_size {1};
+  axom::spin::SpaceFillingCurve m_bvh_ordering {axom::spin::SpaceFillingCurve::Hilbert};
+  axom::spin::BucketedBVHGrouping m_bucket_grouping {axom::spin::BucketedBVHGrouping::SharedPrefix};
 };
 
 }  // namespace detail
@@ -312,6 +373,19 @@ public:
   using FastQuery = detail::FastGWNQuery<ExecSpace, NDIMS, ORDER>;
 
   DipoleGWNQuery() = default;
+
+  /// Set the maximum number of source primitives in each BVH leaf.
+  void setBucketSize(axom::IndexType bucket_size) { m_fast_query.setBucketSize(bucket_size); }
+  /// Set the space-filling curve used to order BVH leaves.
+  void setBVHOrdering(axom::spin::SpaceFillingCurve ordering)
+  {
+    m_fast_query.setBVHOrdering(ordering);
+  }
+  /// Set the grouping policy used for bucketed BVH leaves.
+  void setBucketGrouping(axom::spin::BucketedBVHGrouping grouping)
+  {
+    m_fast_query.setBucketGrouping(grouping);
+  }
 
   /*!
    * \brief Retain dipoles and optionally initialize BVH acceleration data.
@@ -410,6 +484,19 @@ public:
   using FastQuery = detail::FastGWNQuery<ExecSpace, 2, ORDER>;
 
   NURBSCurveGWNQuery() = default;
+
+  /// Set the maximum number of source primitives in each BVH leaf.
+  void setBucketSize(axom::IndexType bucket_size) { m_fast_query.setBucketSize(bucket_size); }
+  /// Set the space-filling curve used to order BVH leaves.
+  void setBVHOrdering(axom::spin::SpaceFillingCurve ordering)
+  {
+    m_fast_query.setBVHOrdering(ordering);
+  }
+  /// Set the grouping policy used for bucketed BVH leaves.
+  void setBucketGrouping(axom::spin::BucketedBVHGrouping grouping)
+  {
+    m_fast_query.setBucketGrouping(grouping);
+  }
 
   /// \brief Returns whether this query uses memoization during evaluation.
   bool is_memoized() const { return !m_nurbs_cache_mgr.empty(); }
@@ -562,6 +649,19 @@ public:
 
   PolylineGWNQuery() = default;
 
+  /// Set the maximum number of source primitives in each BVH leaf.
+  void setBucketSize(axom::IndexType bucket_size) { m_fast_query.setBucketSize(bucket_size); }
+  /// Set the space-filling curve used to order BVH leaves.
+  void setBVHOrdering(axom::spin::SpaceFillingCurve ordering)
+  {
+    m_fast_query.setBVHOrdering(ordering);
+  }
+  /// Set the grouping policy used for bucketed BVH leaves.
+  void setBucketGrouping(axom::spin::BucketedBVHGrouping grouping)
+  {
+    m_fast_query.setBucketGrouping(grouping);
+  }
+
   /*!
    * \brief Process mint::mesh into axom::Segments, optionally building a BVH
    *
@@ -666,6 +766,19 @@ public:
   using FastQuery = detail::FastGWNQuery<ExecSpace, 3, ORDER>;
 
   NURBSPatchGWNQuery() = default;
+
+  /// Set the maximum number of source primitives in each BVH leaf.
+  void setBucketSize(axom::IndexType bucket_size) { m_fast_query.setBucketSize(bucket_size); }
+  /// Set the space-filling curve used to order BVH leaves.
+  void setBVHOrdering(axom::spin::SpaceFillingCurve ordering)
+  {
+    m_fast_query.setBVHOrdering(ordering);
+  }
+  /// Set the grouping policy used for bucketed BVH leaves.
+  void setBucketGrouping(axom::spin::BucketedBVHGrouping grouping)
+  {
+    m_fast_query.setBucketGrouping(grouping);
+  }
 
   /// \brief Returns whether this query uses memoization during evaluation.
   bool is_memoized() const { return !m_nurbs_cache_mgr.empty(); }
@@ -845,6 +958,19 @@ public:
   using FastQuery = detail::FastGWNQuery<ExecSpace, 3, ORDER>;
 
   TriangleGWNQuery() = default;
+
+  /// Set the maximum number of source primitives in each BVH leaf.
+  void setBucketSize(axom::IndexType bucket_size) { m_fast_query.setBucketSize(bucket_size); }
+  /// Set the space-filling curve used to order BVH leaves.
+  void setBVHOrdering(axom::spin::SpaceFillingCurve ordering)
+  {
+    m_fast_query.setBVHOrdering(ordering);
+  }
+  /// Set the grouping policy used for bucketed BVH leaves.
+  void setBucketGrouping(axom::spin::BucketedBVHGrouping grouping)
+  {
+    m_fast_query.setBucketGrouping(grouping);
+  }
 
   /*!
    * \brief Load triangles from mint::mesh to primal::Triangles, optionally building a BVH
