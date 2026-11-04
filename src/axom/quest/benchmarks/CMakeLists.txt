@@ -30,6 +30,18 @@ if (ENABLE_BENCHMARKS)
             )
     endforeach()
 
+    # Build the executable, but leave selection from its predefined cases and
+    # execution to manual runs, as curved GWN cases can be costly.
+    if (MFEM_FOUND AND OPENCASCADE_FOUND AND RAJA_FOUND AND AXOM_ENABLE_OPENMP)
+        axom_add_executable(
+            NAME       quest_gwn_benchmark
+            SOURCES    quest_gwn_benchmark.cpp
+            OUTPUT_DIR ${TEST_OUTPUT_DIRECTORY}
+            DEPENDS_ON quest gbenchmark mfem cli11 fmt opencascade RAJA openmp
+            FOLDER     axom/quest/benchmarks
+            )
+    endif()
+
     if (AXOM_ENABLE_KLEE AND AXOM_ENABLE_SIDRE AND CONDUIT_FOUND
         AND RAJA_FOUND AND AXOM_ENABLE_BUMP)
         set(_mesh_clipper_benchmark_depends quest conduit::conduit RAJA)
