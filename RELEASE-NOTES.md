@@ -42,6 +42,9 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
 - Spin: Adds policy-specific `BVH::BuildParameters` to the BVH constructor and `initialize()`.
   The linear BVH's `ordering` option selects `SpaceFillingCurve::Morton`
   or `SpaceFillingCurve::Hilbert` in 2D and 3D; Morton remains the default.
+- Quest: `MarchingCubes` now has an optional Bump backend. Select it by calling
+  `setUseBumpBackend(true)` before `setMesh()`. It supports `structured`, `uniform`,
+  `rectilinear`, and single-shape `unstructured` topologies with quads in 2D or hexes in 3D.
 
 ### Removed
 
@@ -72,6 +75,9 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
   after the `Inlet` and `LuaReader` are destroyed.
 - Inlet: Redeclaring a nested function through a parent `Container`, e.g. `addFunction("group/f", ...)`
   after `group.addFunction("f", ...)`, returns the existing function instead of reporting a SLIC error.
+- Bump: Structured-topology dispatch now detects strided-structured topologies.
+  It previously looked for `offsets` and `strides` at the topology root,
+  but Blueprint stores them under `elements/dims`.
 
 ## [Version 0.15.0] - Release date 2026-08-28
 
