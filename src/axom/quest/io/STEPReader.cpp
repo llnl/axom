@@ -30,6 +30,7 @@
 #include "opencascade/BRepBndLib.hxx"
 #include "opencascade/Geom_BSplineSurface.hxx"
 #include "opencascade/Geom_BSplineCurve.hxx"
+#include "opencascade/Geom_Circle.hxx"
 #include "opencascade/GeomConvert.hxx"
 #include "opencascade/GeomProjLib.hxx"
 #include "opencascade/GeomAPI_ProjectPointOnCurve.hxx"
@@ -83,6 +84,14 @@ opencascade::handle<Geom2d_BSplineCurve> trimPcurve(const opencascade::handle<Ge
   }
   return Geom2dConvert::CurveToBSplineCurve(trimmed);
 }
+
+opencascade::handle<Geom2d_BSplineCurve> projectPeriodicPcurve(
+  const gp_Pnt2d& oldStart,
+  const opencascade::handle<Geom_Curve>& original,
+  double first,
+  double last,
+  const opencascade::handle<Geom_BSplineSurface>& surface,
+  double tolerance);
 
 // Open Cascade can convert an analytic periodic surface to a closed, nonperiodic spline.
 // Preserve its periodic basis so pcurve projection can cross the seam.
@@ -175,6 +184,58 @@ public:
     double first, last;
     const auto source = BRep_Tool::Surface(face);
     const auto curve3d = BRep_Tool::Curve(edge, first, last);
+    // Try direct projection for circular rims on wrapped periodic surfaces.
+    // Open Cascade's seeded polar-surface approximation is expensive for these curves.
+    if(m_periodicFaces.Contains(face) &&
+       source->IsKind(STANDARD_TYPE(Geom_RectangularTrimmedSurface)) && !curve3d.IsNull() &&
+       curve3d->IsKind(STANDARD_TYPE(Geom_Circle)))
+    {
+      try
+      {
+        const auto convertedSurface =
+          opencascade::handle<Geom_BSplineSurface>::DownCast(BRep_Tool::Surface(newFace));
+        double f, l;
+        const auto convertedCurve = BRep_Tool::Curve(newEdge, f, l);
+        double pf, pl;
+        const auto seed = BRep_Tool::CurveOnSurface(edge, face, pf, pl);
+        if(!convertedSurface.IsNull() && !convertedCurve.IsNull() && !seed.IsNull())
+        {
+          const double sourceTolerance = std::max(Precision::Confusion(), BRep_Tool::Tolerance(edge));
+          const auto projected = projectPeriodicPcurve(seed->Value(pf),
+                                                       convertedCurve,
+                                                       f,
+                                                       l,
+                                                       convertedSurface,
+                                                       sourceTolerance);
+          if(!projected.IsNull())
+          {
+            // A projection that crosses multiple periods needs Open Cascade's guided conversion.
+            Bnd_Box2d box;
+            BndLib_Add2dCurve::AddOptimal(projected,
+                                          projected->FirstParameter(),
+                                          projected->LastParameter(),
+                                          Precision::PConfusion(),
+                                          box);
+            box.SetGap(0.);
+            double u0, v0, u1, v1;
+            box.Get(u0, v0, u1, v1);
+            if((!convertedSurface->IsUPeriodic() ||
+                u1 - u0 <= convertedSurface->UPeriod() + Precision::PConfusion()) &&
+               (!convertedSurface->IsVPeriodic() ||
+                v1 - v0 <= convertedSurface->VPeriod() + Precision::PConfusion()))
+            {
+              curve = projected;
+              tolerance = sourceTolerance;
+              return true;
+            }
+          }
+        }
+      }
+      catch(const Standard_Failure&)
+      {
+        // Fall back to Open Cascade's conversion below.
+      }
+    }
     // Open Cascade leaves spline surfaces and 3D spline curves unchanged.
     // Reuse their pcurves to avoid projection errors at seams.
     if(source->IsKind(STANDARD_TYPE(Geom_BSplineSurface)) && !curve3d.IsNull() &&
@@ -249,6 +310,48 @@ axom::Array<double> pcurveSamples(const opencascade::handle<Geom2d_BSplineCurve>
   return samples;
 }
 
+opencascade::handle<Geom2d_BSplineCurve> projectPeriodicPcurve(
+  const gp_Pnt2d& oldStart,
+  const opencascade::handle<Geom_Curve>& original,
+  double first,
+  double last,
+  const opencascade::handle<Geom_BSplineSurface>& surface,
+  double tolerance)
+{
+  auto pointOnSurface = [&](const auto& c, double t) {
+    const auto p = c->Value(t);
+    return surface->Value(p.X(), p.Y());
+  };
+  double projectionTolerance = std::max(1e-10, tolerance * .05);
+  const auto projected = GeomProjLib::Curve2d(original, first, last, surface, projectionTolerance);
+  if(projected.IsNull())
+  {
+    return {};
+  }
+  auto candidate = trimPcurve(projected, first, last);
+  const auto newStart = candidate->Value(candidate->FirstParameter());
+  const double du = surface->IsUPeriodic()
+    ? std::round((oldStart.X() - newStart.X()) / surface->UPeriod()) * surface->UPeriod()
+    : 0.;
+  const double dv = surface->IsVPeriodic()
+    ? std::round((oldStart.Y() - newStart.Y()) / surface->VPeriod()) * surface->VPeriod()
+    : 0.;
+  candidate->Translate(gp_Vec2d(du, dv));
+
+  // The projected curve uses the source parameterization, so compare at matching parameters.
+  double candidateError = 0.;
+  for(double t : pcurveSamples(candidate))
+  {
+    candidateError =
+      std::max(candidateError, pointOnSurface(candidate, t).Distance(original->Value(t)));
+  }
+  if(candidateError <= tolerance)
+  {
+    return candidate;
+  }
+  return {};
+}
+
 // Reproject a pcurve on a rebuilt periodic surface if its sampled error exceeds
 // the source tolerance. Accept the replacement only within that same tolerance.
 opencascade::handle<Geom2d_BSplineCurve> refinePeriodicPcurve(
@@ -307,31 +410,13 @@ opencascade::handle<Geom2d_BSplineCurve> refinePeriodicPcurve(
       return curve;
     }
 
-    double projectionTolerance = std::max(1e-10, tolerance * .05);
-    const auto projected = GeomProjLib::Curve2d(original, first, last, surface, projectionTolerance);
-    if(projected.IsNull())
-    {
-      return curve;
-    }
-    auto candidate = trimPcurve(projected, first, last);
-    const auto oldStart = curve->Value(curve->FirstParameter());
-    const auto newStart = candidate->Value(candidate->FirstParameter());
-    const double du = surface->IsUPeriodic()
-      ? std::round((oldStart.X() - newStart.X()) / surface->UPeriod()) * surface->UPeriod()
-      : 0.;
-    const double dv = surface->IsVPeriodic()
-      ? std::round((oldStart.Y() - newStart.Y()) / surface->VPeriod()) * surface->VPeriod()
-      : 0.;
-    candidate->Translate(gp_Vec2d(du, dv));
-
-    // The projected curve uses the source parameterization, so compare at matching parameters.
-    double candidateError = 0.;
-    for(double t : pcurveSamples(candidate))
-    {
-      candidateError =
-        std::max(candidateError, pointOnSurface(candidate, t).Distance(original->Value(t)));
-    }
-    if(candidateError <= tolerance)
+    const auto candidate = projectPeriodicPcurve(curve->Value(curve->FirstParameter()),
+                                                 original,
+                                                 first,
+                                                 last,
+                                                 surface,
+                                                 tolerance);
+    if(!candidate.IsNull())
     {
       return candidate;
     }
