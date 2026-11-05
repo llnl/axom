@@ -31,6 +31,8 @@
 #include "opencascade/Geom_BSplineSurface.hxx"
 #include "opencascade/Geom_BSplineCurve.hxx"
 #include "opencascade/Geom_Circle.hxx"
+#include "opencascade/Geom_Ellipse.hxx"
+#include "opencascade/Geom_Line.hxx"
 #include "opencascade/GeomConvert.hxx"
 #include "opencascade/GeomProjLib.hxx"
 #include "opencascade/GeomAPI_ProjectPointOnCurve.hxx"
@@ -184,11 +186,12 @@ public:
     double first, last;
     const auto source = BRep_Tool::Surface(face);
     const auto curve3d = BRep_Tool::Curve(edge, first, last);
-    // Try direct projection for circular rims on wrapped periodic surfaces.
+    // Try direct projection for circles, ellipses and lines on wrapped periodic surfaces.
     // Open Cascade's seeded polar-surface approximation is expensive for these curves.
     if(m_periodicFaces.Contains(face) &&
        source->IsKind(STANDARD_TYPE(Geom_RectangularTrimmedSurface)) && !curve3d.IsNull() &&
-       curve3d->IsKind(STANDARD_TYPE(Geom_Circle)))
+       (curve3d->IsKind(STANDARD_TYPE(Geom_Circle)) ||
+        curve3d->IsKind(STANDARD_TYPE(Geom_Ellipse)) || curve3d->IsKind(STANDARD_TYPE(Geom_Line))))
     {
       try
       {

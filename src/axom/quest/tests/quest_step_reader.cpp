@@ -31,11 +31,14 @@
 #include "opencascade/Geom_BSplineCurve.hxx"
 #include "opencascade/Geom_CylindricalSurface.hxx"
 #include "opencascade/Geom_ConicalSurface.hxx"
+#include "opencascade/Geom_Ellipse.hxx"
+#include "opencascade/Geom_Line.hxx"
 #include "opencascade/Geom_Plane.hxx"
 #include "opencascade/Geom_RectangularTrimmedSurface.hxx"
 #include "opencascade/Geom2d_BSplineCurve.hxx"
 #include "opencascade/Geom2d_Line.hxx"
 #include "opencascade/GeomConvert.hxx"
+#include "opencascade/GeomProjLib.hxx"
 #include "opencascade/STEPControl_Writer.hxx"
 #include "opencascade/TColgp_Array1OfPnt2d.hxx"
 #include "opencascade/TColgp_Array1OfPnt.hxx"
@@ -47,6 +50,7 @@
 #include "opencascade/TopoDS_Vertex.hxx"
 #include "opencascade/gp_Dir2d.hxx"
 #include "opencascade/gp_Ax1.hxx"
+#include "opencascade/gp_Ax2.hxx"
 #include "opencascade/gp_Ax3.hxx"
 #include "opencascade/gp_Trsf.hxx"
 
@@ -985,6 +989,127 @@ TEST(quest_step_reader, wrapped_periodic_cylinder)
       EXPECT_TRUE(reader.patchWasOriginallyPeriodic_u(0));
       EXPECT_FALSE(reader.patchWasOriginallyPeriodic_v(0));
       ASSERT_EQ(reader.getPatchArray()[0].getNumTrimmingCurves(), rimSegments + 3);
+      expectSingleWireTrimGeometry(reader, 0, sourceFace);
+    }
+  }
+}
+
+TEST(quest_step_reader, wrapped_periodic_lines_and_ellipses)
+{
+  struct TestCase
+  {
+    int ellipseSegments;
+    double fileTolerance;
+  };
+  // Zero ellipse segments makes a stepped rim with two straight edges.
+  // The ellipse cases cover both tight source tolerances and accepted projections.
+  const axom::Array<TestCase> cases = {{0, 1e-7}, {1, 1e-7}, {1, 1e-5}, {2, 1e-5}};
+  constexpr double period = 2 * std::numbers::pi;
+  constexpr double cut = 0.37;
+  constexpr double radius = 0.02;
+  for(const auto& testCase : cases)
+  {
+    SCOPED_TRACE(axom::fmt::format("ellipseSegments={} tolerance={}",
+                                   testCase.ellipseSegments,
+                                   testCase.fileTolerance));
+    for(bool reversed : {false, true})
+    {
+      SCOPED_TRACE(reversed);
+      Handle(Geom_CylindricalSurface) surface = new Geom_CylindricalSurface(gp_Ax3(), radius);
+      BRep_Builder builder;
+      TopoDS_Face face;
+      builder.MakeFace(face, surface, 1e-7);
+      // Supply pcurves on the analytic cylinder for the STEP writer.
+      // The reader must project these 3D edges onto its converted NURBS surface.
+      auto addEdge = [&](BRepBuilderAPI_MakeWire& wire,
+                         const opencascade::handle<Geom_Curve>& curve,
+                         double first,
+                         double last,
+                         bool reverse = false) {
+        double tolerance = 1e-9;
+        const auto pcurve = GeomProjLib::Curve2d(curve, first, last, surface, tolerance);
+        ASSERT_FALSE(pcurve.IsNull());
+        auto edge = BRepBuilderAPI_MakeEdge(curve, first, last).Edge();
+        builder.UpdateEdge(edge, pcurve, face, 1e-7);
+        builder.Range(edge, face, first, last);
+        if(reverse)
+        {
+          edge.Reverse();
+        }
+        wire.Add(edge);
+      };
+      BRepBuilderAPI_MakeWire bottom, top;
+      ASSERT_NO_FATAL_FAILURE(addEdge(bottom, surface->VIso(0.1), cut, cut + period));
+      const int ellipseSegments = testCase.ellipseSegments;
+      if(ellipseSegments == 0)
+      {
+        // The two height changes retain ordinary Geom_Line edges after import;
+        // an automatically inserted seam uses a spline instead.
+        ASSERT_NO_FATAL_FAILURE(addEdge(top, surface->VIso(1.), cut, 1.7));
+        ASSERT_NO_FATAL_FAILURE(addEdge(top, surface->UIso(1.7), 0.7, 1., true));
+        ASSERT_NO_FATAL_FAILURE(addEdge(top, surface->VIso(0.7), 1.7, 4.5));
+        ASSERT_NO_FATAL_FAILURE(addEdge(top, surface->UIso(4.5), 0.7, 1.));
+        ASSERT_NO_FATAL_FAILURE(addEdge(top, surface->VIso(1.), 4.5, cut + period));
+      }
+      else
+      {
+        // Intersect the cylinder with z = 0.3 + slope*x to get an elliptical rim.
+        constexpr double slope = 0.25;
+        const gp_Ax2 axes(gp_Pnt(0., 0., 0.3), gp_Dir(-slope, 0., 1.), gp_Dir(1., 0., slope));
+        Handle(Geom_Ellipse) ellipse =
+          new Geom_Ellipse(axes, radius * std::sqrt(1 + slope * slope), radius);
+        for(int i = 0; i < ellipseSegments; ++i)
+        {
+          ASSERT_NO_FATAL_FAILURE(addEdge(top,
+                                          ellipse,
+                                          cut + i * period / ellipseSegments,
+                                          cut + (i + 1) * period / ellipseSegments));
+        }
+      }
+      builder.Add(face, bottom.Wire());
+      builder.Add(face, top.Wire().Reversed());
+      if(reversed)
+      {
+        face.Reverse();
+      }
+      fs::TempFile file("axom_step_analytic_rims_", "step");
+      STEPControl_Writer writer;
+      writer.SetTolerance(testCase.fileTolerance);
+      ASSERT_EQ(writer.Transfer(face, STEPControl_AsIs), IFSelect_RetDone);
+      ASSERT_EQ(writer.Write(file.getPath().c_str()), IFSelect_RetDone);
+      STEPControl_Reader reference;
+      ASSERT_NO_FATAL_FAILURE(readStepReference(file.getPath(), reference));
+      TopExp_Explorer faces(reference.OneShape(), TopAbs_FACE);
+      ASSERT_TRUE(faces.More());
+      const auto sourceFace = TopoDS::Face(faces.Current());
+      ASSERT_TRUE(BRepCheck_Analyzer(sourceFace).IsValid());
+      const auto wrapper =
+        Handle(Geom_RectangularTrimmedSurface)::DownCast(BRep_Tool::Surface(sourceFace));
+      ASSERT_FALSE(wrapper.IsNull());
+      ASSERT_TRUE(wrapper->BasisSurface()->IsUPeriodic());
+      ASSERT_FALSE(wrapper->IsUPeriodic());
+      int lines = 0, ellipses = 0;
+      for(TopExp_Explorer edges(sourceFace, TopAbs_EDGE); edges.More(); edges.Next())
+      {
+        double first, last;
+        const auto curve = BRep_Tool::Curve(TopoDS::Edge(edges.Current()), first, last);
+        ASSERT_FALSE(curve.IsNull());
+        lines += curve->IsKind(STANDARD_TYPE(Geom_Line));
+        ellipses += curve->IsKind(STANDARD_TYPE(Geom_Ellipse));
+      }
+      ASSERT_EQ(lines, ellipseSegments == 0 ? 2 : 0);
+      ASSERT_EQ(ellipses, ellipseSegments);
+
+      quest::STEPReader reader;
+      reader.setFileName(file.getPath());
+      const auto messages = readWithDiagnostics(reader, true);
+      EXPECT_EQ(messages.find("leave the exported UV domain"), std::string::npos) << messages;
+      EXPECT_EQ(messages.find("UV endpoint gap"), std::string::npos) << messages;
+      ASSERT_EQ(reader.numPatches(), 1);
+      EXPECT_TRUE(reader.patchWasOriginallyPeriodic_u(0));
+      EXPECT_FALSE(reader.patchWasOriginallyPeriodic_v(0));
+      ASSERT_EQ(reader.getPatchArray()[0].getNumTrimmingCurves(),
+                ellipseSegments == 0 ? 8 : ellipseSegments + 3);
       expectSingleWireTrimGeometry(reader, 0, sourceFace);
     }
   }
