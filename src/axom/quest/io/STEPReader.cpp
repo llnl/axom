@@ -106,7 +106,13 @@ public:
     {
       return false;
     }
-    const auto source = BRep_Tool::Surface(face, location);
+    auto source = BRep_Tool::Surface(face, location);
+    // A trimmed wrapper can hide the periodic basis even for a full-period face.
+    const auto trimmed = opencascade::handle<Geom_RectangularTrimmedSurface>::DownCast(source);
+    if(!trimmed.IsNull())
+    {
+      source = trimmed->BasisSurface();
+    }
     const auto spline = opencascade::handle<Geom_BSplineSurface>::DownCast(surface);
     if(spline.IsNull())
     {
@@ -118,18 +124,35 @@ public:
       const auto stockSurface = surface;
       try
       {
-        double u0, u1, v0, v1;
-        BRepTools::UVBounds(face, u0, u1, v0, v1);
-        opencascade::handle<Geom_Surface> basis = source;
-        if(source->IsUPeriodic() && !source->IsVPeriodic())
+        if(!trimmed.IsNull())
         {
-          basis = new Geom_RectangularTrimmedSurface(source, v0, v1, false);
+          // Keep the converted surface's parameterization when restoring periodicity.
+          const auto periodic = opencascade::handle<Geom_BSplineSurface>::DownCast(spline->Copy());
+          if(source->IsUPeriodic() && periodic->IsUClosed() && !periodic->IsUPeriodic())
+          {
+            periodic->SetUPeriodic();
+          }
+          if(source->IsVPeriodic() && periodic->IsVClosed() && !periodic->IsVPeriodic())
+          {
+            periodic->SetVPeriodic();
+          }
+          surface = periodic;
         }
-        if(source->IsVPeriodic() && !source->IsUPeriodic())
+        else
         {
-          basis = new Geom_RectangularTrimmedSurface(source, u0, u1, true);
+          double u0, u1, v0, v1;
+          BRepTools::UVBounds(face, u0, u1, v0, v1);
+          opencascade::handle<Geom_Surface> basis = source;
+          if(source->IsUPeriodic() && !source->IsVPeriodic())
+          {
+            basis = new Geom_RectangularTrimmedSurface(source, v0, v1, false);
+          }
+          if(source->IsVPeriodic() && !source->IsUPeriodic())
+          {
+            basis = new Geom_RectangularTrimmedSurface(source, u0, u1, true);
+          }
+          surface = GeomConvert::SurfaceToBSplineSurface(basis);
         }
-        surface = GeomConvert::SurfaceToBSplineSurface(basis);
         m_periodicFaces.Add(face);
       }
       catch(const Standard_Failure&)

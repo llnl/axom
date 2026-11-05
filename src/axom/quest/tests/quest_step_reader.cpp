@@ -921,6 +921,62 @@ TEST(quest_step_reader, periodic_faces_and_both_seam_occurrences)
   }
 }
 
+TEST(quest_step_reader, wrapped_periodic_cylinder)
+{
+  constexpr double period = 2 * std::numbers::pi;
+  constexpr double cut = 0.37;
+  for(bool reversed : {false, true})
+  {
+    SCOPED_TRACE(reversed);
+    Handle(Geom_CylindricalSurface) surface = new Geom_CylindricalSurface(gp_Ax3(), 2.);
+    BRep_Builder builder;
+    TopoDS_Face face;
+    builder.MakeFace(face, surface, 1e-7);
+    // Two closed rims make STEP import insert a seam and a trimmed-surface wrapper.
+    // Shift their origins so the converted pcurves need repair across the seam.
+    for(double v : {0.1, 0.9})
+    {
+      auto edge = BRepBuilderAPI_MakeEdge(surface->VIso(v), cut, cut + period).Edge();
+      builder.UpdateEdge(edge, new Geom2d_Line(gp_Pnt2d(0., v), gp_Dir2d(1., 0.)), face, 1e-7);
+      builder.Range(edge, face, cut, cut + period);
+      auto wire = BRepBuilderAPI_MakeWire(edge).Wire();
+      if(v > 0.5)
+      {
+        wire.Reverse();
+      }
+      builder.Add(face, wire);
+    }
+    if(reversed)
+    {
+      face.Reverse();
+    }
+    fs::TempFile file("axom_step_wrapped_", "step");
+    ASSERT_NO_FATAL_FAILURE(writeStepFile(face, file.getPath()));
+    STEPControl_Reader reference;
+    ASSERT_NO_FATAL_FAILURE(readStepReference(file.getPath(), reference));
+    TopExp_Explorer faces(reference.OneShape(), TopAbs_FACE);
+    ASSERT_TRUE(faces.More());
+    const auto sourceFace = TopoDS::Face(faces.Current());
+    ASSERT_TRUE(BRepCheck_Analyzer(sourceFace).IsValid());
+    const auto wrapper =
+      Handle(Geom_RectangularTrimmedSurface)::DownCast(BRep_Tool::Surface(sourceFace));
+    ASSERT_FALSE(wrapper.IsNull());
+    ASSERT_TRUE(wrapper->BasisSurface()->IsUPeriodic());
+    ASSERT_FALSE(wrapper->IsUPeriodic());
+
+    quest::STEPReader reader;
+    reader.setFileName(file.getPath());
+    const auto messages = readWithDiagnostics(reader, true);
+    EXPECT_EQ(messages.find("leave the exported UV domain"), std::string::npos) << messages;
+    EXPECT_EQ(messages.find("UV endpoint gap"), std::string::npos) << messages;
+    ASSERT_EQ(reader.numPatches(), 1);
+    EXPECT_TRUE(reader.patchWasOriginallyPeriodic_u(0));
+    EXPECT_FALSE(reader.patchWasOriginallyPeriodic_v(0));
+    ASSERT_EQ(reader.getPatchArray()[0].getNumTrimmingCurves(), 4);
+    expectSingleWireTrimGeometry(reader, 0, sourceFace);
+  }
+}
+
 // Exercise seam crossings in U and V, on translated domains and reversed faces.
 TEST(quest_step_reader, periodic_bspline_seam_crossing)
 {
