@@ -928,14 +928,26 @@ TEST(quest_step_reader, periodic_faces_and_both_seam_occurrences)
 TEST(quest_step_reader, wrapped_periodic_cylinder)
 {
   constexpr double period = 2 * std::numbers::pi;
-  constexpr double cut = 0.37;
-  for(int rimSegments : {1, 2})
+  struct TestCase
   {
-    SCOPED_TRACE(rimSegments);
+    double radius;
+    axom::Array<double> rimKnots;
+  };
+  // A short arc on a small cylinder exercises the projection's distance limit.
+  const axom::Array<TestCase> cases = {{2., {0.37, 0.37 + period}},
+                                       {2., {0.37, 0.37 + period / 2, 0.37 + period}},
+                                       {0.00125, {1.454, std::numbers::pi / 2, 1.454 + period}}};
+  for(const auto& testCase : cases)
+  {
+    const auto& rimKnots = testCase.rimKnots;
+    const int rimSegments = static_cast<int>(rimKnots.size()) - 1;
+    const double cut = rimKnots[0];
+    SCOPED_TRACE(axom::fmt::format("radius={} rimSegments={}", testCase.radius, rimSegments));
     for(bool reversed : {false, true})
     {
       SCOPED_TRACE(reversed);
-      Handle(Geom_CylindricalSurface) surface = new Geom_CylindricalSurface(gp_Ax3(), 2.);
+      Handle(Geom_CylindricalSurface) surface =
+        new Geom_CylindricalSurface(gp_Ax3(), testCase.radius);
       BRep_Builder builder;
       TopoDS_Face face;
       builder.MakeFace(face, surface, 1e-7);
@@ -948,8 +960,8 @@ TEST(quest_step_reader, wrapped_periodic_cylinder)
         BRepBuilderAPI_MakeWire makeWire;
         for(int i = 0; i < segments; ++i)
         {
-          const double first = cut + i * period / segments;
-          const double last = cut + (i + 1) * period / segments;
+          const double first = v > 0.5 ? rimKnots[i] : cut;
+          const double last = v > 0.5 ? rimKnots[i + 1] : cut + period;
           auto edge = BRepBuilderAPI_MakeEdge(surface->VIso(v), first, last).Edge();
           builder.UpdateEdge(edge, new Geom2d_Line(gp_Pnt2d(0., v), gp_Dir2d(1., 0.)), face, 1e-7);
           builder.Range(edge, face, first, last);

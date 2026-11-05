@@ -34,7 +34,9 @@
 #include "opencascade/Geom_Ellipse.hxx"
 #include "opencascade/Geom_Line.hxx"
 #include "opencascade/GeomConvert.hxx"
-#include "opencascade/GeomProjLib.hxx"
+#include "opencascade/GeomAdaptor_Curve.hxx"
+#include "opencascade/GeomAdaptor_Surface.hxx"
+#include "opencascade/ProjLib_ProjectedCurve.hxx"
 #include "opencascade/GeomAPI_ProjectPointOnCurve.hxx"
 #include "opencascade/Geom_RectangularTrimmedSurface.hxx"
 #include "opencascade/Geom_Surface.hxx"
@@ -325,8 +327,14 @@ opencascade::handle<Geom2d_BSplineCurve> projectPeriodicPcurve(
     const auto p = c->Value(t);
     return surface->Value(p.X(), p.Y());
   };
-  double projectionTolerance = std::max(1e-10, tolerance * .05);
-  const auto projected = GeomProjLib::Curve2d(original, first, last, surface, projectionTolerance);
+  // Bound the projection search by the source tolerance used to accept the pcurve.
+  // Open Cascade defaults to a much larger distance and can spend time fitting invalid guesses.
+  ProjLib_ProjectedCurve projection;
+  projection.Load(new GeomAdaptor_Surface(surface));
+  projection.Load(std::max(1e-10, tolerance * .05));
+  projection.SetMaxDist(tolerance);
+  projection.Perform(new GeomAdaptor_Curve(original, first, last));
+  const auto projected = projection.BSpline();
   if(projected.IsNull())
   {
     return {};
