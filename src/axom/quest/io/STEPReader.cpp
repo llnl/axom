@@ -257,6 +257,11 @@ opencascade::handle<Geom2d_BSplineCurve> refinePeriodicPcurve(
     for(double t : pcurveSamples(curve))
     {
       const auto xyz = pointOnSurface(curve, t);
+      // A nearby point on the source edge bounds the nearest-point distance.
+      if(t >= first && t <= last && xyz.Distance(original->Value(t)) <= tolerance)
+      {
+        continue;
+      }
       GeomAPI_ProjectPointOnCurve projection(xyz, original, first, last);
       if(projection.NbPoints() == 0)
       {
