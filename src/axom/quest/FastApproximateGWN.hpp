@@ -7,7 +7,7 @@
 
 #include "axom/primal.hpp"
 
-#include <type_traits>
+#include <ranges>
 
 namespace axom
 {
@@ -416,7 +416,7 @@ private:
 
 public:
   // Store accumulated values across the node's children
-  axom::primal::Vector<T, NDIMS> ap;  // Weighted centroid
+  axom::primal::Vector<T, NDIMS> ap {};  // Weighted centroid
   double a {};
 
   // Raw moments
@@ -492,8 +492,19 @@ double fast_approximate_winding_number(const primal::Point<T, NDIMS>& query,
     }
   };
 
-  auto leaf_gwn = [&query, &gwn, leaf_objects, &wt](std::int32_t primitive_id) -> void {
-    gwn += axom::primal::winding_number(query, leaf_objects[primitive_id], wt);
+  auto leaf_gwn = [&query, &gwn, leaf_objects, &wt](const auto& leaf) -> void {
+    // Bucketed leaves provide a range of primitive IDs; single leaves provide one ID.
+    if constexpr(std::ranges::range<decltype(leaf)>)
+    {
+      for(const auto primitive_id : leaf)
+      {
+        gwn += axom::primal::winding_number(query, leaf_objects[primitive_id], wt);
+      }
+    }
+    else
+    {
+      gwn += axom::primal::winding_number(query, leaf_objects[leaf], wt);
+    }
   };
 
   traverser.traverse_leaves(query, leaf_gwn, bbContain);
