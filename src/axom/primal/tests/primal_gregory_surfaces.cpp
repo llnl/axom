@@ -244,9 +244,7 @@ TEST(primal_gregorypatch, degenerate_patch_zero_normal_collinear)
                            axom::StackArray<CoordType, 2> {0.2, 0.3}})
   {
     const PointType point = patch.evaluate(param[0], param[1]);
-    EXPECT_NEAR(point[0],
-                param[0] + 3.0 * param[1] - 2.0 * param[0] * param[1],
-                1e-12);
+    EXPECT_NEAR(point[0], param[0] + 3.0 * param[1] - 2.0 * param[0] * param[1], 1e-12);
     EXPECT_NEAR(point[1], 0.0, 1e-12);
     EXPECT_NEAR(point[2], 0.0, 1e-12);
   }
@@ -279,7 +277,8 @@ TEST(primal_gregorypatch, degenerate_patch_same_corner_different_normals)
     EXPECT_EQ(patch.getBoundaryPoint(0, i), corners[0]);
   }
 
-  // The remaining corners retain their prescribed tangent planes.
+  // When one edge is degenerate, the remaining corners
+  //  keep the normals they would have had to begin with
   for(int i : {2, 3})
   {
     for(const PointType& tangent : {patch.getTangent((i + 3) % 4, 1), patch.getTangent(i, 0)})
@@ -293,9 +292,8 @@ TEST(primal_gregorypatch, degenerate_patch_same_corner_different_normals)
   zero_normals[1] = VectorType {0.0, 0.0, 0.0};
   axom::StackArray<VectorType, 4> recovered_normals = normals;
   recovered_normals[1] = VectorType {0.0, 0.0, 1.0};
-  const GregoryPatchType zero_normal_patch(
-    axom::ArrayView<const PointType>(corners.data(), 4),
-    axom::ArrayView<const VectorType>(zero_normals.data(), 4));
+  const GregoryPatchType zero_normal_patch(axom::ArrayView<const PointType>(corners.data(), 4),
+                                           axom::ArrayView<const VectorType>(zero_normals.data(), 4));
   const GregoryPatchType recovered_patch(
     axom::ArrayView<const PointType>(corners.data(), 4),
     axom::ArrayView<const VectorType>(recovered_normals.data(), 4));
