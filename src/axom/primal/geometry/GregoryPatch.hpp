@@ -204,37 +204,89 @@ public:
    * Deterministically compute cubic boundary control points and Gregory tangent points
    * using local corner information.
    *
+   * Zero corner normals are replaced with a normal derived from the bilinear patch.
+   *
    * Algorithm derived from
    *  A 3D contact smoothing method using Gregory patches, 
    *  Michael Anthony Puso, Tod A. Laursen, International Journal for Numerical Methods in Engineering
    *  Volume 54, Issue 8 (June 2002)
-   
+   *
    * \pre \a nodePositions and \a nodeVectors must each contain exactly 4 entries
    */
   GregoryPatch(ArrayView<const PointType> nodePositions, ArrayView<const VectorType> nodeVectors)
   {
-    // Store the position and orthogonal unit vector at each corner
     SLIC_ASSERT(nodePositions.size() == 4);
     SLIC_ASSERT(nodeVectors.size() == 4);
 
+    // Boundary edge i runs from corner i to corner (i + 1) % 4.
+    const axom::StackArray<VectorType, 4> edges = {
+      VectorType(nodePositions[0], nodePositions[1]),
+      VectorType(nodePositions[1], nodePositions[2]),
+      VectorType(nodePositions[2], nodePositions[3]),
+      VectorType(nodePositions[3], nodePositions[0]),
+    };
+
+    // Identify a non-degenerate corner (if any)
+    axom::StackArray<VectorType, 4> face_normals;
+    int nondegenerate_corner = -1;
+    for(int i = 0; i < 4; ++i)
+    {
+      face_normals[i] = VectorType::cross_product(edges[i], -edges[(i + 3) % 4]);
+      if(nondegenerate_corner < 0 && face_normals[i].squared_norm() >= PRIMAL_TINY)
+      {
+        nondegenerate_corner = i;
+      }
+    }
+
+    if(nondegenerate_corner < 0)
+    {
+      // The bilinear patch remains defined when its image is a line or a point.
+      BezierPatch<T, 3> bilinear(1, 1);
+      bilinear(0, 0) = nodePositions[0];
+      bilinear(1, 0) = nodePositions[1];
+      bilinear(1, 1) = nodePositions[2];
+      bilinear(0, 1) = nodePositions[3];
+      *this = GregoryPatch(bilinear);
+      return;
+    }
+
+    // Store the position and orthogonal unit vector at each corner.
     axom::Array<VectorType> v(4);
     for(int i = 0; i < 4; ++i)
     {
       getCorner(i) = nodePositions[i];
 
-      SLIC_ASSERT(!axom::utilities::isNearlyEqual(nodeVectors[i].squared_norm(), 0.0, PRIMAL_TINY));
-      v[i] = nodeVectors[i].unitVector();
+      if(nodeVectors[i].squared_norm() < PRIMAL_TINY)
+      {
+        SLIC_WARNING("[primal] Zero GregoryPatch corner normal; using geometric normal");
+        const VectorType& fallback = face_normals[i].squared_norm() >= PRIMAL_TINY
+          ? face_normals[i]
+          : face_normals[nondegenerate_corner];
+        v[i] = fallback.unitVector();
+      }
+      else
+      {
+        v[i] = nodeVectors[i].unitVector();
+      }
     }
 
     axom::Array<VectorType> c0(4), c2(4);
     axom::Array<VectorType> a0(4), a3(4);
+    bool has_collapsed_edge = false;
     for(int i = 0; i < 4; ++i)
     {
       const int ip1 = (i + 1) % 4;
 
-      const VectorType dx(getCorner(i), getCorner(ip1));
-      SLIC_WARNING_IF(axom::utilities::isNearlyEqual(dx.squared_norm(), 0.0, PRIMAL_TINY),
-                      "[primal] Degenerate GregoryPatch detected");
+      const VectorType& dx = edges[i];
+      if(dx.squared_norm() < PRIMAL_TINY)
+      {
+        has_collapsed_edge = true;
+        c0[i] = VectorType(T(0));
+        c2[i] = VectorType(T(0));
+        getBoundaryPoint(i, 1) = getCorner(i);
+        getBoundaryPoint(i, 2) = getCorner(i);
+        continue;
+      }
 
       c0[i] = (dx - dx.dot(v[i]) * v[i]) / 3.0;
       a0[i] = VectorType::cross_product(v[i], dx).unitVector();
@@ -249,6 +301,13 @@ public:
     // Use Chiyokura algorithm to define the interior control points.
     for(int i = 0; i < 4; ++i)
     {
+      if(edges[i].squared_norm() < PRIMAL_TINY)
+      {
+        getTangent(i, 0) = getCorner(i);
+        getTangent(i, 1) = getCorner(i);
+        continue;
+      }
+
       const int ip1 = (i + 1) % 4;
       const int im1 = (i + 3) % 4;
       const auto& x1 = getBoundaryPoint(i, 1);
@@ -260,14 +319,31 @@ public:
 
       const double k0 = a0[i].dot(b0);
       const double k1 = a3[i].dot(b3);
-      const double h0 = c0[i].dot(b0) / c0[i].dot(c0[i]);
-      const double h1 = c2[i].dot(b3) / c2[i].dot(c2[i]);
+      const double c0_norm_sq = c0[i].squared_norm();
+      const double c2_norm_sq = c2[i].squared_norm();
+      const double h0 = c0_norm_sq < PRIMAL_TINY ? 0.0 : c0[i].dot(b0) / c0_norm_sq;
+      const double h1 = c2_norm_sq < PRIMAL_TINY ? 0.0 : c2[i].dot(b3) / c2_norm_sq;
 
       const VectorType b1 = ((k0 + k1) * a0[i] + k0 * a3[i] + 2.0 * h0 * c1 + h1 * c0[i]) / 3.0;
       const VectorType b2 = ((k0 + k1) * a3[i] + k1 * a0[i] + 2.0 * h1 * c1 + h0 * c2[i]) / 3.0;
 
       getTangent(i, 0) = x1 + b1;
       getTangent(i, 1) = x2 + b2;
+    }
+
+    if(has_collapsed_edge)
+    {
+      // Keep each corner's prescribed tangent plane when an edge has collapsed.
+      for(int i = 0; i < 4; ++i)
+      {
+        PointType& previous_tangent = getTangent((i + 3) % 4, 1);
+        const VectorType previous_offset(getCorner(i), previous_tangent);
+        previous_tangent = getCorner(i) + (previous_offset - previous_offset.dot(v[i]) * v[i]);
+
+        PointType& next_tangent = getTangent(i, 0);
+        const VectorType next_offset(getCorner(i), next_tangent);
+        next_tangent = getCorner(i) + (next_offset - next_offset.dot(v[i]) * v[i]);
+      }
     }
   }
 

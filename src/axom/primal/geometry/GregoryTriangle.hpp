@@ -202,26 +202,57 @@ public:
    * Deterministically compute hybrid cubic-quartic boundary control points and 
    * Gregory tangent points using local vertex information.
    *
+   * Zero corner normals are replaced with the oriented face normal.
+   *
    * Algorithm derived from the rectangular analog in
    *  A 3D contact smoothing method using Gregory patches, 
    *  Michael Anthony Puso, Tod A. Laursen, International Journal for Numerical Methods in Engineering
    *  Volume 54, Issue 8 (June 2002)
-   
+   *
    * \pre \a nodePositions and \a nodeVectors must each contain exactly 3 entries
    */
   GregoryTriangle(ArrayView<const PointType> nodePositions, ArrayView<const VectorType> nodeVectors)
   {
-    // Store the position and orthogonal unit vector at each corner
     SLIC_ASSERT(nodePositions.size() == 3);
     SLIC_ASSERT(nodeVectors.size() == 3);
 
+    // Boundary edge k runs from corner (k + 1) % 3 to corner (k + 2) % 3.
+    const axom::StackArray<VectorType, 3> edges = {VectorType(nodePositions[1], nodePositions[2]),
+                                                   VectorType(nodePositions[2], nodePositions[0]),
+                                                   VectorType(nodePositions[0], nodePositions[1])};
+
+    const VectorType face_normal = VectorType::cross_product(edges[0], edges[1]);
+    if(face_normal.squared_norm() < PRIMAL_TINY)
+    {
+      // A linear quartic triangle remains defined when its image is a line or a point.
+      BezierTriangle<T, 3> linear(4);
+      for(int i = 0; i <= 4; ++i)
+      {
+        for(int j = 0; j <= 4 - i; ++j)
+        {
+          linear(i, j) = nodePositions[0] + (static_cast<T>(j) / T(4)) * edges[2] -
+            (static_cast<T>(i) / T(4)) * edges[1];
+        }
+      }
+      *this = GregoryTriangle(linear);
+      return;
+    }
+
+    // Store the position and orthogonal unit vector at each corner.
     axom::Array<VectorType> v(4);
     for(int i = 0; i < 3; ++i)
     {
       getCorner(i) = nodePositions[i];
 
-      SLIC_ASSERT(!axom::utilities::isNearlyEqual(nodeVectors[i].squared_norm(), 0.0, PRIMAL_TINY));
-      v[i] = nodeVectors[i].unitVector();
+      if(nodeVectors[i].squared_norm() < PRIMAL_TINY)
+      {
+        SLIC_WARNING("[primal] Zero GregoryTriangle corner normal; using face normal");
+        v[i] = face_normal.unitVector();
+      }
+      else
+      {
+        v[i] = nodeVectors[i].unitVector();
+      }
     }
 
     // Initialize the boundary points for the quartic Bezier triangle
@@ -230,9 +261,7 @@ public:
     {
       const int start = (k + 1) % 3;
       const int end = (k + 2) % 3;
-      const VectorType dx(nodePositions[start], nodePositions[end]);
-      SLIC_WARNING_IF(axom::utilities::isNearlyEqual(dx.squared_norm(), 0.0, PRIMAL_TINY),
-                      "[primal] Degenerate GregoryTriangle detected");
+      const VectorType& dx = edges[k];
 
       const VectorType c0 = (dx - dx.dot(v[start]) * v[start]) / 3.0;
       const VectorType c2 = (dx - dx.dot(v[end]) * v[end]) / 3.0;
@@ -279,7 +308,7 @@ public:
       const auto deriv1 = 0.5 * VectorType(p3, q3) + 0.5 * VectorType(p3, q4);
 
       // Compute a boundary cross derivative that varies across the edge
-      const VectorType dx(getCorner(start), getCorner(end));
+      const VectorType& dx = edges[k];
       const VectorType a0 = VectorType::cross_product(v[start], dx).unitVector();
       const VectorType a3 = VectorType::cross_product(v[end], dx).unitVector();
 

@@ -186,6 +186,123 @@ TEST(primal_gregorypatch, corner_vector_constructor)
 }
 
 //------------------------------------------------------------------------------
+TEST(primal_gregorypatch, degenerate_patch_zero_normal)
+{
+  const axom::StackArray<PointType, 4> corners = {
+    PointType {0.0, 0.0, 0.0},
+    PointType {1.0, 0.0, 0.0},
+    PointType {1.0, 1.0, 0.0},
+    PointType {0.0, 1.0, 0.0},
+  };
+  const axom::StackArray<VectorType, 4> supplied_normals = {
+    VectorType {0.1, 0.0, 1.0},
+    VectorType {0.0, 0.0, 0.0},
+    VectorType {0.0, 0.2, 1.0},
+    VectorType {-0.1, 0.0, 1.0},
+  };
+  const axom::StackArray<VectorType, 4> recovered_normals = {
+    supplied_normals[0],
+    VectorType {0.0, 0.0, 1.0},
+    supplied_normals[2],
+    supplied_normals[3],
+  };
+
+  const GregoryPatchType patch(axom::ArrayView<const PointType>(corners.data(), 4),
+                               axom::ArrayView<const VectorType>(supplied_normals.data(), 4));
+  const GregoryPatchType expected(axom::ArrayView<const PointType>(corners.data(), 4),
+                                  axom::ArrayView<const VectorType>(recovered_normals.data(), 4));
+  check_patch_control_points(patch, expected.getControlPoints());
+}
+
+//------------------------------------------------------------------------------
+TEST(primal_gregorypatch, degenerate_patch_zero_normal_collinear)
+{
+  const axom::StackArray<PointType, 4> corners = {
+    PointType {0.0, 0.0, 0.0},
+    PointType {1.0, 0.0, 0.0},
+    PointType {2.0, 0.0, 0.0},
+    PointType {3.0, 0.0, 0.0},
+  };
+  const axom::StackArray<VectorType, 4> normals = {
+    VectorType {0.0, 0.0, 0.0},
+    VectorType {0.0, 0.0, 0.0},
+    VectorType {0.0, 0.0, 0.0},
+    VectorType {0.0, 0.0, 0.0},
+  };
+
+  const GregoryPatchType patch(axom::ArrayView<const PointType>(corners.data(), 4),
+                               axom::ArrayView<const VectorType>(normals.data(), 4));
+  for(int i = 0; i < 4; ++i)
+  {
+    EXPECT_EQ(patch.getCorner(i), corners[i]);
+  }
+
+  for(const auto& param : {axom::StackArray<CoordType, 2> {0.0, 0.0},
+                           axom::StackArray<CoordType, 2> {1.0, 0.0},
+                           axom::StackArray<CoordType, 2> {1.0, 1.0},
+                           axom::StackArray<CoordType, 2> {0.0, 1.0},
+                           axom::StackArray<CoordType, 2> {0.2, 0.3}})
+  {
+    const PointType point = patch.evaluate(param[0], param[1]);
+    EXPECT_NEAR(point[0],
+                param[0] + 3.0 * param[1] - 2.0 * param[0] * param[1],
+                1e-12);
+    EXPECT_NEAR(point[1], 0.0, 1e-12);
+    EXPECT_NEAR(point[2], 0.0, 1e-12);
+  }
+}
+
+//------------------------------------------------------------------------------
+TEST(primal_gregorypatch, degenerate_patch_same_corner_different_normals)
+{
+  const axom::StackArray<PointType, 4> corners = {
+    PointType {0.0, 0.0, 0.0},
+    PointType {0.0, 0.0, 0.0},
+    PointType {1.0, 1.0, 0.0},
+    PointType {0.0, 1.0, 0.0},
+  };
+  const axom::StackArray<VectorType, 4> normals = {
+    VectorType {0.0, 0.0, 1.0},
+    VectorType {0.0, 1.0, 1.0},
+    VectorType {0.0, 0.0, 1.0},
+    VectorType {0.0, 0.0, 1.0},
+  };
+
+  const GregoryPatchType patch(axom::ArrayView<const PointType>(corners.data(), 4),
+                               axom::ArrayView<const VectorType>(normals.data(), 4));
+  for(int i = 0; i < 4; ++i)
+  {
+    EXPECT_EQ(patch.getCorner(i), corners[i]);
+  }
+  for(int i = 0; i < 4; ++i)
+  {
+    EXPECT_EQ(patch.getBoundaryPoint(0, i), corners[0]);
+  }
+
+  // The remaining corners retain their prescribed tangent planes.
+  for(int i : {2, 3})
+  {
+    for(const PointType& tangent : {patch.getTangent((i + 3) % 4, 1), patch.getTangent(i, 0)})
+    {
+      EXPECT_NEAR(VectorType(corners[i], tangent).dot(normals[i]), 0.0, 1e-12);
+    }
+  }
+
+  // A missing normal at a collapsed corner uses the remaining bilinear geometry.
+  axom::StackArray<VectorType, 4> zero_normals = normals;
+  zero_normals[1] = VectorType {0.0, 0.0, 0.0};
+  axom::StackArray<VectorType, 4> recovered_normals = normals;
+  recovered_normals[1] = VectorType {0.0, 0.0, 1.0};
+  const GregoryPatchType zero_normal_patch(
+    axom::ArrayView<const PointType>(corners.data(), 4),
+    axom::ArrayView<const VectorType>(zero_normals.data(), 4));
+  const GregoryPatchType recovered_patch(
+    axom::ArrayView<const PointType>(corners.data(), 4),
+    axom::ArrayView<const VectorType>(recovered_normals.data(), 4));
+  check_patch_control_points(zero_normal_patch, recovered_patch.getControlPoints());
+}
+
+//------------------------------------------------------------------------------
 TEST(primal_gregorypatch, evaluate)
 {
   SLIC_INFO("Testing Gregory patch evaluation");
@@ -361,6 +478,108 @@ TEST(primal_gregorytriangle, corner_vector_constructor)
   {
     EXPECT_TRUE(scaled_triangle.evaluate(params[i][0], params[i][1]).isNearlyEqual(expected[i], eps));
   }
+}
+
+//------------------------------------------------------------------------------
+TEST(primal_gregorytriangle, degenerate_triangle_zero_normal)
+{
+  const axom::StackArray<PointType, 3> corners = {
+    PointType {0.0, 0.0, 0.0},
+    PointType {1.0, 0.0, 0.0},
+    PointType {0.0, 1.0, 0.0},
+  };
+  const axom::StackArray<VectorType, 3> supplied_normals = {
+    VectorType {0.1, 0.0, 1.0},
+    VectorType {0.0, 0.0, 0.0},
+    VectorType {0.0, 0.2, 1.0},
+  };
+
+  // For a GregoryTriangle, a supplied zero-normal should be replaced with
+  //  one which is derived from the face normal (if nonzero)
+  const axom::StackArray<VectorType, 3> recovered_normals = {
+    supplied_normals[0],
+    VectorType {0.0, 0.0, 1.0},
+    supplied_normals[2],
+  };
+
+  const GregoryTriangleType triangle(axom::ArrayView<const PointType>(corners.data(), 3),
+                                     axom::ArrayView<const VectorType>(supplied_normals.data(), 3));
+  const GregoryTriangleType expected(axom::ArrayView<const PointType>(corners.data(), 3),
+                                     axom::ArrayView<const VectorType>(recovered_normals.data(), 3));
+
+  // Verify that the two triangles have the same control points
+  check_triangle_control_points(triangle, expected.getControlPoints());
+}
+
+//------------------------------------------------------------------------------
+TEST(primal_gregorytriangle, degenerate_triangle_zero_normal_collinear)
+{
+  const axom::StackArray<PointType, 3> corners = {
+    PointType {0.0, 0.0, 0.0},
+    PointType {1.0, 0.0, 0.0},
+    PointType {2.0, 0.0, 0.0},
+  };
+  const axom::StackArray<VectorType, 3> normals = {
+    VectorType {0.0, 0.0, 0.0},
+    VectorType {0.0, 0.0, 0.0},
+    VectorType {0.0, 0.0, 0.0},
+  };
+
+  const GregoryTriangleType triangle(axom::ArrayView<const PointType>(corners.data(), 3),
+                                     axom::ArrayView<const VectorType>(normals.data(), 3));
+
+  // Don't change the corners for a collinear triangle
+  for(int i = 0; i < 3; ++i)
+  {
+    EXPECT_EQ(triangle.getCorner(i), corners[i]);
+  }
+
+  for(const auto& param : {axom::StackArray<CoordType, 2> {0.0, 0.0},
+                           axom::StackArray<CoordType, 2> {0.0, 1.0},
+                           axom::StackArray<CoordType, 2> {1.0, 0.0},
+                           axom::StackArray<CoordType, 2> {0.2, 0.3}})
+  {
+    // The points on the degenerate triangle must be located on the degenerate line
+    const PointType point = triangle.evaluate(param[0], param[1]);
+    EXPECT_TRUE(0.0 <= point[0] && point[0] <= 3.0);
+    EXPECT_NEAR(point[1], 0.0, 1e-12);
+    EXPECT_NEAR(point[2], 0.0, 1e-12);
+  }
+}
+
+//------------------------------------------------------------------------------
+TEST(primal_gregorytriangle, degenerate_triangle_same_corner_different_normals)
+{
+  const axom::StackArray<PointType, 3> corners = {
+    PointType {0.0, 0.0, 0.0},
+    PointType {0.0, 0.0, 0.0},
+    PointType {0.0, 1.0, 0.0},
+  };
+  const axom::StackArray<VectorType, 3> normals = {
+    VectorType {0.0, 0.0, 1.0},
+    VectorType {0.0, 1.0, 1.0},
+    VectorType {0.0, 0.0, 1.0},
+  };
+
+  const GregoryTriangleType triangle(axom::ArrayView<const PointType>(corners.data(), 3),
+                                     axom::ArrayView<const VectorType>(normals.data(), 3));
+  for(int i = 0; i < 3; ++i)
+  {
+    // Should still have the same corners despite being degenerate
+    EXPECT_EQ(triangle.getCorner(i), corners[i]);
+  }
+
+  for(int i = 0; i <= 4; ++i)
+  {
+    // Control points between the degenerate corners should equal the corners
+    EXPECT_EQ(triangle.getBoundaryPoint(2, i), corners[0]);
+  }
+
+  // Evaluated points should stay in the collinear point span
+  const PointType interior = triangle.evaluate(0.2, 0.3);
+  EXPECT_NEAR(0.0, interior[0], 1e-12);
+  EXPECT_TRUE(0.0 <= interior[1] && interior[1] <= 1.0);
+  EXPECT_NEAR(0.0, interior[2], 1e-12);
 }
 
 //------------------------------------------------------------------------------
