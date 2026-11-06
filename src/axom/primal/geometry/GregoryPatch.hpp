@@ -226,7 +226,7 @@ public:
       VectorType(nodePositions[3], nodePositions[0]),
     };
 
-    // Identify a non-degenerate corner (if any)
+    // Identify a non-degenerate corner with a non-zero normal (if any)
     axom::StackArray<VectorType, 4> face_normals;
     int nondegenerate_corner = -1;
     for(int i = 0; i < 4; ++i)
@@ -238,9 +238,10 @@ public:
       }
     }
 
+    // If every corner is degenerate, return a geometrically
+    //  equivalent bilinear patch
     if(nondegenerate_corner < 0)
     {
-      // The bilinear patch remains defined when its image is a line or a point.
       BezierPatch<T, 3> bilinear(1, 1);
       bilinear(0, 0) = nodePositions[0];
       bilinear(1, 0) = nodePositions[1];
@@ -256,6 +257,9 @@ public:
     {
       getCorner(i) = nodePositions[i];
 
+      // If an input normal is zero, replace it with either the corner normal defined by
+      //  adjacent edges, or if that's zero, the only non-zero normal in the patch.
+      // This ensures that we have a geometry consistent with adjacent surfaces
       if(nodeVectors[i].squared_norm() < PRIMAL_TINY)
       {
         SLIC_WARNING("[primal] Zero GregoryPatch corner normal; using geometric normal");
@@ -280,6 +284,8 @@ public:
       const VectorType& dx = edges[i];
       if(dx.squared_norm() < PRIMAL_TINY)
       {
+        // If one edge is zero-length, manually set the boundary points
+        //  to avoid a divide-by-zero in unitVector()
         has_collapsed_edge = true;
         c0[i] = VectorType(T(0));
         c2[i] = VectorType(T(0));
@@ -301,6 +307,7 @@ public:
     // Use Chiyokura algorithm to define the interior control points.
     for(int i = 0; i < 4; ++i)
     {
+      // Again, if one edge is zero-length, manually set tangent control points
       if(edges[i].squared_norm() < PRIMAL_TINY)
       {
         getTangent(i, 0) = getCorner(i);
@@ -333,7 +340,8 @@ public:
 
     if(has_collapsed_edge)
     {
-      // Keep each corner's prescribed tangent plane when an edge has collapsed.
+      // If the edge has collapsed, set the tangent control points according
+      //  to the next edges in order
       for(int i = 0; i < 4; ++i)
       {
         PointType& previous_tangent = getTangent((i + 3) % 4, 1);
