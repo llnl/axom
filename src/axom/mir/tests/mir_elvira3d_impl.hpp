@@ -35,6 +35,200 @@ extern axom::blueprint::testing::TestApplication TestApp;
 
 //------------------------------------------------------------------------------
 template <typename ExecSpace>
+double sumValues(axom::ArrayView<double> values)
+{
+  axom::ReduceSum<ExecSpace, double> reduce_values(0.);
+  axom::for_all<ExecSpace>(values.size(),
+                           [=] AXOM_HOST_DEVICE(axom::IndexType i) { reduce_values += values[i]; });
+  return reduce_values.get();
+}
+
+//------------------------------------------------------------------------------
+inline void makeSingleZoneCoordset3D(conduit::Node& n_mesh,
+                                     const std::string& coordsetName,
+                                     const axom::StackArray<conduit::index_t, 3>& dims)
+{
+  SLIC_ASSERT(dims[0] >= 2 && dims[1] >= 2 && dims[2] >= 2);
+
+  const conduit::index_t nnodes = dims[0] * dims[1] * dims[2];
+  conduit::Node& n_coordset = n_mesh["coordsets/" + coordsetName];
+  n_coordset["type"] = "explicit";
+  n_coordset["values/x"].set(conduit::DataType::float32(nnodes));
+  n_coordset["values/y"].set(conduit::DataType::float32(nnodes));
+  n_coordset["values/z"].set(conduit::DataType::float32(nnodes));
+
+  float* x = n_coordset["values/x"].as_float_ptr();
+  float* y = n_coordset["values/y"].as_float_ptr();
+  float* z = n_coordset["values/z"].as_float_ptr();
+
+  conduit::index_t index = 0;
+  for(conduit::index_t k = 0; k < dims[2]; k++)
+  {
+    for(conduit::index_t j = 0; j < dims[1]; j++)
+    {
+      for(conduit::index_t i = 0; i < dims[0]; i++, index++)
+      {
+        x[index] = static_cast<float>(i);
+        y[index] = static_cast<float>(j);
+        z[index] = static_cast<float>(k);
+      }
+    }
+  }
+}
+
+//------------------------------------------------------------------------------
+template <typename ExecSpace>
+struct single_zone_elvira3d_test
+{
+  static void initialize(bool stridedStructured, bool cleanMats, conduit::Node& n_mesh)
+  {
+    constexpr conduit::index_t NLEFT = 2;
+    constexpr conduit::index_t NRIGHT = 1;
+
+    const axom::StackArray<axom::IndexType, 3> zoneDims {1, 1, 1};
+    const axom::StackArray<conduit::index_t, 3> nodeDims =
+      stridedStructured ? axom::StackArray<conduit::index_t, 3> {zoneDims[0] + 1 + NLEFT + NRIGHT,
+                                                                 zoneDims[1] + 1 + NLEFT + NRIGHT,
+                                                                 zoneDims[2] + 1 + NLEFT + NRIGHT}
+                        : axom::StackArray<conduit::index_t, 3> {zoneDims[0] + 1,
+                                                                 zoneDims[1] + 1,
+                                                                 zoneDims[2] + 1};
+
+    makeSingleZoneCoordset3D(n_mesh, "coords", nodeDims);
+
+    conduit::Node& n_topology = n_mesh["topologies/mesh"];
+    n_topology["type"] = "structured";
+    n_topology["coordset"] = "coords";
+    n_topology["elements/dims/i"] = zoneDims[0];
+    n_topology["elements/dims/j"] = zoneDims[1];
+    n_topology["elements/dims/k"] = zoneDims[2];
+    if(stridedStructured)
+    {
+      const axom::StackArray<conduit::index_t, 3> offsets {NLEFT, NLEFT, NLEFT};
+      const axom::StackArray<conduit::index_t, 3> strides {1, nodeDims[0], nodeDims[0] * nodeDims[1]};
+      n_topology["elements/dims/offsets"].set(offsets.data(), offsets.size());
+      n_topology["elements/dims/strides"].set(strides.data(), strides.size());
+    }
+
+    axom::blueprint::testing::data::make_matset("unibuffer",
+                                                "mesh",
+                                                zoneDims,
+                                                cleanMats,
+                                                false,
+                                                n_mesh);
+  }
+
+  static void test(bool stridedStructured, bool cleanMats)
+  {
+    conduit::Node hostMesh, deviceMesh;
+    initialize(stridedStructured, cleanMats, hostMesh);
+    utils::copy<ExecSpace>(deviceMesh, hostMesh);
+
+    const conduit::Node& n_coordset = deviceMesh["coordsets/coords"];
+    const conduit::Node& n_topology = deviceMesh["topologies/mesh"];
+    const conduit::Node& n_matset = deviceMesh["matsets/mat"];
+
+    auto coordsetView = views::make_explicit_coordset<float, 3>::view(n_coordset);
+    auto matsetView = views::make_unibuffer_matset<int, float, 3>::view(n_matset);
+    const auto expectedFragments = matsetView.numberOfMaterials(0);
+    if(cleanMats)
+    {
+      EXPECT_EQ(expectedFragments, 1);
+    }
+    else
+    {
+      EXPECT_GT(expectedFragments, 1);
+    }
+
+    conduit::Node deviceMIRMesh;
+    conduit::Node options;
+    options["matset"] = "mat";
+    options["plane"] = 0;
+    options["pointmesh"] = 0;
+    options["cleanmesh"] = 0;
+    options["verbose"] = 1;
+
+    if(stridedStructured)
+    {
+      auto topologyView = views::make_strided_structured_topology<3>::view(n_topology);
+      execute(topologyView, coordsetView, matsetView, deviceMesh, options, deviceMIRMesh);
+    }
+    else
+    {
+      auto topologyView = views::make_structured_topology<3>::view(n_topology);
+      execute(topologyView, coordsetView, matsetView, deviceMesh, options, deviceMIRMesh);
+    }
+
+    conduit::Node hostMIRMesh;
+    utils::copy<seq_exec>(hostMIRMesh, deviceMIRMesh);
+
+    conduit::Node info;
+    const bool verifyOK = conduit::blueprint::mesh::verify(hostMIRMesh, info);
+    if(!verifyOK)
+    {
+      printNode(hostMIRMesh);
+      info.print();
+    }
+    EXPECT_TRUE(verifyOK);
+
+    const conduit::Node& n_mir_topology = deviceMIRMesh["topologies/mesh"];
+    const conduit::Node& n_mir_coordset = deviceMIRMesh["coordsets/coords"];
+    auto mirCoordsetView = views::make_explicit_coordset<float, 3>::view(n_mir_coordset);
+
+    if(cleanMats)
+    {
+      if(stridedStructured)
+      {
+        auto mirTopoView = views::make_strided_structured_topology<3>::view(n_mir_topology);
+        EXPECT_EQ(mirTopoView.numberOfZones(), expectedFragments);
+        bump::MakeZoneVolumes<ExecSpace, decltype(mirTopoView), decltype(mirCoordsetView)> makeVolume(
+          mirTopoView,
+          mirCoordsetView);
+        makeVolume.execute(n_mir_topology, n_mir_coordset, deviceMIRMesh["fields/volume"]);
+      }
+      else
+      {
+        auto mirTopoView = views::make_structured_topology<3>::view(n_mir_topology);
+        EXPECT_EQ(mirTopoView.numberOfZones(), expectedFragments);
+        bump::MakeZoneVolumes<ExecSpace, decltype(mirTopoView), decltype(mirCoordsetView)> makeVolume(
+          mirTopoView,
+          mirCoordsetView);
+        makeVolume.execute(n_mir_topology, n_mir_coordset, deviceMIRMesh["fields/volume"]);
+      }
+    }
+    else
+    {
+      auto mirTopoView = views::make_unstructured_polyhedral_topology<axom::IndexType>::view(
+        n_mir_topology);
+      EXPECT_EQ(mirTopoView.numberOfZones(), expectedFragments);
+      bump::MakeZoneVolumes<ExecSpace, decltype(mirTopoView), decltype(mirCoordsetView)> makeVolume(
+        mirTopoView,
+        mirCoordsetView);
+      makeVolume.execute(n_mir_topology, n_mir_coordset, deviceMIRMesh["fields/volume"]);
+    }
+
+    const auto volumeView = utils::make_array_view<double>(deviceMIRMesh["fields/volume/values"]);
+    EXPECT_NEAR(sumValues<ExecSpace>(volumeView), 1., 1.e-6);
+  }
+
+private:
+  template <typename TopologyView, typename CoordsetView, typename MatsetView>
+  static void execute(const TopologyView& topologyView,
+                      const CoordsetView& coordsetView,
+                      const MatsetView& matsetView,
+                      conduit::Node& deviceMesh,
+                      const conduit::Node& options,
+                      conduit::Node& deviceMIRMesh)
+  {
+    using IndexingPolicy = typename TopologyView::IndexingPolicy;
+    using MIR = axom::mir::ElviraAlgorithm<ExecSpace, IndexingPolicy, CoordsetView, MatsetView>;
+    MIR m(topologyView, coordsetView, matsetView);
+    m.execute(deviceMesh, options, deviceMIRMesh);
+  }
+};
+
+//------------------------------------------------------------------------------
+template <typename ExecSpace>
 struct test_Elvira3D
 {
   static const int gridSize = 10;

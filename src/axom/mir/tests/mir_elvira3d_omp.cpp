@@ -65,6 +65,30 @@ TEST(mir_elvira3d_omp, elvira3d_unibuffer_sel_pm_omp)
   test_Elvira3D<omp_exec>::test("elvira3d_unibuffer_sel_pm", selectZones, pointMesh, cleanMesh);
 }
 
+TEST(mir_elvira3d_omp, elvira3d_single_zone_structured_mixed_omp)
+{
+  AXOM_ANNOTATE_SCOPE("elvira3d_single_zone_structured_mixed_omp");
+  single_zone_elvira3d_test<omp_exec>::test(false, false);
+}
+
+TEST(mir_elvira3d_omp, elvira3d_single_zone_structured_clean_omp)
+{
+  AXOM_ANNOTATE_SCOPE("elvira3d_single_zone_structured_clean_omp");
+  single_zone_elvira3d_test<omp_exec>::test(false, true);
+}
+
+TEST(mir_elvira3d_omp, elvira3d_single_zone_strided_mixed_omp)
+{
+  AXOM_ANNOTATE_SCOPE("elvira3d_single_zone_strided_mixed_omp");
+  single_zone_elvira3d_test<omp_exec>::test(true, false);
+}
+
+TEST(mir_elvira3d_omp, elvira3d_single_zone_strided_clean_omp)
+{
+  AXOM_ANNOTATE_SCOPE("elvira3d_single_zone_strided_clean_omp");
+  single_zone_elvira3d_test<omp_exec>::test(true, true);
+}
+
 int main(int argc, char* argv[])
 {
   ::testing::InitGoogleTest(&argc, argv);

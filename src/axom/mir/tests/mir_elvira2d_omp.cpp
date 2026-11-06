@@ -91,6 +91,30 @@ TEST(mir_elvira2d_omp, elvira_uniform_unibuffer_sel_pm_omp)
                                    pointMesh);
 }
 
+TEST(mir_elvira2d_omp, elvira_single_zone_structured_mixed_omp)
+{
+  AXOM_ANNOTATE_SCOPE("elvira_single_zone_structured_mixed_omp");
+  single_zone_elvira2d_test<omp_exec>::test(false, false);
+}
+
+TEST(mir_elvira2d_omp, elvira_single_zone_structured_clean_omp)
+{
+  AXOM_ANNOTATE_SCOPE("elvira_single_zone_structured_clean_omp");
+  single_zone_elvira2d_test<omp_exec>::test(false, true);
+}
+
+TEST(mir_elvira2d_omp, elvira_single_zone_strided_mixed_omp)
+{
+  AXOM_ANNOTATE_SCOPE("elvira_single_zone_strided_mixed_omp");
+  single_zone_elvira2d_test<omp_exec>::test(true, false);
+}
+
+TEST(mir_elvira2d_omp, elvira_single_zone_strided_clean_omp)
+{
+  AXOM_ANNOTATE_SCOPE("elvira_single_zone_strided_clean_omp");
+  single_zone_elvira2d_test<omp_exec>::test(true, true);
+}
+
 int main(int argc, char* argv[])
 {
   ::testing::InitGoogleTest(&argc, argv);
