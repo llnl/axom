@@ -66,6 +66,67 @@ TEST(primal_bezierpatch, sizing_constructors)
 }
 
 //------------------------------------------------------------------------------
+TEST(primal_bezierpatch, degree_elevate_preserves_geometry)
+{
+  using CoordType = double;
+  constexpr int DIM = 3;
+  using BezierPatchType = primal::BezierPatch<CoordType, DIM>;
+  using PointType = BezierPatchType::PointType;
+
+  constexpr int order_u = 1;
+  constexpr int order_v = 2;
+  constexpr CoordType eps = 1e-12;
+
+  BezierPatchType::CoordsMat points(order_u + 1, order_v + 1);
+  BezierPatchType::WeightsMat weights(order_u + 1, order_v + 1);
+  for(int p = 0; p <= order_u; ++p)
+  {
+    for(int q = 0; q <= order_v; ++q)
+    {
+      points(p, q) = PointType {CoordType(p + q), CoordType(2 * p - q), CoordType(p * q + 1)};
+      weights(p, q) = CoordType(p + q + 1);
+    }
+  }
+
+  const BezierPatchType patch(points, weights, order_u, order_v);
+  const CoordType params[][2] = {{0.0, 0.0}, {0.2, 0.7}, {0.5, 0.3}, {1.0, 1.0}};
+
+  auto check_geometry = [&](const BezierPatchType& elevated) {
+    for(const auto& param : params)
+    {
+      const PointType expected = patch.evaluate(param[0], param[1]);
+      const PointType actual = elevated.evaluate(param[0], param[1]);
+      for(int i = 0; i < DIM; ++i)
+      {
+        EXPECT_NEAR(expected[i], actual[i], eps);
+      }
+    }
+  };
+
+  BezierPatchType elevated_u = patch;
+  elevated_u.degreeElevate_u(3);
+  EXPECT_EQ(3, elevated_u.getOrder_u());
+  EXPECT_EQ(order_v, elevated_u.getOrder_v());
+  check_geometry(elevated_u);
+
+  BezierPatchType elevated_v = patch;
+  elevated_v.degreeElevate_v(4);
+  EXPECT_EQ(order_u, elevated_v.getOrder_u());
+  EXPECT_EQ(4, elevated_v.getOrder_v());
+  check_geometry(elevated_v);
+
+  BezierPatchType elevated = patch;
+  elevated.degreeElevate(3, 4);
+  EXPECT_EQ(3, elevated.getOrder_u());
+  EXPECT_EQ(4, elevated.getOrder_v());
+  check_geometry(elevated);
+
+  elevated.degreeElevate(2, 3);
+  EXPECT_EQ(3, elevated.getOrder_u());
+  EXPECT_EQ(4, elevated.getOrder_v());
+}
+
+//------------------------------------------------------------------------------
 TEST(primal_bezierpatch, array_constructors)
 {
   const int DIM = 3;

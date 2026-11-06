@@ -32,6 +32,16 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
   such as `{1.0, 2.0, 3.0}`, as well as `Vector.new(...)`.
 - Spin: Adds `Hilbertizer` to convert bounded integer grid points to and from
   Hilbert indices in 2D, 3D, and 4D.
+- Inlet: Adds `orFunction()`, which lets a double, string, or array-of-doubles entry accept either
+  a value or a function at the same input path, e.g. `addDouble("scale").orFunction({FunctionTag::Double})`.
+  `Proxy::evaluate<T>(args...)` calls the supplied function or returns the value.
+- Primal: Adds Gregory surface classes, with a `primal::GregoryPatch` class for cubic quadrilateral surfaces and a `primal::GregoryTriangle` class for hybrid cubic-quartic triangle surfaces.
+- Bump: The coordset dispatchers accept a `SelectedDimensions` mask, like the topology dispatchers.
+- Quest: Adds `DipoleGWNQuery` which provides fast, robust containment queries on (oriented) point clouds. 
+  Built on a new `primal::Dipole` class which holds source, direction, and magnitude of each point in a cloud.
+- Spin: Adds policy-specific `BVH::BuildParameters` to the BVH constructor and `initialize()`.
+  The linear BVH's `ordering` option selects `SpaceFillingCurve::Morton`
+  or `SpaceFillingCurve::Hilbert` in 2D and 3D; Morton remains the default.
 
 ### Removed
 
@@ -48,6 +58,8 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
 - Core: Improves handling of `Array` and `ArrayView` with memory allocated with the system allocator.
 - Inlet: `LuaReader` looks up a numeric final path component as an integer key first, like the other
   components. For example, `values/2` now reads the second entry of `values = {5.0, 6.0}`.
+- Bump: Supports Blueprint `offsets` and `strides` on structured and strided-structured topologies and fields,
+  including layouts that specify only one of those keys.
 
 ### Fixed
 - Sidre: Fixed `MFEMSidreDataCollection` parallel reload for workflows that save copied `ParMesh` and `ParGridFunction` objects backed by external strided coord/vector views.

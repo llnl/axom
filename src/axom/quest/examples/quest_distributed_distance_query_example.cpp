@@ -318,10 +318,12 @@ public:
     const ReducedBytes peakRss = reduceBytes(snapshot.rss.peak, m_comm, m_rank, m_commSize);
     const ReducedBytes mallocLive = reduceBytes(snapshot.mallocLive, m_comm, m_rank, m_commSize);
     const ReducedBytes mallocArena = reduceBytes(snapshot.mallocArena, m_comm, m_rank, m_commSize);
+#if defined(AXOM_USE_UMPIRE)
     const ReducedBytes umpireCurrent =
       reduceBytes(snapshot.umpireCurrent, m_comm, m_rank, m_commSize);
     const ReducedBytes umpireHighWatermark =
       reduceBytes(snapshot.umpireHighWatermark, m_comm, m_rank, m_commSize);
+#endif
 
     if(m_rank == 0)
     {

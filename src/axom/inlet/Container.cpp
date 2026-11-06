@@ -294,18 +294,19 @@ axom::sidre::Group* Container::createSidreGroup(const std::string& name,
 Field& Container::addField(axom::sidre::Group* sidreGroup,
                            axom::sidre::DataTypeId type,
                            const std::string& fullName,
-                           const std::string& name)
+                           const std::string& name,
+                           const std::string& lookupPath)
 {
   const size_t found = name.find_last_of("/");
   auto currContainer = this;
   if(found != std::string::npos)
   {
-    // This will add any intermediate Containers (if not present) before adding the field
+    // Create intermediate Containers before adding the Field.
     currContainer = &addContainer(name.substr(0, found));
   }
   const auto& emplace_result = currContainer->m_fieldChildren.emplace(
     fullName,
-    std::make_unique<Field>(sidreGroup, m_sidreRootGroup, type, m_docEnabled));
+    std::make_unique<Field>(sidreGroup, m_sidreRootGroup, type, m_docEnabled, &m_reader, lookupPath));
   // emplace_result is a pair whose first element is an iterator to the inserted element
   return *(emplace_result.first->second);
 }
@@ -319,7 +320,7 @@ Function& Container::addFunctionInternal(axom::sidre::Group* sidreGroup,
   auto currContainer = this;
   if(found != std::string::npos)
   {
-    // This will add any intermediate Containers (if not present) before adding the field
+    // Create intermediate Containers before adding the Function.
     currContainer = &addContainer(name.substr(0, found));
   }
   const auto& emplace_result = currContainer->m_functionChildren.emplace(
@@ -362,22 +363,21 @@ VerifiableScalar& Container::addPrimitive(const std::string& name,
     // Otherwise actually add a Field
     std::string fullName = utilities::string::appendPrefix(m_name, name);
     // First check if the field already exists
-    auto iter = m_fieldChildren.find(fullName);
-    if(iter != m_fieldChildren.end())
+    if(auto iter = m_fieldChildren.find(fullName); iter != m_fieldChildren.end())
     {
       return *iter->second;
     }
+
     axom::sidre::Group* sidreGroup = createSidreGroup(fullName, description);
     SLIC_ERROR_IF(sidreGroup == nullptr,
                   fmt::format("Failed to create Sidre group with name '{0}'", fullName));
-    // If a pathOverride is specified, needed when Inlet-internal groups
-    // are part of fullName
+    // pathOverride omits Inlet-internal collection groups
     std::string lookupPath = (pathOverride.empty()) ? fullName : pathOverride;
     lookupPath =
       utilities::string::removeAllInstances(lookupPath, detail::COLLECTION_GROUP_NAME + "/");
     detail::updateUnexpectedNames(lookupPath, m_unexpectedNames);
     auto typeId = addPrimitiveHelper(sidreGroup, lookupPath, forArray, val);
-    return addField(sidreGroup, typeId, fullName, name);
+    return addField(sidreGroup, typeId, fullName, name, lookupPath);
   }
 }
 
@@ -644,41 +644,11 @@ void addIndexViewToGroup(sidre::Group& group, const VariantKey& index)
   }
 }
 
-/*!
- *****************************************************************************
- * \brief Writes function signature information to the sidre Group associated
- * with an inlet::Function
- * 
- * \param [in] ret_type The function's return type
- * \param [in] arg_types The function's argument types
- * \param [inout] group The group to add to
- * 
- * The structure of the function signature information is as follows:
- * <group>
- *  ├─• function_arguments <integer array>
- *  └─• return_type <integer>
- *****************************************************************************
- */
-void addSignatureToGroup(const FunctionTag ret_type,
-                         const std::vector<FunctionTag>& arg_types,
-                         sidre::Group* group)
-{
-  group->createViewScalar("return_type", static_cast<int>(ret_type));
-  auto args_view =
-    group->createViewAndAllocate("function_arguments", sidre::INT_ID, arg_types.size());
-  int* args_array = args_view->getArray();
-  for(const auto arg_type : arg_types)
-  {
-    *args_array++ = static_cast<int>(arg_type);
-  }
-}
-
 std::vector<VariantKey> collectionIndices(const Container& container, bool trimAbsolute)
 {
   std::vector<VariantKey> indices;
   const auto sidreGroup = container.sidreGroup();
-  // Not having indices is not necessarily an error, as the collection
-  // could exist but just be empty
+  // A collection can exist without indices when it is empty.
   if(sidreGroup->hasGroup(detail::COLLECTION_INDICES_NAME))
   {
     const auto group = sidreGroup->getGroup(detail::COLLECTION_INDICES_NAME);
@@ -853,6 +823,9 @@ Verifiable<Container>& Container::addPrimitiveArray(const std::string& name,
     lookupPath =
       utilities::string::removeAllInstances(lookupPath, detail::COLLECTION_GROUP_NAME + "/");
     detail::updateUnexpectedNames(lookupPath, m_unexpectedNames);
+    // Only an array of doubles maps to the FunctionTag::Vector return type
+    container.m_acceptsFunction = std::is_same_v<T, double> && !isDict;
+    container.m_functionLookupPath = lookupPath;
     std::vector<VariantKey> indices;
     if(isDict)
     {
@@ -897,9 +870,7 @@ Verifiable<Function>& Container::addFunction(const std::string& name,
                                              const std::string& description,
                                              const std::string& pathOverride)
 {
-  // If it has indices, we're adding a function to an array
-  // of structs, so we need to iterate over the subcontainers
-  // corresponding to elements of the array
+  // Apply the declaration to each element of a struct collection
   std::vector<std::reference_wrapper<Verifiable<Function>>> funcs;
 
   const bool is_nested = transformFromNestedElements(
@@ -920,20 +891,18 @@ Verifiable<Function>& Container::addFunction(const std::string& name,
   }
   else
   {
-    // Otherwise actually add a Function
+    // Add a Function for a non-nested input path
     std::string fullName = utilities::string::appendPrefix(m_name, name);
-    // First check if the function already exists
-    auto iter = m_functionChildren.find(fullName);
-    if(iter != m_functionChildren.end())
+    // Reuse a Function declared through another Container
+    if(auto function = getChildInternal<Function>(name))
     {
-      return *iter->second;
+      return *function;
     }
     axom::sidre::Group* sidreGroup = createSidreGroup(fullName, description);
     SLIC_ERROR_IF(sidreGroup == nullptr,
                   fmt::format("Failed to create Sidre group with name '{0}'", fullName));
     detail::addSignatureToGroup(ret_type, arg_types, sidreGroup);
-    // If a pathOverride is specified, needed when Inlet-internal groups
-    // are part of fullName
+    // pathOverride omits Inlet-internal collection groups
     std::string lookupPath = (pathOverride.empty()) ? fullName : pathOverride;
     lookupPath =
       utilities::string::removeAllInstances(lookupPath, detail::COLLECTION_GROUP_NAME + "/");
@@ -962,12 +931,24 @@ Proxy Container::operator[](const std::string& name) const
 
   else if(has_container)
   {
-    return Proxy(getContainer(name));
+    // An array supplied as a function has no concrete elements
+    const auto& container = getContainer(name);
+    if(const Function* function = container.suppliedFunction())
+    {
+      return Proxy(*function);
+    }
+    return Proxy(container);
   }
 
   else if(has_field)
   {
-    return Proxy(getField(name));
+    // A Field that accepts a function holds the input's function in place of its value
+    const auto& field = getField(name);
+    if(field.isFunction())
+    {
+      return Proxy(field.getFunction());
+    }
+    return Proxy(field);
   }
 
   else if(has_func)
@@ -1273,7 +1254,8 @@ bool Container::exists() const
                                            return static_cast<bool>(*entry.second);
                                          });
 
-  return has_containers || has_fields || has_functions;
+  // An array may be supplied as a function instead of concrete elements
+  return has_containers || has_fields || has_functions || isFunction();
 }
 
 bool Container::isUserProvided() const
@@ -1298,7 +1280,8 @@ bool Container::isUserProvided() const
                                            return static_cast<bool>(*entry.second);
                                          });
 
-  return has_containers || has_fields || has_functions;
+  // An array may be supplied as a function instead of concrete elements
+  return has_containers || has_fields || has_functions || isFunction();
 }
 
 bool Container::isUserProvided(const std::string& name) const
@@ -1334,6 +1317,76 @@ const std::unordered_map<std::string, std::unique_ptr<Field>>& Container::getChi
 const std::unordered_map<std::string, std::unique_ptr<Function>>& Container::getChildFunctions() const
 {
   return m_functionChildren;
+}
+
+Container& Container::orFunction(const std::vector<FunctionTag>& arg_types)
+{
+  const std::string path = detail::userFacingPath(m_name);
+  SLIC_ERROR_IF(!m_acceptsFunction,
+                fmt::format("[Inlet] orFunction() supports double fields, string fields, "
+                            "and arrays of doubles, but '{0}' is not an array of doubles",
+                            path));
+  if(!m_acceptsFunction)
+  {
+    return *this;
+  }
+
+  // An array function returns one to three components as FunctionTag::Vector
+  const auto ret_type = FunctionTag::Vector;
+
+  // A matching redeclaration is a no-op, as with other redeclared entries
+  if(m_sidreGroup->hasView("return_type"))
+  {
+    SLIC_ERROR_IF(!detail::hasSignature(ret_type, arg_types, m_sidreGroup),
+                  fmt::format("[Inlet] Array '{0}' already accepts a function "
+                              "with a different signature",
+                              path));
+    return *this;
+  }
+
+  detail::addSignatureToGroup(ret_type, arg_types, m_sidreGroup);
+
+  // Readers without function support still read a concrete array
+  if(!m_reader.supportsFunctions())
+  {
+    return *this;
+  }
+
+  auto func = m_reader.getFunction(m_functionLookupPath, ret_type, arg_types);
+  if(func)
+  {
+    m_function = std::make_unique<Function>(m_sidreGroup, m_sidreRootGroup, std::move(func));
+
+    // The array lookup reported the function as the wrong type
+    if(m_sidreGroup->hasView("retrieval_status"))
+    {
+      m_sidreGroup->destroyViewAndData("retrieval_status");
+    }
+    markRetrievalStatus(*m_sidreGroup, ReaderResult::Success);
+  }
+  return *this;
+}
+
+bool Container::isFunction() const
+{
+  return m_function != nullptr && static_cast<bool>(*m_function);
+}
+
+const Function* Container::suppliedFunction() const
+{
+  if(isFunction())
+  {
+    return m_function.get();
+  }
+  // An array Container stores its elements in a child collection group
+  if(auto collection = getChildInternal<Container>(detail::COLLECTION_GROUP_NAME))
+  {
+    if(collection->isFunction())
+    {
+      return collection->m_function.get();
+    }
+  }
+  return nullptr;
 }
 
 }  // namespace inlet

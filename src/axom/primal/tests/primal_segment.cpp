@@ -100,6 +100,21 @@ TEST(primal_segment, basic_3d)
   EXPECT_EQ(s[1], s.target());
 }
 
+TEST(primal_segment, bounding_box)
+{
+  using SegmentType = primal::Segment<double, 2>;
+  using PointType = SegmentType::PointType;
+
+  const SegmentType segment(PointType {3.0, -2.0}, PointType {-1.0, 4.0});
+  const auto bbox = segment.boundingBox();
+  const PointType expected_min {-1.0, -2.0};
+  const PointType expected_max {3.0, 4.0};
+
+  EXPECT_TRUE(bbox.isValid());
+  EXPECT_EQ(expected_min, bbox.getMin());
+  EXPECT_EQ(expected_max, bbox.getMax());
+}
+
 TEST(primal_segment, length_2d)
 {
   const int DIM = 2;
