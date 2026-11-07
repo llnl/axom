@@ -84,6 +84,21 @@ int ProEReader::read()
   {
     ifs >> id >> tet_nodes[0] >> tet_nodes[1] >> tet_nodes[2] >> tet_nodes[3];
 
+    // Node IDs are 1-based indices into the nodes read above; anything else
+    // would be used to index m_nodes out of range, here and in the predicate.
+    for(int j = 0; j < NUM_NODES_PER_TET; j++)
+    {
+      if(tet_nodes[j] < 1 || tet_nodes[j] > m_num_nodes)
+      {
+        SLIC_WARNING_ROOT("Tetrahedron " << id << " in the provided Pro/E file [" << m_fileName
+                                         << "] refers to node " << tet_nodes[j] << ", but the file "
+                                         << "declares " << m_num_nodes << " nodes");
+        ifs.close();
+        clear();
+        return (-1);
+      }
+    }
+
     if(!m_tetPredicate || m_tetPredicate(tet_nodes, i, m_nodes))
     {
       tet_count += 1;
