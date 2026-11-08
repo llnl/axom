@@ -47,6 +47,7 @@
 #include "opencascade/Interface_Static.hxx"
 #include "opencascade/Poly_Triangulation.hxx"
 #include "opencascade/Precision.hxx"
+#include "opencascade/Standard_ConstructionError.hxx"
 #include "opencascade/STEPControl_Reader.hxx"
 #include "opencascade/TopExp_Explorer.hxx"
 #include "opencascade/TopLoc_Location.hxx"
@@ -57,13 +58,17 @@
 #include "opencascade/TopoDS.hxx"
 #include "opencascade/TopTools_MapOfShape.hxx"
 #include "opencascade/gp_Vec2d.hxx"
+#include "opencascade/TColgp_Array2OfPnt.hxx"
+#include "opencascade/TColStd_Array2OfReal.hxx"
 
 #include <algorithm>
 #include <cmath>
 #include <iostream>
+#include <limits>
 #include <map>
 #include <memory>
 #include <numeric>
+#include <utility>
 #include <vector>
 
 namespace axom::quest
@@ -550,13 +555,18 @@ private:
         continue;
       }
       const double period = dim == 0 ? surface->UPeriod() : surface->VPeriod();
-      if(!std::isfinite(trimMin[dim]) || !std::isfinite(trimMax[dim]) ||
-         trimMax[dim] - trimMin[dim] > period + uvTolerance)
+      if(!std::isfinite(trimMin[dim]) || !std::isfinite(trimMax[dim]))
       {
         SLIC_WARNING_ROOT(
-          axom::fmt::format("[Patch {}] Trims span more than one period or have nonfinite bounds; "
+          axom::fmt::format("[Patch {}] Trims have nonfinite bounds; "
                             "keeping the native domain. Trims may extend outside the patch.",
                             patchIndex));
+        continue;
+      }
+      if(trimMax[dim] - trimMin[dim] > period + uvTolerance)
+      {
+        lo[dim] = trimMin[dim];
+        hi[dim] = trimMax[dim];
         continue;
       }
       if(trimMin[dim] < lo[dim] - uvTolerance || trimMax[dim] > hi[dim] + uvTolerance)
@@ -740,6 +750,76 @@ private:
     }
 
   private:
+    // Segment accepts at most one period. Repeat the poles, weights and knots
+    // so it can clamp the full trim domain without changing the parameterization.
+    void repeatPeriods(const BBox2D& bounds)
+    {
+      const auto count = [](double span, double period, int poles, int knots) {
+        const double copies = std::max(1., std::ceil((span - Precision::PConfusion()) / period));
+        if(copies > std::numeric_limits<int>::max() / std::max(poles, knots))
+        {
+          throw Standard_ConstructionError("Periodic STEP domain is too large to expand");
+        }
+        return static_cast<int>(copies);
+      };
+      const auto span = bounds.range();
+      const int nu = m_surface->IsUPeriodic()
+        ? count(span[0], m_surface->UPeriod(), m_surface->NbUPoles(), m_surface->NbUKnots())
+        : 1;
+      const int nv = m_surface->IsVPeriodic()
+        ? count(span[1], m_surface->VPeriod(), m_surface->NbVPoles(), m_surface->NbVKnots())
+        : 1;
+      if(nu == 1 && nv == 1)
+      {
+        return;
+      }
+
+      const auto repeatKnots =
+        [](const TColStd_Array1OfReal& knots, const TColStd_Array1OfInteger& mults, int copies) {
+          const int size = knots.Length() - 1;
+          const double period = knots.Last() - knots.First();
+          TColStd_Array1OfReal repeated(1, copies * size + 1);
+          TColStd_Array1OfInteger multiplicities(1, repeated.Length());
+          for(int n = 0; n < copies; ++n)
+          {
+            for(int i = 1; i <= size; ++i)
+            {
+              repeated(n * size + i) = knots(i) + n * period;
+              multiplicities(n * size + i) = mults(i);
+            }
+          }
+          repeated.ChangeLast() = knots.Last() + (copies - 1) * period;
+          multiplicities.ChangeLast() = mults.Last();
+          return std::make_pair(repeated, multiplicities);
+        };
+      const auto [uknots, umults] =
+        repeatKnots(m_surface->UKnots(), m_surface->UMultiplicities(), nu);
+      const auto [vknots, vmults] =
+        repeatKnots(m_surface->VKnots(), m_surface->VMultiplicities(), nv);
+      TColgp_Array2OfPnt poles(1, nu * m_surface->NbUPoles(), 1, nv * m_surface->NbVPoles());
+      TColStd_Array2OfReal weights(1, poles.ColLength(), 1, poles.RowLength());
+      for(int i = 1; i <= poles.ColLength(); ++i)
+      {
+        for(int j = 1; j <= poles.RowLength(); ++j)
+        {
+          const int u = (i - 1) % m_surface->NbUPoles() + 1;
+          const int v = (j - 1) % m_surface->NbVPoles() + 1;
+          poles(i, j) = m_surface->Pole(u, v);
+          weights(i, j) = m_surface->Weight(u, v);
+        }
+      }
+      m_surface = new Geom_BSplineSurface(poles,
+                                          weights,
+                                          uknots,
+                                          vknots,
+                                          umults,
+                                          vmults,
+                                          m_surface->UDegree(),
+                                          m_surface->VDegree(),
+                                          m_surface->IsUPeriodic(),
+                                          m_surface->IsVPeriodic());
+    }
+
     /// converts the surface from periodic knots to clamped knots, when necessary
     void ensureClamped(const BBox2D& bounds)
     {
@@ -749,6 +829,7 @@ private:
       }
       const auto& lo = bounds.getMin();
       const auto& hi = bounds.getMax();
+      repeatPeriods(bounds);
       m_surface->Segment(lo[0], hi[0], lo[1], hi[1]);
       m_surface->SetUNotPeriodic();
       m_surface->SetVNotPeriodic();

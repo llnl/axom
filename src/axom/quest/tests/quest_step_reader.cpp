@@ -31,6 +31,7 @@
 #include "opencascade/Geom_BSplineCurve.hxx"
 #include "opencascade/Geom_CylindricalSurface.hxx"
 #include "opencascade/Geom_ConicalSurface.hxx"
+#include "opencascade/Geom_ToroidalSurface.hxx"
 #include "opencascade/Geom_Ellipse.hxx"
 #include "opencascade/Geom_Line.hxx"
 #include "opencascade/Geom_Plane.hxx"
@@ -1210,6 +1211,128 @@ TEST(quest_step_reader, periodic_bspline_seam_crossing)
                                   periodic_u ? center[0] : trimBounds.getMax()[0] + 0.25,
                                   periodic_u ? trimBounds.getMax()[1] + 0.25 : center[1]);
       }
+    }
+  }
+}
+
+TEST(quest_step_reader, periodic_bspline_multiple_turns)
+{
+  constexpr double period = 2 * std::numbers::pi;
+  struct TestCase
+  {
+    bool periodic_u, periodic_v, rational;
+    double turns;
+  };
+  const axom::Array<TestCase> cases = {{true, false, true, 2.25},
+                                       {true, false, true, 20.25},
+                                       {false, true, true, 2.25},
+                                       {false, true, true, 20.25},
+                                       {true, true, true, 2.25},
+                                       {true, false, false, 2.25}};
+  for(const auto& testCase : cases)
+  {
+    const auto [periodic_u, periodic_v, rational, turns] = testCase;
+    for(bool reversed : {false, true})
+    {
+      SCOPED_TRACE(axom::fmt::format("periodic_u={} periodic_v={} rational={} reversed={} turns={}",
+                                     periodic_u,
+                                     periodic_v,
+                                     rational,
+                                     reversed,
+                                     turns));
+      Handle(Geom_BSplineSurface) surface = GeomConvert::SurfaceToBSplineSurface(
+        new Geom_RectangularTrimmedSurface(new Geom_CylindricalSurface(gp_Ax3(), 2.),
+                                           0.,
+                                           period,
+                                           0.,
+                                           turns + 1.));
+      if(periodic_u && periodic_v)
+      {
+        surface = GeomConvert::SurfaceToBSplineSurface(new Geom_ToroidalSurface(gp_Ax3(), 3., 1.));
+      }
+      if(!rational)
+      {
+        for(int i = 1; i <= surface->NbUPoles(); ++i)
+        {
+          for(int j = 1; j <= surface->NbVPoles(); ++j)
+          {
+            surface->SetWeight(i, j, 1.);
+          }
+        }
+      }
+      // A narrow curving strip winds through several periods without overlapping itself.
+      // Wrapping its UV coordinates into one period would split the wire at each seam.
+      const double start = reversed ? 2 * period - 0.3 : -period - 0.3;
+      const double rise = periodic_u && periodic_v ? turns * period * 1.25 : turns;
+      axom::Array<primal::Point<double, 2>> corners = {{start, 0.25},
+                                                       {start + turns * period, rise + 0.25},
+                                                       {start + turns * period, rise + 0.5},
+                                                       {start, 0.5}};
+      if(!periodic_u)
+      {
+        surface->ExchangeUV();
+        for(auto& corner : corners)
+        {
+          std::swap(corner[0], corner[1]);
+        }
+        std::reverse(corners.begin(), corners.end());
+      }
+      BRepBuilderAPI_MakeWire wire;
+      int numEdges = 0;
+      // Short source edges keep Open Cascade's 3D curve approximation accurate over many turns.
+      for(int i = 0; i < corners.size(); ++i)
+      {
+        const auto& a = corners[i];
+        const auto& b = corners[(i + 1) % corners.size()];
+        const int dim = periodic_u ? 0 : 1;
+        const int segments =
+          std::max(1, static_cast<int>(std::ceil(std::abs(b[dim] - a[dim]) / (period / 2))));
+        numEdges += segments;
+        for(int j = 0; j < segments; ++j)
+        {
+          const auto first = a + (b - a) * (static_cast<double>(j) / segments);
+          const auto last = a + (b - a) * (static_cast<double>(j + 1) / segments);
+          TColgp_Array1OfPnt2d poles(1, 2);
+          poles(1) = gp_Pnt2d(first[0], first[1]);
+          poles(2) = gp_Pnt2d(last[0], last[1]);
+          TColStd_Array1OfReal knots(1, 2);
+          knots(1) = 0.;
+          knots(2) = 1.;
+          TColStd_Array1OfInteger mults(1, 2);
+          mults.Init(2);
+          Handle(Geom2d_BSplineCurve) curve = new Geom2d_BSplineCurve(poles, knots, mults, 1);
+          wire.Add(BRepBuilderAPI_MakeEdge(curve, surface, 0., 1.).Edge());
+        }
+      }
+      auto face = BRepBuilderAPI_MakeFace(surface, wire.Wire(), true).Face();
+      ASSERT_TRUE(BRepLib::BuildCurves3d(face, 1e-10));
+      if(reversed)
+      {
+        face.Reverse();
+      }
+      fs::TempFile file("axom_step_multiple_turns_", "step");
+      ASSERT_NO_FATAL_FAILURE(writeStepFile(face, file.getPath()));
+      STEPControl_Reader reference;
+      ASSERT_NO_FATAL_FAILURE(readStepReference(file.getPath(), reference));
+      TopExp_Explorer faces(reference.OneShape(), TopAbs_FACE);
+      ASSERT_TRUE(faces.More());
+      ASSERT_TRUE(BRepCheck_Analyzer(faces.Current()).IsValid());
+
+      quest::STEPReader reader;
+      reader.setFileName(file.getPath());
+      const auto messages = readWithDiagnostics(reader, true);
+      EXPECT_EQ(messages.find("leave the exported UV domain"), std::string::npos) << messages;
+      EXPECT_EQ(messages.find("UV endpoint gap"), std::string::npos) << messages;
+      ASSERT_EQ(reader.numPatches(), 1);
+      EXPECT_EQ(reader.patchWasOriginallyPeriodic_u(0), periodic_u);
+      EXPECT_EQ(reader.patchWasOriginallyPeriodic_v(0), periodic_v);
+      const auto& patch = reader.getPatchArray()[0];
+      EXPECT_EQ(patch.isRational(), rational);
+      ASSERT_EQ(patch.getNumTrimmingCurves(), numEdges);
+      EXPECT_GT(periodic_u ? patch.getMaxKnot_u() - patch.getMinKnot_u()
+                           : patch.getMaxKnot_v() - patch.getMinKnot_v(),
+                2 * period);
+      expectSingleWireTrimGeometry(reader, 0, TopoDS::Face(faces.Current()));
     }
   }
 }
