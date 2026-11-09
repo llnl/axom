@@ -263,6 +263,17 @@ public:
 
   /*!
    *****************************************************************************
+   * \brief Returns whether this Reader can supply functions
+   *
+   * Inlet calls this before it reads the function form of an entry declared
+   * with orFunction(). A schema that accepts functions can therefore use a
+   * Reader that does not support them.
+   *****************************************************************************
+   */
+  virtual bool supportsFunctions() const { return true; }
+
+  /*!
+   *****************************************************************************
    * \brief Retrieves all paths present in the input file
    *
    * \return The set of all paths/full names in the input file - this represents

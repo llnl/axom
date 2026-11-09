@@ -12,6 +12,7 @@
 #include "axom/fmt.hpp"
 
 #include "axom/primal/constants.hpp"
+#include "axom/primal/geometry/BoundingBox.hpp"
 #include "axom/primal/geometry/Point.hpp"
 #include "axom/primal/geometry/Vector.hpp"
 #include "axom/primal/geometry/Sphere.hpp"
@@ -48,6 +49,7 @@ public:
   using PointType = Point<T, NDIMS>;
   using VectorType = Vector<T, NDIMS>;
   using SphereType = Sphere<T, NDIMS>;
+  using BoundingBoxType = BoundingBox<T, NDIMS>;
 
   static constexpr int DIM = NDIMS;
   static constexpr int NUM_TRI_VERTS = 3;
@@ -104,6 +106,12 @@ public:
   {
     PointType c {(m_points[0].array() + m_points[1].array() + m_points[2].array()) / NUM_TRI_VERTS};
     return c;
+  }
+
+  /// \brief Returns an axis-aligned bounding box containing the triangle.
+  AXOM_HOST_DEVICE BoundingBoxType boundingBox() const
+  {
+    return BoundingBoxType(m_points, NUM_TRI_VERTS);
   }
 
   /*!

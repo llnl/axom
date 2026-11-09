@@ -27,6 +27,7 @@ namespace inlet
 {
 // Forward declarations
 class Field;
+enum class FunctionTag;
 
 /*!
  *******************************************************************************
@@ -264,6 +265,19 @@ public:
    *****************************************************************************
   */
   virtual VerifiableScalar& validValues(const std::initializer_list<double>& set) = 0;
+
+  /*!
+   *****************************************************************************
+   * \brief Allows this value to be supplied as a function.
+   *
+   * \param [in] arg_types The argument types of the function
+   *
+   * \return Reference to calling object, for chaining
+   *
+   * \see Field::orFunction()
+   *****************************************************************************
+   */
+  virtual VerifiableScalar& orFunction(const std::vector<FunctionTag>& arg_types = {}) = 0;
 
   /*!
    *****************************************************************************

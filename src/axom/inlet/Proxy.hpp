@@ -38,6 +38,21 @@ struct has_ProxyFromInlet_specialization<
     std::is_same<T, decltype(std::declval<FromInlet<T>&>()(std::declval<const Proxy&>()))>::value>::type>
   : std::true_type
 { };
+
+/*!
+ *******************************************************************************
+ * \brief Maps a Proxy::evaluate() argument to the type passed to an Inlet function
+ *
+ * Inlet converts numeric arguments to double and character strings to std::string.
+ * This lets callers pass an int or a string literal to functions whose argument
+ * types are FunctionTag::Double or FunctionTag::String.
+ *******************************************************************************
+ */
+template <typename Arg>
+using function_value_arg_t = std::conditional_t<
+  std::is_arithmetic_v<std::decay_t<Arg>>,
+  double,
+  std::conditional_t<std::is_convertible_v<std::decay_t<Arg>, std::string>, std::string, std::decay_t<Arg>>>;
 }  // namespace detail
 
 /*!
@@ -170,6 +185,7 @@ public:
                           T>::type
   get() const
   {
+    checkNotFunction();
     SLIC_ASSERT_MSG(m_container != nullptr,
                     "[Inlet] Tried to read a user-defined type from a Proxy "
                     "containing a single field or function");
@@ -192,6 +208,7 @@ public:
                           T>::type
   get() const
   {
+    checkNotFunction();
     SLIC_ASSERT_MSG(m_container != nullptr,
                     "[Inlet] Tried to read a user-defined type from a Proxy "
                     "containing a single field or function");
@@ -239,6 +256,48 @@ public:
 
   /*!
    *******************************************************************************
+   * \brief Evaluates an entry declared with orFunction().
+   *
+   * If the input supplied a function, this calls it with \a args.
+   * If the input supplied a value, this returns the value and ignores \a args.
+   *
+   * \param [in] args Arguments for the function. Numbers are passed as double and
+   * character strings as std::string, matching FunctionTag::Double and FunctionTag::String.
+   * \tparam T The value type: a primitive type, or std::vector<double> for an array
+   * \tparam Args The types of the arguments, deduced automatically
+   *
+   * \return The function's result or the value
+   *
+   * \pre The Proxy refers to a Field or an array, or to a function returning \a T
+   * whose arguments match \a args. A function for an array of doubles returns
+   * FunctionTag::Vector, whose components are returned as a std::vector<double>.
+   *******************************************************************************
+   */
+  template <typename T, typename... Args>
+  T evaluate(Args&&... args) const
+  {
+    constexpr bool is_array = std::is_same_v<T, std::vector<double>>;
+    static_assert(detail::is_inlet_primitive<T>::value || is_array,
+                  "evaluate() returns a primitive type (bool, int, double, std::string) "
+                  "or std::vector<double>");
+    if(m_func != nullptr)
+    {
+      if constexpr(is_array)
+      {
+        const auto result = m_func->call<FunctionType::Vector>(
+          detail::function_value_arg_t<Args>(std::forward<Args>(args))...);
+        return T(result.vec.data(), result.vec.data() + result.dim);
+      }
+      else
+      {
+        return m_func->call<T>(detail::function_value_arg_t<Args>(std::forward<Args>(args))...);
+      }
+    }
+    return get<T>();
+  }
+
+  /*!
+   *******************************************************************************
    * \brief Returns a primitive type from the proxy
    * 
    * \tparam T The type of the object to retrieve
@@ -249,6 +308,7 @@ public:
   template <typename T>
   typename std::enable_if<detail::is_inlet_primitive<T>::value, T>::type get() const
   {
+    checkNotFunction();
     SLIC_ASSERT_MSG(m_field != nullptr,
                     "[Inlet] Tried to read a primitive type from a Proxy "
                     "containing a container or function");
@@ -256,6 +316,19 @@ public:
   }
 
 private:
+  /*!
+   *******************************************************************************
+   * \brief Reports an error if this Proxy refers to a function, which can't be read as a value
+   *******************************************************************************
+   */
+  void checkNotFunction() const
+  {
+    SLIC_ERROR_IF(m_func != nullptr,
+                  fmt::format("[Inlet] '{0}' was supplied as a function. "
+                              "Use evaluate() or check type() before reading it as a value",
+                              detail::userFacingPath(m_func->name())));
+  }
+
   const Container* const m_container = nullptr;
   const Field* const m_field = nullptr;
   const Function* const m_func = nullptr;

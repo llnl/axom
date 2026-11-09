@@ -233,6 +233,54 @@ TEST(primal_beziercurve, evaluate)
 }
 
 //------------------------------------------------------------------------------
+TEST(primal_beziercurve, degree_elevate_preserves_geometry)
+{
+  using CoordType = double;
+  constexpr int DIM = 3;
+  using PointType = primal::Point<CoordType, DIM>;
+  using BezierCurveType = primal::BezierCurve<CoordType, DIM>;
+
+  constexpr CoordType eps = 1e-12;
+
+  PointType data[4] = {PointType {0.6, 1.2, 1.0},
+                       PointType {1.3, 1.6, 1.8},
+                       PointType {2.9, 2.4, 2.3},
+                       PointType {3.2, 3.5, 3.0}};
+
+  BezierCurveType poly(data, 3);
+  CoordType weights[4] = {1.0, 0.5, 2.0, 1.25};
+  BezierCurveType rat(data, weights, 3);
+
+  auto check_preserve = [&](BezierCurveType curve, int target_degree) {
+    const CoordType ts[] = {0.0, 0.1, 0.3, 0.7, 1.0};
+    axom::Array<PointType> before;
+    before.reserve(5);
+    for(CoordType t : ts)
+    {
+      before.push_back(curve.evaluate(t));
+    }
+
+    curve.degreeElevate(target_degree);
+    EXPECT_EQ(target_degree, curve.getOrder());
+    for(int k = 0; k < 5; ++k)
+    {
+      const PointType after = curve.evaluate(ts[k]);
+      EXPECT_NEAR(after[0], before[k][0], eps);
+      EXPECT_NEAR(after[1], before[k][1], eps);
+      EXPECT_NEAR(after[2], before[k][2], eps);
+    }
+  };
+
+  check_preserve(poly, 4);
+  check_preserve(poly, 5);
+  check_preserve(rat, 4);
+  check_preserve(rat, 5);
+
+  poly.degreeElevate(2);
+  EXPECT_EQ(3, poly.getOrder());
+}
+
+//------------------------------------------------------------------------------
 TEST(primal_beziercurve_, first_derivatives)
 {
   SLIC_INFO("Testing Bezier derivative calculation");

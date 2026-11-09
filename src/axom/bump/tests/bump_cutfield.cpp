@@ -287,6 +287,40 @@ translate:
   }
 };
 
+TEST(bump_cutfield, strided_structured_2d_mismatched_field_layout_seq)
+{
+  axom::slic::ScopedAbortToThrow abort_guard;
+
+  conduit::Node mesh;
+  axom::blueprint::testing::data::strided_structured<2>(mesh);
+  auto coordsetView =
+    axom::bump::views::make_explicit_coordset<double, 2>::view(mesh["coordsets/coords"]);
+  auto topologyView =
+    axom::bump::views::make_strided_structured_topology<2>::view(mesh["topologies/mesh"]);
+  using CutFieldType =
+    axom::bump::extraction::CutField<seq_exec, decltype(topologyView), decltype(coordsetView)>;
+
+  conduit::Node options;
+  options["field"] = "vert_vals";
+  options["value"] = 6.5;
+
+  // The unmodified mesh has matching field and topology layouts.
+  {
+    conduit::Node result;
+    CutFieldType iso(topologyView, coordsetView);
+    EXPECT_NO_THROW(iso.execute(mesh, options, result));
+  }
+
+  // Shifting the field's i offset makes topology node ids read neighboring values.
+  conduit::index_t* offsets = mesh["fields/vert_vals/offsets"].value();
+  offsets[0] += 1;
+  {
+    conduit::Node result;
+    CutFieldType iso(topologyView, coordsetView);
+    EXPECT_THROW(iso.execute(mesh, options, result), axom::slic::SlicAbortException);
+  }
+}
+
 TEST(bump_cutfield, cutfield_2D_seq) { test_cutfield<seq_exec, 2>::test(); }
 #if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
 TEST(bump_cutfield, cutfield_2D_omp) { test_cutfield<omp_exec, 2>::test(); }

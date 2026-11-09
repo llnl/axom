@@ -22,6 +22,7 @@
 #include <unordered_map>
 #include <tuple>
 #include <type_traits>
+#include <utility>
 #include <variant>
 
 #include "axom/fmt.hpp"
@@ -734,8 +735,8 @@ public:
    * \param [in] ret_type     The return type of the function
    * \param [in] arg_types    The argument types of the function
    * \param [in] description  Description of the function
-   * \param [in] pathOverride The path within the input file to read from, if
-   * different than the structure of the Sidre datastore
+   * \param [in] pathOverride The path within the input file to read from,
+   * if different than the structure of the Sidre datastore
    *
    * \return Reference to the created Function
    *****************************************************************************
@@ -931,8 +932,12 @@ public:
    * \brief Obtains a proxy view into the container for either a Field/Container subobject
    * 
    * Returns a reference via a lightweight proxy object to the element in the 
-   * datastore at the index specified by the name.  This can be a field 
-   * or a container.
+   * datastore at the index specified by the name.  This can be a field,
+   * a container, or a function.
+   *
+   * For an entry declared with orFunction(), the proxy refers to the function
+   * when the input supplied one, and to the value otherwise.
+   * Use Proxy::evaluate() to handle both, or Proxy::type() to tell them apart.
    * 
    * \param [in] name The name of the subobject
    * \return The retrieved array
@@ -941,6 +946,25 @@ public:
   Proxy operator[](const std::string& name) const;
 
   Container& required(bool isRequired = true) override;
+
+  /*!
+   *****************************************************************************
+   * \brief Allows an array of doubles to accept an array or a function.
+   *
+   * A function must return FunctionTag::Vector with one to three components.
+   *
+   * A supplied function makes the array present and user-provided, and satisfies required().
+   * The array then has no concrete elements. Use Proxy::evaluate<std::vector<double>>()
+   * to read either form, or Proxy::type() to determine which form the input supplied.
+   *
+   * \param [in] arg_types The argument types of the function
+   *
+   * \return Reference to this Container, for chaining
+   *
+   * \pre This Container is an array of doubles, i.e. it was returned by addDoubleArray()
+   *****************************************************************************
+   */
+  Container& orFunction(const std::vector<FunctionTag>& arg_types = {}) override;
 
   bool isRequired() const override;
 
@@ -967,36 +991,38 @@ public:
 
   /*!
    *****************************************************************************
-   * \brief Return whether a Container or Field with the given name is present in 
-   * this Container's subtree.
+   * \brief Returns whether a Container, Field, or Function named \a name is present.
    *
-   * \return Boolean value indicating whether this Container's subtree contains a
-   * Field or Container with the given name.
+   * \param [in] name The path relative to the calling Container to search
+   *
+   * \return Whether this Container's subtree contains the named entry.
+   *
+   * \note An entry declared with orFunction() is present when the input supplied
+   * either a value or a function.
    *****************************************************************************
    */
   bool contains(const std::string& name) const;
 
   /*!
    *****************************************************************************
-   * \brief Returns whether this container or any of its subcontainers exist, 
-   * i.e., if they contain a Field or Function that exists
+   * \brief Returns whether this Container or its descendants contain an existing entry.
    *****************************************************************************
    */
   bool exists() const;
 
   /*!
    *****************************************************************************
-   * \brief Returns whether this container or any of its subcontainers were
-   * provided in the input file, i.e., if they contain a Field or Function that
-   * was provided in the input file
+   * \brief Returns whether the input supplied an entry in this Container or its descendants.
    *****************************************************************************
    */
   bool isUserProvided() const;
 
   /*!
    *****************************************************************************
-   * \brief  Return whether a Container or Field with the given name were
-   * provided in the input file
+   * \brief Returns whether the input supplied the named Container, Field, or Function.
+   *
+   * \note An entry declared with orFunction() was provided when the input supplied
+   * either a value or a function.
    *
    * \param [in] name The path relative to the calling Container to search
    *****************************************************************************
@@ -1240,6 +1266,8 @@ private:
    * \param [in] The complete Container sequence for the Container this Field will be added to.
    * \param [in] The Container sequence for the Container this Field will be added to, 
    * relative to this Container.
+   * \param [in] lookupPath The Field's path within the input file,
+   * used to read a function alternative (see Field::orFunction())
    * 
    * \return The child Field matching the target name.
    *****************************************************************************
@@ -1247,25 +1275,41 @@ private:
   Field& addField(axom::sidre::Group* sidreGroup,
                   axom::sidre::DataTypeId type,
                   const std::string& fullName,
-                  const std::string& name);
+                  const std::string& name,
+                  const std::string& lookupPath);
 
   /*!
    *****************************************************************************
-   * \brief Adds the Function.
-   * 
-   * \param [in] The Sidre Group corresponding to the Function that will be added.
-   * \param [in] func The actual callable to store
-   * \param [in] The complete Container sequence for the Container this Function will be added to.
-   * \param [in] The Container sequence for the Container this Function will be added to, 
-   * relative to this Container.
-   * 
-   * \return The child Function matching the target name.
+   * \brief Stores a Function read by the Reader.
+   *
+   * \param [in] sidreGroup The Sidre Group for the Function
+   * \param [in] func The callable to store
+   * \param [in] fullName Full Container path for the Function
+   * \param [in] name Function path relative to this Container
+   *
+   * \return The stored Function.
    *****************************************************************************
    */
   Function& addFunctionInternal(axom::sidre::Group* sidreGroup,
                                 FunctionVariant&& func,
                                 const std::string& fullName,
                                 const std::string& name);
+
+  /*!
+   *****************************************************************************
+   * \brief Returns whether the input supplied this array as a function.
+   *
+   * \see orFunction()
+   *****************************************************************************
+   */
+  bool isFunction() const;
+
+  /*!
+   *****************************************************************************
+   * \brief Returns the function supplied for this array, or nullptr if there is none.
+   *****************************************************************************
+   */
+  const Function* suppliedFunction() const;
 
   axom::sidre::View* baseGet(const std::string& name) const;
 
@@ -1314,6 +1358,10 @@ private:
   template <typename Key, typename Val>
   std::unordered_map<Key, Val> getCollection() const
   {
+    SLIC_ERROR_IF(isFunction(),
+                  fmt::format("[Inlet] '{0}' was supplied as a function. "
+                              "Use Proxy::evaluate() or check Proxy::type() before reading it",
+                              detail::userFacingPath(m_name)));
     return getCollectionImpl<Key, Val>(
       std::integral_constant < bool,
       detail::is_std_variant<Val>::value && !detail::is_variant_value<Val>::value > {});
@@ -1458,6 +1506,12 @@ private:
   std::unordered_map<std::string, std::unique_ptr<Field>> m_fieldChildren;
   std::unordered_map<std::string, std::unique_ptr<Function>> m_functionChildren;
   Verifier m_verifier;
+
+  // Function lookup path for an array of doubles, set by orFunction()
+  bool m_acceptsFunction = false;
+  std::string m_functionLookupPath;
+  // The function supplied in place of this array, if any
+  std::unique_ptr<Function> m_function;
 
   // Used for ownership only - need to take ownership of these so children
   // and their aggregates have identical lifetime

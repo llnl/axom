@@ -273,6 +273,42 @@ private:
 
 using FunctionVariant = FunctionWrapper;
 
+namespace detail
+{
+/*!
+ *****************************************************************************
+ * \brief Writes function signature information to the sidre Group
+ * associated with an inlet::Function
+ *
+ * \param [in] ret_type The function's return type
+ * \param [in] arg_types The function's argument types
+ * \param [inout] group The group to add to
+ *
+ * The structure of the function signature information is as follows:
+ * <group>
+ *  ├─• function_arguments <integer array>
+ *  └─• return_type <integer>
+ *****************************************************************************
+ */
+void addSignatureToGroup(const FunctionTag ret_type,
+                         const std::vector<FunctionTag>& arg_types,
+                         axom::sidre::Group* group);
+
+/*!
+ *****************************************************************************
+ * \brief Returns whether a sidre Group holds the given function signature
+ *
+ * \param [in] ret_type The function's return type
+ * \param [in] arg_types The function's argument types
+ * \param [in] group The group written by addSignatureToGroup()
+ *****************************************************************************
+ */
+bool hasSignature(const FunctionTag ret_type,
+                  const std::vector<FunctionTag>& arg_types,
+                  const axom::sidre::Group* group);
+
+}  // namespace detail
+
 class Function : public Verifiable<Function>
 {
 public:

@@ -65,10 +65,10 @@ struct VerificationError
 
 /*!
 *****************************************************************************
-* \brief This function is used to mark if anything went wrong during the 
+* \brief This function is used to mark if anything went wrong during the
 * defining phase of inlet so verify() will properly fail.
 *
-* \param [in] root Pointer to the Sidre Root Group where the warning flag 
+* \param [in] root Pointer to the Sidre Root Group where the warning flag
 * will be set.
 *****************************************************************************
 */
@@ -79,9 +79,9 @@ void setWarningFlag(axom::sidre::Group* root);
 * \brief This function is used to add a flag to the Inlet object
 * corresponding to the provided Sidre group
 *
-* \param [in] target Reference to the Sidre group to set the required 
+* \param [in] target Reference to the Sidre group to set the required
 * status of
-* \param [in] root Reference to the Sidre Root Group where the warning flag 
+* \param [in] root Reference to the Sidre Root Group where the warning flag
 * will be set on failure
 * \param [in] flag The name of the flag to set
 * \param [in] value The value of the flag
@@ -94,9 +94,9 @@ void setFlag(axom::sidre::Group& target, axom::sidre::Group& root, const std::st
 * \brief This function is used to determine the value of a flag for the
 * Inlet object corresponding to the provided Sidre group
 *
-* \param [in] target Reference to the Sidre group to check the required 
+* \param [in] target Reference to the Sidre group to check the required
 * status of
-* \param [in] root Reference to the Sidre Root Group where the warning flag 
+* \param [in] root Reference to the Sidre Root Group where the warning flag
 * will be set on failure
 * \param [in] flag The name of the flag to check
 * \return The value of the flag
@@ -114,7 +114,7 @@ bool checkFlag(const axom::sidre::Group& target, axom::sidre::Group& root, const
 * \param [in] type The type of the object as a string, for use in the warning message
 * \param [in] errors An optional vector of errors to append to in the case
 * of verification failure
-* 
+*
 * \return False if the object was required but \p condition was false, True otherwise
 * \post If the function returns False, a warning message will be emitted
 *****************************************************************************
@@ -151,6 +151,23 @@ inline bool isCollectionGroup(const std::string& name)
 {
   return axom::utilities::string::endsWith(name, detail::COLLECTION_GROUP_NAME);
 }
+
+namespace detail
+{
+/*!
+*****************************************************************************
+* \brief Removes Inlet's internal collection groups from a path.
+*
+* Use the returned path in messages for input-file entries.
+*
+* \param [in] path The path to clean up
+*****************************************************************************
+*/
+inline std::string userFacingPath(const std::string& path)
+{
+  return axom::utilities::string::removeAllInstances(path, "/" + COLLECTION_GROUP_NAME);
+}
+}  // namespace detail
 
 /*!
 *****************************************************************************

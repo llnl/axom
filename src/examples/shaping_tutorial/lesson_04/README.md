@@ -382,6 +382,9 @@ Ordering: 1
 </table>
 
 We run our shaping application with the following Klee input and mesh metadata.
+The mesh metadata accepts YAML (`.yaml` or `.yml`) and, when Axom is configured
+with Lua support, Lua (`.lua`). The lesson includes YAML equivalents for each
+Lua mesh metadata deck.
 
 <table style="border-collapse: collapse; border: none;">
   <tr style="border: none;">
@@ -458,6 +461,13 @@ We note that this example exercises scaling operators, unit conversion operators
 The replacement rules are implicit -- each new shape replaces all existing materials under it.
 
 > :clapper: This example was run using from the build directory as:
+> ```bash
+>   ./bin/shaping_tutorial_lesson_04_quest_sampling_shaper \
+>              -k ../src/examples/shaping_tutorial/lesson_04/circles.yaml \
+>              -m ../src/examples/shaping_tutorial/lesson_04/circle_input.yaml
+> ```
+>
+> The equivalent Lua mesh metadata can be run with:
 > ```bash
 >   ./bin/shaping_tutorial_lesson_04_quest_sampling_shaper \
 >              -k ../src/examples/shaping_tutorial/lesson_04/circles.yaml \

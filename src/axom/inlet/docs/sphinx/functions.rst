@@ -61,6 +61,62 @@ In Lua, the following operations on the ``Vector`` type are supported (for ``Vec
 #. Dimension retrieval: ``d = u.dim``
 #. Component retrieval: ``d = u.x``, ``d = u.y``, ``d = u.z``
 
+Values or Functions
+-------------------
+
+Some entries accept a value or a function at the same input path.
+Call ``orFunction`` on the entry to allow both forms:
+
+.. literalinclude:: ../../examples/functions.cpp
+   :start-after: _inlet_or_function_schema_start
+   :end-before: _inlet_or_function_schema_end
+   :language: C++
+   :dedent: 2
+
+For ``addDouble``, the function returns ``Double``, for ``addString``, it returns ``String``,
+and for ``addDoubleArray``, it returns ``Vector``.
+Declare function arguments with ``FunctionTag`` values, as for ``addFunction``.
+Other entry types do not support ``orFunction``.
+
+The example accepts either of the following Lua inputs:
+
+.. code-block:: Lua
+
+  -- a value
+  scale = 2.0
+
+  -- or a function
+  scale = function(t) return 2.0 * t end
+
+Use ``evaluate`` for either form. When a function was supplied in the input,
+it evaluates it with the given arguments, and when a value was supplied, it ignores the arguments:
+
+.. literalinclude:: ../../examples/functions.cpp
+   :start-after: _inlet_or_function_access_start
+   :end-before: _inlet_or_function_access_end
+   :language: C++
+   :dedent: 2
+
+``evaluate`` passes numeric arguments as ``double`` and character strings as ``std::string``.
+For an array of doubles, use ``evaluate<std::vector<double>>``.
+Its function may return one to three components.
+
+To tell which form the input supplied, check ``type()``, which reports ``InletType::Function``
+for a function. Reading a supplied function with ``get`` is an error.
+
+.. literalinclude:: ../../examples/functions.cpp
+   :start-after: _inlet_or_function_type_start
+   :end-before: _inlet_or_function_type_end
+   :language: C++
+   :dedent: 2
+
+Both forms make the entry present and user-provided. They also satisfy ``required`` and
+``strict`` Containers. A Field's default applies only when the input supplies neither form.
+Field constraints such as ``range`` apply only to a value because Inlet does not call
+the function during ``verify()``. Readers that cannot supply functions,
+such as the YAML and JSON readers, read only the value.
+In a collection of structs, each element may use either form.
+
 Accessing
 ---------
 
@@ -100,7 +156,7 @@ Inlet reports errors according to when they occur:
 
    * - Problem
      - Reported through
-   * - Invalid keys or undefined entries
+   * - Invalid keys, undefined entries, or ambiguous schema names
      - SLIC diagnostics
    * - Missing required input, wrong types, or failed verifiers
      - ``verify()`` and ``VerificationError``
