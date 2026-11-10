@@ -228,18 +228,18 @@ if(NOT AXOM_FOUND)
   # mfem
   if(AXOM_USE_MFEM)
     set(AXOM_MFEM_DIR     "@MFEM_DIR@")
-    if(EXISTS "${AXOM_MFEM_DIR}/lib/cmake/mfem/MFEMConfig.cmake")
+    if (TARGET mfem)
+      # mfem target already exists
+    elseif(EXISTS "${AXOM_MFEM_DIR}/lib/cmake/mfem/MFEMConfig.cmake")
       set(MFEM_DIR ${AXOM_MFEM_DIR})
       find_dependency(mfem REQUIRED NO_DEFAULT_PATH PATHS "${AXOM_MFEM_DIR}/lib/cmake/mfem" NAMES MFEM)
       # MFEM include directories are added as the variable but not always added to the target itself
       target_include_directories(mfem SYSTEM INTERFACE "${MFEM_INCLUDE_DIRS}")
-    elseif(NOT TARGET mfem)
+    else()
       blt_import_library( NAME mfem
                           INCLUDES "@MFEM_INCLUDE_DIRS@"
                           TREAT_INCLUDES_AS_SYSTEM ON
                           DEPENDS_ON "@MFEM_LIBRARIES@")
-    else()
-      # mfem target already exists, no need to import it again
     endif()
   endif()
 
