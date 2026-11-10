@@ -402,7 +402,8 @@ void expectPositiveTrimWinding(const primal::NURBSPatch<double, 3>& patch,
 // Compare each occurrence with its source edge, including direction and closure.
 void expectSingleWireTrimGeometry(const quest::STEPReader& reader,
                                   int patchIndex,
-                                  TopoDS_Face sourceFace)
+                                  TopoDS_Face sourceFace,
+                                  bool checkSplineParameters = false)
 {
   const bool faceReversed = sourceFace.Orientation() == TopAbs_REVERSED;
   sourceFace.Orientation(TopAbs_FORWARD);
@@ -441,6 +442,13 @@ void expectSingleWireTrimGeometry(const quest::STEPReader& reader,
     EXPECT_EQ(reader.getTrimmingCurveWireIds(patchIndex)[i], 0);
     const auto& curve = patch.getTrimmingCurve(i);
     const auto& edge = originals[i];
+    const bool matchingParameters =
+      checkSplineParameters && edge.curve->IsKind(STANDARD_TYPE(Geom_BSplineCurve));
+    if(matchingParameters)
+    {
+      EXPECT_NEAR(curve.getMinKnot(), edge.first, 1e-12);
+      EXPECT_NEAR(curve.getMaxKnot(), edge.last, 1e-12);
+    }
     constexpr int numSamples = 258;
     constexpr int samplesPerSpan = 18;
     axom::Array<double> parameters(numSamples);
@@ -461,6 +469,11 @@ void expectSingleWireTrimGeometry(const quest::STEPReader& reader,
       EXPECT_TRUE(domain.contains(uv)) << uv << " outside " << domain;
       const auto xyz = patch.evaluate(uv[0], uv[1]);
       const gp_Pnt point(xyz[0], xyz[1], xyz[2]);
+      if(matchingParameters)
+      {
+        const double parameter = edge.reversed ? edge.first + edge.last - t : t;
+        EXPECT_LE(point.Distance(edge.curve->Value(parameter)), edge.tolerance);
+      }
       GeomAPI_ProjectPointOnCurve projection(point, edge.curve, edge.first, edge.last);
       double error = std::min(point.Distance(edge.curve->Value(edge.first)),
                               point.Distance(edge.curve->Value(edge.last)));
@@ -482,6 +495,56 @@ void expectSingleWireTrimGeometry(const quest::STEPReader& reader,
     const auto start = next.evaluate(faceReversed ? next.getMaxKnot() : next.getMinKnot());
     EXPECT_LT(primal::squared_distance(end, start), 1e-14);
   }
+}
+
+// Rational quadratic arcs keep each spiral exactly on the cylinder. The height
+// rises at each pole, giving the projected pcurve several C1 intervals to join.
+TopoDS_Face makeSpiralCylinderFace(int spans, double radius = .02, double start = 0.)
+{
+  constexpr double angle = std::numbers::pi / 2;
+  Handle(Geom_CylindricalSurface) surface = new Geom_CylindricalSurface(gp_Ax3(), radius);
+  BRep_Builder builder;
+  TopoDS_Face face;
+  builder.MakeFace(face, surface, 1e-7);
+  auto spiral = [&](double offset) {
+    TColgp_Array1OfPnt poles(1, 2 * spans + 1);
+    TColStd_Array1OfReal weights(1, poles.Length()), knots(1, spans + 1);
+    TColStd_Array1OfInteger mults(1, knots.Length());
+    for(int i = 0; i < poles.Length(); ++i)
+    {
+      const double weight = i % 2 ? std::cos(angle / 2) : 1.;
+      const double a = start + offset + i * angle / 2;
+      poles(i + 1) = gp_Pnt(radius * std::cos(a) / weight, radius * std::sin(a) / weight, i * .001);
+      weights(i + 1) = weight;
+    }
+    for(int i = 0; i < knots.Length(); ++i)
+    {
+      knots(i + 1) = .046875 + .890625 * i / spans;
+      mults(i + 1) = i == 0 || i == spans ? 3 : 2;
+    }
+    return Handle(Geom_BSplineCurve)(new Geom_BSplineCurve(poles, weights, knots, mults, 2));
+  };
+  const auto lower = spiral(0.), upper = spiral(.37);
+  BRepBuilderAPI_MakeWire wire;
+  auto addEdge = [&](const Handle(Geom_Curve) & curve, double first, double last, bool reverse) {
+    double tolerance = 1e-10;
+    const auto pcurve = GeomProjLib::Curve2d(curve, first, last, surface, tolerance);
+    EXPECT_FALSE(pcurve.IsNull());
+    auto edge = BRepBuilderAPI_MakeEdge(curve, first, last).Edge();
+    builder.UpdateEdge(edge, pcurve, face, 1e-7);
+    builder.Range(edge, face, first, last);
+    if(reverse)
+    {
+      edge.Reverse();
+    }
+    wire.Add(edge);
+  };
+  addEdge(lower, lower->FirstParameter(), lower->LastParameter(), false);
+  addEdge(surface->VIso(spans * .002), start + spans * angle, start + spans * angle + .37, false);
+  addEdge(upper, upper->FirstParameter(), upper->LastParameter(), true);
+  addEdge(surface->VIso(0.), start, start + .37, true);
+  builder.Add(face, wire.Wire());
+  return face;
 }
 
 // S(u,v) = (0.004u,v,0) on [0,1]^2. A UV gap of 2e-5 is only 8e-8 in 3D.
@@ -1333,6 +1396,80 @@ TEST(quest_step_reader, periodic_bspline_multiple_turns)
                            : patch.getMaxKnot_v() - patch.getMinKnot_v(),
                 2 * period);
       expectSingleWireTrimGeometry(reader, 0, TopoDS::Face(faces.Current()));
+    }
+  }
+}
+
+TEST(quest_step_reader, converted_periodic_cylinder_pcurves)
+{
+  for(bool reversed : {false, true})
+  {
+    SCOPED_TRACE(reversed);
+    // Two turns starting at U=0 make OCCT return an already-periodic spline.
+    // Its converted pcurves need the same checks as surfaces we make periodic.
+    auto face = makeSpiralCylinderFace(8);
+    if(reversed)
+    {
+      face.Reverse();
+    }
+    fs::TempFile file("axom_step_spiral_", "step");
+    ASSERT_NO_FATAL_FAILURE(writeStepFile(face, file.getPath()));
+    STEPControl_Reader reference;
+    ASSERT_NO_FATAL_FAILURE(readStepReference(file.getPath(), reference));
+    TopExp_Explorer faces(reference.OneShape(), TopAbs_FACE);
+    ASSERT_TRUE(faces.More());
+    const auto sourceFace = TopoDS::Face(faces.Current());
+    ASSERT_TRUE(BRepCheck_Analyzer(sourceFace).IsValid());
+
+    quest::STEPReader reader;
+    reader.setFileName(file.getPath());
+    ASSERT_EQ(reader.read(true), 0);
+    ASSERT_EQ(reader.numPatches(), 1);
+    EXPECT_TRUE(reader.patchWasOriginallyPeriodic_u(0));
+    ASSERT_EQ(reader.getPatchArray()[0].getNumTrimmingCurves(), 4);
+    expectSingleWireTrimGeometry(reader, 0, sourceFace, true);
+  }
+}
+
+TEST(quest_step_reader, periodic_cylinder_projection_across_multiple_turns)
+{
+  struct TestCase
+  {
+    int spans;
+    double radius, start;
+  };
+  // The smaller cylinder also needs a fit tighter than Precision::Confusion().
+  const axom::Array<TestCase> cases = {{13, .02, .37}, {21, .02, .37}, {13, .003175, 0.}};
+  for(const auto& [spans, radius, start] : cases)
+  {
+    for(bool reversed : {false, true})
+    {
+      SCOPED_TRACE(axom::fmt::format("spans={} radius={} reversed={}", spans, radius, reversed));
+      // Successive projected pieces must stay in the same unwrapped UV chart,
+      // even when joining them requires a shift of more than one period.
+      auto face = makeSpiralCylinderFace(spans, radius, start);
+      if(reversed)
+      {
+        face.Reverse();
+      }
+      fs::TempFile file("axom_step_spiral_turns_", "step");
+      ASSERT_NO_FATAL_FAILURE(writeStepFile(face, file.getPath()));
+      STEPControl_Reader reference;
+      ASSERT_NO_FATAL_FAILURE(readStepReference(file.getPath(), reference));
+      TopExp_Explorer faces(reference.OneShape(), TopAbs_FACE);
+      ASSERT_TRUE(faces.More());
+      const auto sourceFace = TopoDS::Face(faces.Current());
+      ASSERT_TRUE(BRepCheck_Analyzer(sourceFace).IsValid());
+
+      quest::STEPReader reader;
+      reader.setFileName(file.getPath());
+      ASSERT_EQ(reader.read(true), 0);
+      ASSERT_EQ(reader.numPatches(), 1);
+      EXPECT_TRUE(reader.patchWasOriginallyPeriodic_u(0));
+      const auto& patch = reader.getPatchArray()[0];
+      EXPECT_GT(patch.getMaxKnot_u() - patch.getMinKnot_u(), 3 * 2 * std::numbers::pi);
+      ASSERT_EQ(patch.getNumTrimmingCurves(), 4);
+      expectSingleWireTrimGeometry(reader, 0, sourceFace, true);
     }
   }
 }
