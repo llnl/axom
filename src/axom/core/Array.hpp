@@ -1730,7 +1730,7 @@ inline void Array<T, DIM, SPACE, StoragePolicy>::initialize_from_other(
   IndexType num_elements,
   IndexType src_stride,
   MemorySpace other_data_space,
-  bool AXOM_DEBUG_PARAM(user_provided_allocator))
+  AXOM_MAYBE_UNUSED bool user_provided_allocator)
 {
   // If a memory space has been explicitly set for the Array object, check that
   // the space of the user-provided allocator matches the explicit space.

@@ -59,7 +59,7 @@ public:
   // iterator_pair range();
 
 private:
-  void verifyPosition(PositionType AXOM_DEBUG_PARAM(pos)) const
+  void verifyPosition(AXOM_MAYBE_UNUSED PositionType pos) const
   {
     SLIC_ASSERT_MSG(false,
                     "Subscripting on NullSet is never valid."

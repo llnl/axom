@@ -340,31 +340,48 @@ def build_and_test_host_config(test_root, host_config,
 
     if should_test_installed_cmake_example:
         install_example_dir = pjoin(install_dir, "examples", "axom", "using-with-cmake")
-        install_example_output_file = pjoin(build_dir,"output.log.install_example.cmake.txt")
-        print("[testing installed 'using-with-cmake' example]")
-        print(f"[log file: {install_example_output_file}]")
 
-        example_commands = [
-            "cd {0}".format(install_example_dir),
-            "rm -rf build",
-            "mkdir build",
-            "cd build",
-            """echo "[Configuring '{0}' example]" """.format("using-with-cmake"),
-            "cmake -C ../host-config.cmake ..",
-            """echo "[Building '{0}' example]" """.format("using-with-cmake"),
-            "make ",
-            """echo "[Running '{0}' example]" """.format("using-with-cmake"),
-            "./example",
-            """echo "[Done]" """
+        # Keep the default installed-consumer smoke test, using the same build
+        # type as Axom, then verify that a downstream project can explicitly enable
+        # or disable SLIC debug macros. The override cases check SLIC_DEBUG
+        # evaluation and compile a parameter used only by SLIC_ASSERT to catch
+        # configuration-dependent declarations.
+        slic_debug_cases = [
+            ("default", ""),
+            ("on", "-DAXOM_ENABLE_SLIC_DEBUG_MACROS=ON -DAXOM_EXAMPLE_EXPECT_SLIC_DEBUG=ON"),
+            ("off", "-DAXOM_ENABLE_SLIC_DEBUG_MACROS=OFF -DAXOM_EXAMPLE_EXPECT_SLIC_DEBUG=OFF"),
         ]
 
-        res = sexe(" && ".join(example_commands),
-                output_file = install_example_output_file,
-                echo=True)
+        for case_name, slic_debug_options in slic_debug_cases:
+            example_build_dir = f"build-slic-debug-{case_name}"
+            install_example_output_file = pjoin(
+                build_dir, f"output.log.install_example.cmake.{case_name}.txt")
+            print(f"[testing installed 'using-with-cmake' example: {case_name}]")
+            print(f"[log file: {install_example_output_file}]")
 
-        if res != 0:
-            print(f"[ERROR: Installed 'using-with-cmake' example for host-config: {host_config} failed]\n\n")
-            return res
+            example_commands = [
+                "cd {0}".format(install_example_dir),
+                f"rm -rf {example_build_dir}",
+                f"mkdir {example_build_dir}",
+                f"cd {example_build_dir}",
+                f"""echo "[Configuring 'using-with-cmake' example: {case_name}]" """,
+                ("cmake -C ../host-config.cmake "
+                 f"-DCMAKE_BUILD_TYPE={build_type} {slic_debug_options} .."),
+                f"""echo "[Building 'using-with-cmake' example: {case_name}]" """,
+                "make ",
+                f"""echo "[Running 'using-with-cmake' example: {case_name}]" """,
+                "./example",
+                """echo "[Done]" """
+            ]
+
+            res = sexe(" && ".join(example_commands),
+                    output_file = install_example_output_file,
+                    echo=True)
+
+            if res != 0:
+                print(f"[ERROR: Installed 'using-with-cmake' example ({case_name}) "
+                      f"for host-config: {host_config} failed]\n\n")
+                return res
 
 
     if should_test_installed_blt_example:

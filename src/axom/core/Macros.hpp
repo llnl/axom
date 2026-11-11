@@ -203,8 +203,8 @@
 
 /*!
  * \def AXOM_DEBUG_PARAM(x)
- * \brief Macro used to silence compiler warnings about parameters
- *        that are only used when AXOM_DEBUG is defined
+ * \brief Macro used to silence compiler warnings about parameters that are
+ *        only used when AXOM_DEBUG is enabled
  * \note Default values are ok
  * \code
  *
@@ -227,8 +227,8 @@
  * \brief Macro that is used to silence compiler warnings about variables that
  *        might be unused in some build configurations.
  *
- * \note This macro can be used for the same purpose as AXOM_UNUSED_VAR and AXOM_DEBUG_PARAM but it
- *       is applied before the variable type declaration.
+ * \note This macro can be used for the same purpose as AXOM_UNUSED_VAR. It is
+ *       applied before a variable or parameter type declaration.
  * \code
  *
  *  AXOM_MAYBE_UNUSED double myVar = ...

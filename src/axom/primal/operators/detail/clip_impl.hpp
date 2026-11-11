@@ -360,7 +360,10 @@ AXOM_HOST_DEVICE void poly_clip_reindex(Polyhedron<T, NDIMS>& poly, const unsign
 
   Polyhedron<T, NDIMS> old_poly;
 
-  for(int i = 0; i < poly.numVertices(); i++)
+  const int vertex_count = poly.numVertices();
+  const int num_vertices =
+    vertex_count < Polyhedron<T, NDIMS>::MAX_VERTS ? vertex_count : Polyhedron<T, NDIMS>::MAX_VERTS;
+  for(int i = 0; i < num_vertices; i++)
   {
     old_poly.addVertex(poly[i]);
     for(int j = 0; j < poly.getNumNeighbors(i); j++)
@@ -373,7 +376,7 @@ AXOM_HOST_DEVICE void poly_clip_reindex(Polyhedron<T, NDIMS>& poly, const unsign
 
   int curIndex = 0;
 
-  for(int i = 0; i < old_poly.numVertices(); i++)
+  for(int i = 0; i < num_vertices; i++)
   {
     if(!(clipped & (1u << i)))
     {
@@ -384,7 +387,7 @@ AXOM_HOST_DEVICE void poly_clip_reindex(Polyhedron<T, NDIMS>& poly, const unsign
   }
 
   // Reinsert neighbors into polyhedron
-  for(int i = 0; i < old_poly.numVertices(); i++)
+  for(int i = 0; i < num_vertices; i++)
   {
     if(!(clipped & (1u << i)))
     {

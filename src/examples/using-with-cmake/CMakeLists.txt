@@ -69,6 +69,13 @@ endif()
 #------------------------------------------------------------------------------
 add_executable(example example.cpp)
 
+if(DEFINED AXOM_EXAMPLE_EXPECT_SLIC_DEBUG)
+    target_compile_definitions(
+        example PRIVATE
+        AXOM_EXAMPLE_TEST_SLIC_DEBUG
+        AXOM_EXAMPLE_EXPECT_SLIC_DEBUG=$<BOOL:${AXOM_EXAMPLE_EXPECT_SLIC_DEBUG}>)
+endif()
+
 # Compile as HIP source if enabled
 if (ENABLE_HIP)
     set_source_files_properties(example.cpp PROPERTIES LANGUAGE HIP)

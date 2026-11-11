@@ -390,7 +390,7 @@ axom::sidre::Group* createBoxMesh(axom::sidre::Group* meshGrp)
                                                              topoName,
                                                              coordsetName,
                                                              params.policy);
-#if defined(AXOM_DEBUG)
+#if AXOM_SLIC_DEBUG_MACROS_ENABLED
   conduit::Node meshNode, info;
   meshGrp->createNativeLayout(meshNode);
   SLIC_ASSERT(conduit::blueprint::mesh::verify(meshNode, info));
@@ -1048,7 +1048,7 @@ double sumMaterialVolumesImpl(sidre::Group* meshGrp, const std::string& material
 {
   conduit::Node meshNode;
   meshGrp->createNativeLayout(meshNode);
-#if defined(AXOM_DEBUG)
+#if AXOM_SLIC_DEBUG_MACROS_ENABLED
   // Conduit can verify Blueprint mesh, but only if data is on host.
   if(axom::execution_space<axom::SEQ_EXEC>::usesAllocId(meshGrp->getDefaultAllocatorID()))
   {

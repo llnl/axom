@@ -66,7 +66,7 @@ We now add a `BasicLogger` instance to the application with
 * ``slic::message::Error``: Used for logging error messages. By default prints a stacktrace and exits the application.
 * ``slic::message::Warning``: Used for logging warning messages. By default, this prints a warning message and continues executing the application.
 * ``slic::message::Info``: Used for logging informational messages.
-* ``slic::message::Debug``: Used for logging debug messages. By default, these are compiled out in ``Release`` configurations.
+* ``slic::message::Debug``: Used for logging debug messages. By default, these follow ``AXOM_DEBUG`` and are compiled out in ``Release`` configurations. Set ``AXOM_ENABLE_SLIC_DEBUG_MACROS=ON`` or ``OFF`` to explicitly enable or disable them independently of ``AXOM_DEBUG``.
  
 We are now free to use `slic`-based logging macros throughout our application, for example:
 ```cpp
