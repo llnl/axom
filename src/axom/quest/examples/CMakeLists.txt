@@ -552,6 +552,16 @@ if(AXOM_ENABLE_MPI AND AXOM_ENABLE_SIDRE AND HDF5_FOUND)
     endif()
 endif()
 
+# Gregory mesh example ---------------------------------------------
+if(CONDUIT_FOUND)
+    axom_add_executable(
+        NAME        quest_gregory_mesh_ex
+        SOURCES     quest_gregory_mesh_example.cpp
+        OUTPUT_DIR  ${EXAMPLE_OUTPUT_DIRECTORY}
+        DEPENDS_ON  ${quest_example_depends} conduit::conduit
+        FOLDER      axom/quest/examples)
+endif()
+
 # Marching cubes example -------------------------------------------
 if(CONDUIT_FOUND AND AXOM_ENABLE_MPI)
     list(APPEND quest_depends_on conduit::conduit
