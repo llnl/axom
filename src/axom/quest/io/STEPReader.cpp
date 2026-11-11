@@ -335,7 +335,13 @@ opencascade::handle<Geom2d_BSplineCurve> projectPeriodicIntervals(
   double tolerance)
 {
   const GeomAdaptor_Curve adaptor(original, first, last);
-  TColStd_Array1OfReal intervals(1, adaptor.NbIntervals(GeomAbs_C1) + 1);
+  const int numIntervals = adaptor.NbIntervals(GeomAbs_C1);
+  // A single interval has no periodic joins to repair.
+  if(numIntervals <= 1)
+  {
+    return {};
+  }
+  TColStd_Array1OfReal intervals(1, numIntervals + 1);
   adaptor.Intervals(intervals, GeomAbs_C1);
   const opencascade::handle<GeomAdaptor_Surface> surfaceAdaptor = new GeomAdaptor_Surface(surface);
   axom::Array<opencascade::handle<Geom2d_BSplineCurve>> pieces;
