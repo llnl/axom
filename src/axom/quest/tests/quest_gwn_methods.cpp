@@ -169,6 +169,8 @@ TEST(quest_gwn_methods, fast_gwn_query_clear)
   axom::Array<Segment2D> first_segments;
   first_segments.emplace_back(Point2D {0.0, 0.0}, Point2D {1.0, 0.0});
   first_segments.emplace_back(Point2D {1.0, 0.0}, Point2D {1.0, 1.0});
+  first_segments.emplace_back(Point2D {1.0, 1.0}, Point2D {0.0, 1.0});
+  first_segments.emplace_back(Point2D {0.0, 1.0}, Point2D {0.0, 0.0});
 
   axom::Array<Segment2D> second_segments;
   second_segments.emplace_back(Point2D {0.0, 0.0}, Point2D {0.0, 1.0});
@@ -178,6 +180,13 @@ TEST(quest_gwn_methods, fast_gwn_query_clear)
   fast_query.initialize(first_segments_const.view());
   EXPECT_TRUE(fast_query.isInitialized());
 
+  fast_query.setBucketSize(2);
+  fast_query.setBVHOrdering(axom::spin::SpaceFillingCurve::Hilbert);
+  fast_query.setBucketGrouping(axom::spin::BucketedBVHGrouping::Sequential);
+  fast_query.initialize(first_segments_const.view());
+  EXPECT_TRUE(fast_query.isInitialized());
+
+  fast_query.setBucketSize(1);
   const auto& second_segments_const = second_segments;
   fast_query.initialize(second_segments_const.view());
   EXPECT_TRUE(fast_query.isInitialized());
@@ -228,7 +237,10 @@ TEST(quest_gwn_methods, gwn_moment_data_dipole_3d)
 
 //------------------------------------------------------------------------------
 template <typename ExecSpace>
-void check_dipole_gwn_query_2d_square()
+void check_dipole_gwn_query_2d_square(
+  axom::IndexType bucket_size = 1,
+  axom::spin::SpaceFillingCurve ordering = axom::spin::SpaceFillingCurve::Morton,
+  axom::spin::BucketedBVHGrouping grouping = axom::spin::BucketedBVHGrouping::SharedPrefix)
 {
   using Point2D = axom::primal::Point<double, 2>;
   using Vector2D = axom::primal::Vector<double, 2>;
@@ -261,6 +273,9 @@ void check_dipole_gwn_query_2d_square()
 
   // Construct the GWN query
   axom::quest::DipoleGWNQuery<ExecSpace, 2> query;
+  query.setBucketSize(bucket_size);
+  query.setBVHOrdering(ordering);
+  query.setBucketGrouping(grouping);
   query.preprocess(dipoles);
   query.query(dc, axom::primal::WindingTolerances {});
 
@@ -294,7 +309,7 @@ void check_dipole_gwn_query_2d_square()
 
 //------------------------------------------------------------------------------
 template <typename ExecSpace>
-void check_dipole_gwn_query_3d_cube()
+void check_dipole_gwn_query_3d_cube(axom::IndexType bucket_size = 1)
 {
   using Point3D = axom::primal::Point<double, 3>;
   using Vector3D = axom::primal::Vector<double, 3>;
@@ -338,6 +353,7 @@ void check_dipole_gwn_query_3d_cube()
 
   // Construct the GWN query
   axom::quest::DipoleGWNQuery<ExecSpace, 3> query;
+  query.setBucketSize(bucket_size);
   query.preprocess(dipoles);
   query.query(dc, axom::primal::WindingTolerances {});
 
@@ -585,9 +601,43 @@ TEST(quest_gwn_methods, dipole_gwn_query_2d_square)
   check_dipole_gwn_query_2d_square<axom::SEQ_EXEC>();
 }
 
+TEST(quest_gwn_methods, dipole_gwn_query_2d_bucketed_bvh)
+{
+  check_dipole_gwn_query_2d_square<axom::SEQ_EXEC>(7);
+  check_dipole_gwn_query_2d_square<axom::SEQ_EXEC>(7,
+                                                   axom::spin::SpaceFillingCurve::Hilbert,
+                                                   axom::spin::BucketedBVHGrouping::Sequential);
+}
+
+TEST(quest_gwn_methods, gwn_bvh_option_setters)
+{
+  axom::quest::NURBSCurveGWNQuery<axom::SEQ_EXEC> curves;
+  axom::quest::PolylineGWNQuery<axom::SEQ_EXEC> polyline;
+  axom::quest::NURBSPatchGWNQuery<axom::SEQ_EXEC> patches;
+  axom::quest::TriangleGWNQuery<axom::SEQ_EXEC> triangles;
+
+  curves.setBucketSize(7);
+  curves.setBVHOrdering(axom::spin::SpaceFillingCurve::Hilbert);
+  curves.setBucketGrouping(axom::spin::BucketedBVHGrouping::Sequential);
+  polyline.setBucketSize(7);
+  polyline.setBVHOrdering(axom::spin::SpaceFillingCurve::Hilbert);
+  polyline.setBucketGrouping(axom::spin::BucketedBVHGrouping::Sequential);
+  patches.setBucketSize(7);
+  patches.setBVHOrdering(axom::spin::SpaceFillingCurve::Hilbert);
+  patches.setBucketGrouping(axom::spin::BucketedBVHGrouping::Sequential);
+  triangles.setBucketSize(7);
+  triangles.setBVHOrdering(axom::spin::SpaceFillingCurve::Hilbert);
+  triangles.setBucketGrouping(axom::spin::BucketedBVHGrouping::Sequential);
+}
+
 TEST(quest_gwn_methods, dipole_gwn_query_3d_cube)
 {
   check_dipole_gwn_query_3d_cube<axom::SEQ_EXEC>();
+}
+
+TEST(quest_gwn_methods, dipole_gwn_query_3d_bucketed_bvh)
+{
+  check_dipole_gwn_query_3d_cube<axom::SEQ_EXEC>(17);
 }
 
 #if defined(AXOM_USE_OPENMP) && defined(AXOM_USE_RAJA)
@@ -598,9 +648,19 @@ TEST(quest_gwn_methods, dipole_gwn_query_2d_square_omp)
   check_dipole_gwn_query_2d_square<axom::OMP_EXEC>();
 }
 
+TEST(quest_gwn_methods, dipole_gwn_query_2d_bucketed_bvh_omp)
+{
+  check_dipole_gwn_query_2d_square<axom::OMP_EXEC>(7);
+}
+
 TEST(quest_gwn_methods, dipole_gwn_query_3d_cube_omp)
 {
   check_dipole_gwn_query_3d_cube<axom::OMP_EXEC>();
+}
+
+TEST(quest_gwn_methods, dipole_gwn_query_3d_bucketed_bvh_omp)
+{
+  check_dipole_gwn_query_3d_cube<axom::OMP_EXEC>(17);
 }
 #endif
 
