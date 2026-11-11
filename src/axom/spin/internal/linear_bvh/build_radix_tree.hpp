@@ -778,7 +778,7 @@ inline void append_shared_prefix_buckets(const ArrayView<const std::uint32_t> ke
  * \brief Form primitive buckets based on shared prefixes in the spatial keys of each primitive
  *
  * This policy will result in many buckets with fewer than \a max_bucket_size primitives,
- * but the buckets that result have very high spatial coherence, as primtiives *must* have
+ * but the buckets that result have very high spatial coherence, as primitives *must* have
  * a shared prefix key to be bucketed together.  
  * 
  * \param[in] primitive_tree The radix tree with spatially sorted keys for each primitive
@@ -821,7 +821,7 @@ void build_shared_prefix_buckets(const RadixTree<FloatType, NDIMS>& primitive_tr
  *
  * This policy will result in every bucket (except the last) having exactly \a max_bucket_size
  * primitives, This minimizes the number of buckets, but may result in low spatial coherence, 
- * as bucketed primtiives can have far-away spatial keys.
+ * as bucketed primitives can have far-away spatial keys.
  * 
  * \param[in] primitive_tree The radix tree with spatially sorted keys for each primitive
  * \param[in] max_bucket_size The maximum number of primitives allowed in a bucket
