@@ -605,8 +605,8 @@ TEST(quest_gwn_methods, dipole_gwn_query_2d_bucketed_bvh)
 {
   check_dipole_gwn_query_2d_square<axom::SEQ_EXEC>(7);
   check_dipole_gwn_query_2d_square<axom::SEQ_EXEC>(7,
-                                                  axom::spin::SpaceFillingCurve::Hilbert,
-                                                  axom::spin::BucketedBVHGrouping::Sequential);
+                                                   axom::spin::SpaceFillingCurve::Hilbert,
+                                                   axom::spin::BucketedBVHGrouping::Sequential);
 }
 
 TEST(quest_gwn_methods, gwn_bvh_option_setters)
