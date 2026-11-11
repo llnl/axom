@@ -139,6 +139,11 @@ void DistributedClosestPoint::setDynamicDistanceFiltering(bool on)
   }
 }
 
+void DistributedClosestPoint::setMaxReplicationFactor(int count)
+{
+  m_maxReplicationFactor = count;
+}
+
 void DistributedClosestPoint::setOutput(const std::string& field, bool on)
 {
   // clang-format off
@@ -208,6 +213,7 @@ bool DistributedClosestPoint::generateBVHTree()
 {
   SLIC_ASSERT_MSG(m_impl, "Must call 'setObjectMesh' before calling generateBVHTree");
 
+  m_impl->setMaxReplicationFactor(m_maxReplicationFactor);
   bool success = m_impl->generateBVHTree();
   return success;
 }
