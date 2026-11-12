@@ -329,8 +329,7 @@ if(AXOM_ENABLE_KLEE AND AXOM_ENABLE_SIDRE AND CONDUIT_FOUND AND RAJA_FOUND AND A
 endif()
 
 #------------------------------------------------------------------------------
-# MarchingCubes tests for the Bump backend on structured meshes and
-# single-shape unstructured hex meshes.
+# MarchingCubes Bump backend and cross-backend tests.
 #------------------------------------------------------------------------------
 if(CONDUIT_FOUND AND AXOM_ENABLE_BUMP)
     set(quest_mc_bump_depends ${quest_tests_depends} conduit::conduit)

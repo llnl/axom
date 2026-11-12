@@ -10,11 +10,9 @@
  * @brief Compares the legacy and Bump MarchingCubes backends on structured meshes.
  *
  * Legacy output duplicates vertices by facet.
- * Bump output welds vertices and can contain polygons that the adaptor triangulates.
- * The checks compare:
- *   - E1: parent cell sets
- *   - E2: vertex sets
- *   - E3: area for planar 3D fixtures and length for unambiguous 2D fixtures
+ * Bump output welds vertices and fan-triangulates 3D polygons for array output.
+ * Tests compare parent cell and vertex sets, plus area for planar 3D contours
+ * and length for unambiguous 2D contours.
  */
 
 #include "axom/config.hpp"
@@ -64,9 +62,15 @@ using mctest::RoundField;
 using RuntimePolicy = axom::runtime_policy::Policy;
 
 /*!
- * @brief Build the same box as mctest::buildStructured<3> with a uniform coordset and topology.
+ * @brief Build a uniform 3D mesh on [0,1]^3.
  *
- * @note @a n must be a power of two so the uniform and explicit coordinates agree bit for bit.
+ * @tparam Field Callable scalar field accepting x, y and z coordinates.
+ * @param[out] mesh Output Blueprint mesh, replacing its prior contents.
+ * @param[in] n Number of cells along each axis.
+ * @param[in] f Scalar function sampled at each node.
+ * @param[in] fieldName Name of the vertex field to create.
+ *
+ * @note Use a power of two for \a n to match buildStructured<3> coordinates exactly.
  */
 template <typename Field>
 void buildUniform3D(conduit::Node& mesh, int n, const Field& f, const std::string& fieldName)
@@ -115,9 +119,9 @@ void buildUniform3D(conduit::Node& mesh, int n, const Field& f, const std::strin
 
 struct BackendResult
 {
-  std::set<axom::IndexType> crossingCells;               //!< E1
-  std::vector<axom::primal::Point<double, 3>> vertices;  //!< E2 (z==0 in 2D)
-  double measure {0.0};                                  //!< E3: area in 3D, length in 2D
+  std::set<axom::IndexType> crossingCells;               //!< Parent cell ids.
+  std::vector<axom::primal::Point<double, 3>> vertices;  //!< Coordinates, with z == 0 in 2D.
+  double measure {0.0};                                  //!< Area in 3D, length in 2D.
   axom::IndexType facetCount {0};
   axom::IndexType nodeCount {0};
 };
@@ -240,7 +244,16 @@ std::array<BackendResult, 3> runAccumulatedBackend(const conduit::Node& mesh,
 // Check each point set against the other within a fixed tolerance.
 //---------------------------------------------------------------------------
 
-//! @brief Return the largest nearest-candidate distance and its source point index.
+/*!
+ * @brief Find the largest nearest-candidate distance.
+ * @param[in] from Source points to check.
+ * @param[in] to Candidate target points.
+ * @param[in] tolerance Half-width of the search box around each source point.
+ * @param[out] argMax Index of the source point with the largest nearest-candidate distance,
+ *             or zero if either point set is empty.
+ * @return The largest nearest-candidate distance, zero if the source is empty,
+ *         or infinity if a source point has no candidate in its search box.
+ */
 double oneSidedHausdorff(const std::vector<axom::primal::Point<double, 3>>& from,
                          const std::vector<axom::primal::Point<double, 3>>& to,
                          double tolerance,
@@ -314,12 +327,12 @@ void compareBackendResults(const BackendResult& legacy,
     bump.crossingCells.size()));
 
   ASSERT_GT(legacy.facetCount, 0) << "[" << label << "] legacy produced an empty contour";
-  ASSERT_GT(bump.facetCount, 0) << "[" << label << "] bump produced an empty contour";
+  ASSERT_GT(bump.facetCount, 0) << "[" << label << "] Bump produced an empty contour";
   EXPECT_GT(legacy.measure, 0.0);
   EXPECT_GT(bump.measure, 0.0);
 
   EXPECT_EQ(legacy.crossingCells, bump.crossingCells)
-    << "E1 [" << label << "]: backends report different parent cells.";
+    << "[" << label << "]: backends report different parent cells.";
 
   compareVertexSets(legacy, bump, vertex_tolerance);
 
@@ -328,7 +341,7 @@ void compareBackendResults(const BackendResult& legacy,
     const double relative_difference =
       std::abs(bump.measure - legacy.measure) / std::max(legacy.measure, 1.0e-300);
     EXPECT_LT(relative_difference, measure_relative_tolerance)
-      << "E3 [" << label << "]: comparable contours have different measures";
+      << "[" << label << "]: comparable contours have different measures";
   }
 }
 
@@ -358,9 +371,11 @@ void compareBackends(int n,
 }
 
 /*!
- * @brief An isovalue outside the data range is valid input, not an error.
+ * @brief Check Blueprint output for an isovalue outside the data range.
  *
- * This covers Blueprint population and relinquishment after an extraction with no crossing cells.
+ * @param[in] policy Runtime policy used for extraction.
+ *
+ * Copying and moving an empty contour must succeed and omit empty domains.
  */
 void test_empty_contour(RuntimePolicy policy)
 {
@@ -382,7 +397,7 @@ void test_empty_contour(RuntimePolicy policy)
   EXPECT_EQ(mc.getContourCellCount(), 0);
   EXPECT_EQ(mc.getContourNodeCount(), 0);
 
-  // Neither of these may throw or abort. A domain with no contour is omitted.
+  // Empty contours produce no output domain.
   conduit::Node bp;
   mc.populateContourMeshBlueprint(bp);
   EXPECT_EQ(bp.number_of_children(), 0);
@@ -398,12 +413,13 @@ void test_empty_contour(RuntimePolicy policy)
 /*!
  * @brief Compare uniform and rectilinear input with equivalent explicit input.
  *
- * The legacy backend cannot read uniform or rectilinear meshes, so the explicit
- * Bump result is the reference for all three representations of the same box.
+ * @param[in] policy Runtime policy used for extraction.
+ *
+ * Compare against explicit Bump output because the legacy backend only accepts structured meshes.
  */
 void test_uniform_and_rectilinear(RuntimePolicy policy)
 {
-  const int n = 8;  // power of two: see buildUniform3D's note on coordinate agreement
+  const int n = 8;  // Power of two to match explicit coordinates exactly.
   RoundField f {{0.5, 0.5, 0.5}, 0.25};
   const std::string fieldName = "fcn";
 
@@ -452,6 +468,8 @@ void test_uniform_and_rectilinear(RuntimePolicy policy)
 /*!
  * @brief Check that MarchingCubes rejects a float32 function field.
  *
+ * @param[in] policy Runtime policy used for extraction.
+ *
  * Both backends require float64 function fields.
  */
 void test_float32_field_rejected(RuntimePolicy policy)
@@ -490,7 +508,7 @@ void test_float32_field_rejected(RuntimePolicy policy)
     axom::slic::SlicAbortException);
 }
 
-// Check that changing the backend after setMesh() requires another setMesh() call
+// Changing the backend requires another setMesh() call.
 void test_backend_change_after_set_mesh(RuntimePolicy policy)
 {
   namespace quest = axom::quest;
@@ -515,7 +533,7 @@ void test_backend_change_after_set_mesh(RuntimePolicy policy)
   mc.computeIsocontour(0.0);
   ASSERT_GT(mc.getContourFacetCount(), 0);
 
-  // Switching back makes the Bump output unreachable until setMesh() runs again.
+  // Switching back invalidates the domain workers until setMesh() runs again.
   mc.setBackend(quest::MarchingCubesBackend::legacy);
   {
     axom::slic::ScopedAbortToThrow abort_guard;
@@ -547,7 +565,7 @@ void test_blueprint_output_after_accumulation(RuntimePolicy policy)
     EXPECT_THROW(mc.relinquishContourDataBlueprint(bp), axom::slic::SlicAbortException);
   }
 
-  // After clearOutput() and one computeIsocontour() call, the Blueprint output is available.
+  // Clear accumulated contours before extracting a single Blueprint contour.
   mc.clearOutput();
   mc.computeIsocontour(0.05);
   conduit::Node bp;
@@ -557,7 +575,11 @@ void test_blueprint_output_after_accumulation(RuntimePolicy policy)
   EXPECT_GT(n_topo.fetch_existing("elements/sizes").dtype().number_of_elements(), 0);
 }
 
-//! @brief Run the Bump backend and require a field-layout error.
+/*!
+ * @brief Run the Bump backend and require a field-layout error.
+ * @param[in] mesh Input Blueprint mesh with an unsupported layout for the fcn field.
+ * @param[in] policy Runtime policy used for extraction.
+ */
 void expectBumpFieldLayoutRejected(const conduit::Node& mesh, RuntimePolicy policy)
 {
   axom::slic::ScopedAbortToThrow abort_guard;
@@ -577,6 +599,8 @@ void expectBumpFieldLayoutRejected(const conduit::Node& mesh, RuntimePolicy poli
 
 /*!
  * @brief Check that MarchingCubes rejects unsupported strided field layouts.
+ *
+ * @param[in] policy Runtime policy used for extraction.
  *
  * Bump's flat field view cannot represent a permuted field or one whose offsets
  * and strides differ from the topology.
@@ -600,10 +624,11 @@ void test_invalid_field_layouts_rejected(RuntimePolicy policy)
 }
 
 /*!
- * @brief Preserve parent ids when the input has an "originalElements" field.
+ * @brief Check parent cell ids when the input has an \c originalElements field.
  *
- * TableBasedExtractor otherwise propagates the input field instead of writing
- * source zone indices. MarchingCubes uses a private field name to avoid this collision.
+ * @param[in] policy Runtime policy used for extraction.
+ *
+ * A private field name prevents CutField from forwarding the input field as parent cell ids.
  */
 void test_original_elements_collision(RuntimePolicy policy)
 {
@@ -627,7 +652,7 @@ void test_original_elements_collision(RuntimePolicy policy)
     auto* v = fld["values"].as_int64_ptr();
     for(conduit::index_t i = 0; i < nCells; ++i)
     {
-      v[i] = -7;  // if these leak through as parent ids, the check below fails
+      v[i] = -7;
     }
   }
   conduit::Node info;
@@ -647,6 +672,8 @@ void test_original_elements_collision(RuntimePolicy policy)
 
 /*!
  * @brief Compare strided and compact representations of the same mesh.
+ *
+ * @param[in] policy Runtime policy used for extraction.
  *
  * Ghost values continue the field outside the real zone range,
  * so ignoring the topology offsets produces extra facets.
@@ -847,6 +874,8 @@ void test_accumulated_fields(RuntimePolicy policy)
 /*!
  * @brief Compare float and double classification near the isovalue.
  *
+ * @param[in] policy Runtime policy used for extraction.
+ *
  * Values just above the isovalue in double can round to the isovalue in float.
  * Structured and unstructured forms of the same mesh must still select the
  * same crossing cells.
@@ -881,7 +910,7 @@ void test_float_ulp_band_falsification(RuntimePolicy policy)
       }
     }
   }
-  // Four corners of cell (0,0,0) lie in the double-to-float rounding gap.
+  // Four corners of the first cell lie in the double-to-float rounding gap.
   const double tiny = std::nextafter(contourVal, 2.0) - contourVal;  // one double ULP
   fv[nodeAt(0, 0, 0)] = contourVal + tiny;
   fv[nodeAt(1, 0, 0)] = contourVal + tiny;
@@ -906,10 +935,9 @@ void test_float_ulp_band_falsification(RuntimePolicy policy)
   const auto unstructuredRun =
     runBackend<3>(unstructuredMesh, fieldName, contourVal, policy, /*useBump=*/true);
 
-  SLIC_INFO(axom::fmt::format(
-    "[ulp_band] bump/structured: {} facets; bump/unstructured (same geometry): {} facets",
-    structuredRun.facetCount,
-    unstructuredRun.facetCount));
+  SLIC_INFO(axom::fmt::format("[ulp_band] bump/structured: {} facets; bump/unstructured: {} facets",
+                              structuredRun.facetCount,
+                              unstructuredRun.facetCount));
 
   ASSERT_GT(structuredRun.facetCount, 0) << "test mesh must contain a contour";
   ASSERT_GT(unstructuredRun.facetCount, 0);

@@ -11,10 +11,7 @@
  *
  * @brief Extracts 2D and 3D isocontours from scalar fields on Blueprint meshes.
  *
- * @note Two backends are available. The legacy backend supports structured meshes,
- * including strided structured meshes. The Bump-based backend supports structured,
- * strided structured, and unstructured input meshes. Unstructured inputs must be
- * (single-shape) quad meshes in 2D or hex meshes in 3D.
+ * @note The legacy backend is the default. See MarchingCubesBackend for supported topologies.
  */
 
 #include "axom/config.hpp"
@@ -46,8 +43,7 @@ class MarchingCubesSingleDomain;
  * \c fullParallel processes more data but has no serial loop.
  * \c byPolicy chooses between them based on the runtime policy.
  *
- * @note This setting controls only the legacy structured-mesh backend.
- *       Bump manages its own parallelism for the selected runtime policy.
+ * @note Bump ignores this setting and manages parallelism through the runtime policy.
  */
 enum class MarchingCubesDataParallelism
 {
@@ -59,10 +55,10 @@ enum class MarchingCubesDataParallelism
 /*!
  * @brief Selects the MarchingCubes implementation.
  *
- * \c legacy is the original structured-mesh implementation.
- * \c bump uses Bump's CutField. It also accepts uniform and rectilinear topologies,
- *    and single-shape unstructured quad (2D) or hex (3D) topologies.
- *    Only \c bump can return its welded contour as a Blueprint mesh.
+ * \c legacy supports structured meshes, including strided layouts.
+ * \c bump uses Bump's CutField. It supports those structured layouts, uniform and
+ * rectilinear topologies, and single-shape unstructured quads in 2D or hexes in 3D.
+ * Only \c bump provides welded Blueprint contour output.
  */
 enum class MarchingCubesBackend
 {
@@ -101,8 +97,6 @@ enum class MarchingCubesBackend
  *   }
  * @endverbatim
  *
- * The input is the parent mesh, and the generated output is the contour mesh.
- *
  * Output is available as arrays or an \c axom::mint::UnstructuredMesh.
  * The arrays identify the parent cell and domain of each facet.
  * The Bump backend can also return its welded Blueprint mesh.
@@ -121,14 +115,10 @@ public:
   /*!
    * @brief Configure the execution policy, allocator, and legacy scan strategy.
    *
-   * @param [in] runtimePolicy A value from RuntimePolicy.
-   *             The simplest policy is RuntimePolicy::seq, which specifies
-   *             running sequentially on the CPU.
-   * @param [in] allocatorId Data allocator ID. Choose one compatible with \c runtimePolicy.
+   * @param [in] runtimePolicy Execution policy. RuntimePolicy::seq runs sequentially on the CPU.
+   * @param [in] allocatorId Allocator ID compatible with \a runtimePolicy.
    *             See \c execution_space.
-   * @param [in] dataParallelism Data-parallel implementation choice for the legacy backend.
-   *             The Bump backend accepts but ignores this setting because
-   *             Bump manages its own parallelism.
+   * @param [in] dataParallelism Legacy scan strategy. Bump ignores this setting.
    */
   MarchingCubes(RuntimePolicy runtimePolicy,
                 int allocatorId,
@@ -170,17 +160,10 @@ public:
 
   /*!
    * @brief Select the backend implementation.
-   * @param [in] backend The backend. The default is MarchingCubesBackend::legacy.
+   * @param [in] backend Backend to use. Defaults to MarchingCubesBackend::legacy.
    *
-   * The legacy backend only accepts structured meshes. Bump also accepts uniform
-   * and rectilinear topologies and single-shape unstructured quad or hex meshes.
-   *
-   * Call this method before setMesh(), which constructs backend-specific workers
-   * for the input domains. If the backend changes after setMesh(), call setMesh() again.
-   * Otherwise computeIsocontour() and the Blueprint output methods report an error.
-   *
-   * @note The MarchingCubesDataParallelism constructor argument selects the
-   *       legacy backend's scan strategy. Bump ignores it.
+   * Call this before setMesh(). If the backend changes, call setMesh() again to
+   * rebuild the domain workers. Otherwise extraction and Blueprint output report an error.
    */
   void setBackend(MarchingCubesBackend backend);
 
@@ -210,21 +193,17 @@ public:
   //!@name Access to output contour mesh
   /*!
    * @brief Copy the generated contour into a mint::UnstructuredMesh.
-   * @param mesh Output contour mesh.
-   * @param cellIdField Name of field to store the flat parent cell ids.
-   *        If empty, the data is not provided.
-   * @param domainIdField Name of field to store the parent domain ids.
-   *        The type of this data is \c DomainIdType.
-   *        If omitted, the data is not provided.
+   * @param [in,out] mesh Mesh to receive the contour nodes, cells and requested fields.
+   * @param [in] cellIdField Field name for flat parent cell ids. Empty means no field.
+   * @param [in] domainIdField Field name for parent domain ids of type \c DomainIdType.
+   *        Empty means no field.
    *
-   *  The method creates the requested fields when they do not exist.
+   * This method creates missing fields.
    *
-   *  mint::UnstructuredMesh supports only host memory, so this method always
-   *  deep-copies data to the host. Use the array or Blueprint output methods
-   *  to avoid that copy.
+   * mint::UnstructuredMesh requires host memory, so this method copies data to the host.
+   * Use the array or Blueprint output methods to avoid that copy.
    *
-   *  Bump may produce polygonal faces in 3D. This method fan-triangulates
-   *  those faces and reuses Bump's welded vertices.
+   * In 3D, this method fan-triangulates Bump's polygons and reuses its welded vertices.
    */
   void populateContourMesh(axom::mint::UnstructuredMesh<axom::mint::SINGLE_SHAPE>& mesh,
                            const std::string& cellIdField = {},
@@ -233,22 +212,17 @@ public:
   /*!
    * @brief Copy Bump's welded contour into a Blueprint multi-domain mesh.
    * @param [out] bpMesh Output Blueprint multi-domain mesh.
-   * @param [in] triangulate If true, convert 3D polygonal surface elements
-   *        into triangles while preserving Bump's welded coordset.
+   * @param [in] triangulate If true, fan-triangulate 3D polygons. Coordinates remain welded.
    *
-   * This method requires the Bump backend. Without triangulation, it preserves
-   * Bump's welded segments in 2D and polygonal faces in 3D. The topology stores
-   * Blueprint connectivity, sizes, and offsets.
+   * Requires the Bump backend. Output contains welded segments in 2D and polygons
+   * in 3D unless \a triangulate is true. The topology includes connectivity, sizes and offsets.
    *
-   * Arrays in \a bpMesh use the allocator supplied to the constructor.
-   * Callers must copy device data to host before reading it on the host.
+   * Arrays use the constructor's allocator. Copy device data to host before reading it there.
    *
    * @pre computeIsocontour() was called exactly once since the last clearOutput().
-   *      The array output can accumulate several contours, but this mesh holds one.
    *
-   * Input domains whose contour is empty are omitted, so \a bpMesh may have
-   * fewer domains than the input mesh, and none if the isovalue misses every domain.
-   * Each output domain has \c state/domain_id.
+   * Empty contours produce no output domain. Each output domain has \c state/domain_id.
+   * If all contours are empty, \a bpMesh is empty.
    */
   void populateContourMeshBlueprint(conduit::Node& bpMesh, bool triangulate = false) const;
 
@@ -339,12 +313,9 @@ public:
    * @brief Transfer ownership of Bump's welded Blueprint contour to the caller.
    * @param [out] bpMesh Output Blueprint multi-domain mesh.
    *
-   * This moves the cached Bump output nodes without deep-copying them.
-   * It is available only for contours computed with the Bump backend
-   * and leaves this MarchingCubes object with no accessible contour output,
-   * as though clearOutput() had been called.
-   * It has the same precondition as populateContourMeshBlueprint().
-   * As in populateContourMeshBlueprint(), domains with an empty contour are omitted.
+   * Requires the Bump backend. Moves cached output without copying its arrays,
+   * then clears this object's contour output as clearOutput() would.
+   * The precondition and empty-domain rules match populateContourMeshBlueprint().
    */
   void relinquishContourDataBlueprint(conduit::Node& bpMesh);
   ///@}

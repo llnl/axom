@@ -9,9 +9,9 @@
  *
  * @brief Tests the Bump backend of quest::MarchingCubes.
  *
- * The tests cover structured meshes and single-shape unstructured hex meshes
- * in each enabled execution space. They check analytic residuals, parent-cell IDs,
- * crossing cells, and edge incidence in the welded output.
+ * Tests cover structured and single-shape unstructured quad and hex meshes
+ * under each enabled runtime policy. They check field residuals, parent cell ids,
+ * crossing cells and welded edge incidence.
  */
 
 #include "axom/config.hpp"
@@ -381,7 +381,7 @@ void runAndVerify(conduit::Node& mesh,
   mc.populateContourMeshBlueprint(contourBpExec);
   conduit::Node contourBp;
   copyBlueprintToHost(contourBp, contourBpExec);
-  // Check the welded Blueprint output and the fixed-stride compatibility arrays.
+  // Check welded Blueprint output and fixed-stride arrays.
   ASSERT_TRUE(conduit::blueprint::mesh::is_multi_domain(contourBp));
   ASSERT_EQ(conduit::blueprint::mesh::number_of_domains(contourBp), 1);
   const conduit::Node& contourDom = contourBp.child(0);
@@ -495,9 +495,7 @@ void test_structured_round(RuntimePolicy policy)
   conduit::Node mesh;
   RoundField f {{0.5, 0.5, 0.5}, 0.25};  // sphere fully inside [0,1]^3
   mctest::buildStructured<3>(mesh, 16, f, "fcn");
-  // The sphere is inside the domain, so the contour is closed.
-  // The contour is exact for the linearly interpolated nodal field, so the
-  // analytic signed-distance residual is O(h^2), not roundoff.
+  // The contour is closed. Linear interpolation gives an O(h^2) signed-distance residual.
   runAndVerify<3>(mesh, f, 0.0, policy, "fcn", /*expect_closed_interior=*/true, 5.0e-3);
 }
 
@@ -508,9 +506,7 @@ void test_structured_planar_mask(RuntimePolicy policy)
   PlanarField f {{0.5, 0.5, 0.30}, {0.0, 0.0, 1.0}};  // horizontal plane z=0.30
   mctest::buildStructured<3>(mesh, n, f, "fcn");
 
-  // Select only the lower k-slab. Since z=0.30 lies in that selected half,
-  // the contour should be non-empty, and runAndVerify checks every reported
-  // parent cell has the selected mask value.
+  // The plane crosses the selected lower k-slab. Check that every parent cell matches the mask.
   mctest::addCellField<3>(mesh, [=](int, int, int k) { return k < n / 2 ? 7 : 3; }, "mask");
   runAndVerify<3>(mesh,
                   f,
@@ -586,7 +582,7 @@ void test_strided_planar_mask_with_field_layout(RuntimePolicy policy)
 
   const axom::Array<axom::IndexType> parentsHost(mc.getContourFacetParents(), hostAllocatorID());
   const auto parents = parentsHost.view();
-  // Each selected cell produces two contour facets. Every facet must retain a parent in the mask.
+  // Each selected cell produces two facets. Check their parent cells against the mask.
   EXPECT_EQ(parents.size(), axom::IndexType(n) * n);
   for(const auto parent : parents)
   {
@@ -614,7 +610,6 @@ void test_unstructured_hex_round(RuntimePolicy policy)
                   5.0e-3);
 }
 
-// The 2D analogue of test_unstructured_hex_round, on single-shape quads.
 void test_unstructured_quad_round(RuntimePolicy policy)
 {
   conduit::Node unstructured;
@@ -629,7 +624,7 @@ void test_unstructured_quad_round(RuntimePolicy policy)
   conduit::Node info;
   ASSERT_TRUE(conduit::blueprint::mesh::verify(unstructured, info)) << info.to_yaml();
 
-  // The edge-incidence check applies only in 3D, so expect_closed_interior is unused here.
+  // The 2D check ignores expect_closed_interior.
   runAndVerify<2>(unstructured,
                   f,
                   0.0,
@@ -748,7 +743,7 @@ void test_accumulated_analytic_fields(RuntimePolicy policy)
                             gyroid_end);
 }
 
-// Contour a field that crosses exactly one cell for coverage related to memory copies
+// Check memory copies for a contour crossing one cell.
 template <int DIM>
 void test_single_crossing_cell(RuntimePolicy policy)
 {
@@ -786,9 +781,7 @@ void test_single_crossing_cell(RuntimePolicy policy)
   EXPECT_EQ(orig[0], 0);
 }
 
-// Blueprint output for a multi-domain mesh where one domain has no contour.
-// The empty domain comes first, so omitting it must not shift the domain ids of the remaining output.
-// Every output form must pass Blueprint verification.
+// Put the empty domain first to check that omitting it preserves the remaining domain ids.
 template <int DIM>
 void test_multidomain_with_empty_domain(RuntimePolicy policy)
 {
@@ -846,9 +839,7 @@ void test_multidomain_with_empty_domain(RuntimePolicy policy)
 }
 
 //---------------------------------------------------------------------------
-// Multi-domain accumulation.
-// Separate runs provide counts without output offsets.
-// A combined run exercises offsets in the shared output arrays.
+// Multi-domain output offsets.
 //---------------------------------------------------------------------------
 
 template <int DIM>

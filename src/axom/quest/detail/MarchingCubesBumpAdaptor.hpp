@@ -11,6 +11,7 @@
  *
  * CutField produces a welded, mixed-shape Blueprint mesh with this structure:
  *
+ * @verbatim
  *   <bp_root>
  *    ├── topologies
  *    │   └── <t>
@@ -29,6 +30,7 @@
  *    └── fields
  *        └──  originalElements
  *             └─• values              (element-associated, input zone per fragment)
+ * @endverbatim
  *
  * In 2D, each segment becomes one facet.
  * In 3D, a polygon with \c p corners becomes \c p-2 triangles.
@@ -73,24 +75,25 @@ namespace axom::quest::detail::marching_cubes
 /*!
  * @brief Private name used to request parent-zone ids from Bump.
  *
- * CutField forwards an existing input field when its name matches the
- * requested output field. A private name prevents an input
- * \c originalElements field from replacing the zone indices.
+ * A private name prevents CutField from forwarding an input \c originalElements
+ * field instead of generating parent cell ids.
  */
 constexpr const char* kOriginalElementsField = "__axom_mc_originalElements";
 
 /*!
  * @brief Public name for the parent-zone field.
  *
- * MarchingCubes renames Bump's private output field before exposing the mesh.
+ * MarchingCubes renames the private field before returning Blueprint output.
  */
 constexpr const char* kPublicOriginalElementsField = "originalElements";
 
 /*!
- * @brief Number of fixed-stride facets a Bump zone contributes.
+ * @brief Count the contour facets contributed by a Bump zone.
  *
- * A 2D segment contributes one facet. In 3D, a polygon with \a nCorners
- * contributes \c nCorners-2 triangles, or zero if it is degenerate.
+ * @tparam DIM Spatial dimension, 2 or 3.
+ * @param[in] nCorners Number of corners in the Bump zone.
+ * @return One facet per segment in 2D or \c nCorners-2 triangles in 3D.
+ *         Returns zero if the zone has too few corners to form a facet.
  */
 template <int DIM>
 AXOM_HOST_DEVICE inline axom::IndexType facetsPerZone(axom::IndexType nCorners)
@@ -219,18 +222,20 @@ void triangulateBlueprintMeshViews(conduit::Node& n_output,
 }
 
 /*!
- * @brief Convert a Bump CutField Blueprint domain from polygonal surface
- * elements to a welded triangle mesh in place.
+ * @brief Fan-triangulate a Bump Blueprint contour in place.
  *
- * This rewrites only topology connectivity and element-associated fields.
- * The coordset remains unchanged, and generated triangles reference the
- * existing welded vertex ids.
+ * @tparam DIM Spatial dimension, 2 or 3. Triangulation is a no-op in 2D.
+ * @tparam ExecSpace Axom execution space.
+ *
+ * @param[in,out] n_output Bump CutField output domain to triangulate.
+ * @param[in] allocatorID Allocator used for temporary arrays and triangle output.
+ *
+ * Rewrites the topology and element-associated fields. Triangles reuse the welded coordinates.
  */
 template <int DIM, typename ExecSpace>
 void triangulateBlueprintMesh(conduit::Node& n_output, int allocatorID)
 {
-  // 2D output is already segments. Keep the 3D body in the constexpr branch
-  // so 2D translation units do not instantiate the connectivity dispatch.
+  // Avoid instantiating the 3D connectivity dispatch for 2D segments.
   if constexpr(DIM != 3)
   {
     AXOM_UNUSED_VAR(n_output);
@@ -301,7 +306,6 @@ void adaptCutFieldOutputViews(const conduit::Node& n_coords,
   const conduit::Node& n_y = n_coords.fetch_existing("values/y");
   auto xView = bputils::make_array_view<double>(n_x);
   auto yView = bputils::make_array_view<double>(n_y);
-  // The z coordinate exists only in 3D.
   axom::ArrayView<double> zView;
   if constexpr(DIM == 3)
   {
@@ -345,10 +349,8 @@ void adaptCutFieldOutputViews(const conduit::Node& n_coords,
     }
     const axom::IndexType connStart = static_cast<axom::IndexType>(offsetsView[z]);
 
-    // Parent-cell id for every facet of this zone.
     const axom::IndexType parentId = static_cast<axom::IndexType>(origView[z]);
 
-    // This zone's first facet within the whole concatenated output.
     const axom::IndexType facetBase = facetIndexOffset + zoneFacetOffsetsView[z];
 
     for(axom::IndexType f = 0; f < nFacets; ++f)
@@ -384,19 +386,17 @@ void adaptCutFieldOutputViews(const conduit::Node& n_coords,
 }
 
 /*!
- * @brief Convert one Bump CutField output domain into the
- * fixed-corners-per-facet buffers supplied by the parent MarchingCubes.
+ * @brief Copy one Bump contour domain into MarchingCubes' fixed-stride arrays.
  *
- * @tparam DIM Spatial dimension (2 or 3).
+ * @tparam DIM Spatial dimension, 2 or 3.
  * @tparam ExecSpace Axom execution space.
  *
  * @param[in] n_output Bump CutField output in \c ExecSpace memory.
  * @param[out] facetNodeIds View with shape \c (totalFacetCount,DIM).
  * @param[out] facetNodeCoords View with shape \c (totalNodeCount,DIM).
  * @param[out] facetParentIds View with shape \c (totalFacetCount).
- * @param[in] facetIndexOffset This domain's first facet index in the concatenated
- *   output (the parent's m_facetIndexOffsets[d]).
- * @param[in] nodeIndexOffset This domain's first node index in the concatenated output.
+ * @param[in] facetIndexOffset This domain's first facet index in the output arrays.
+ * @param[in] nodeIndexOffset This domain's first node index in the output arrays.
  * @param[in] thisDomainFacetCount Number of facets produced by this domain.
  * @param[in] objectAllocatorID Allocator used for temporary arrays.
  *
@@ -420,12 +420,10 @@ void adaptCutFieldOutput(const conduit::Node& n_output,
     return;
   }
 
-  // Read the single output topology and coordset.
   const conduit::Node& n_topos = n_output.fetch_existing("topologies");
   SLIC_ASSERT(n_topos.number_of_children() == 1);
   const conduit::Node& n_topo = n_topos.child(0);
 
-  // Bump emits explicit sizes, offsets, and connectivity for cut output.
   const conduit::Node& n_elems = n_topo.fetch_existing("elements");
   const conduit::Node& n_conn = n_elems.fetch_existing("connectivity");
   const conduit::Node& n_sizes = n_elems.fetch_existing("sizes");
@@ -435,7 +433,6 @@ void adaptCutFieldOutput(const conduit::Node& n_output,
   const conduit::Node& n_coords =
     n_output.fetch_existing(axom::fmt::format("coordsets/{}", coordsetName));
 
-  // Bump records one parent-zone id per output zone.
   const conduit::Node& n_orig =
     n_output.fetch_existing(axom::fmt::format("fields/{}/values", kPublicOriginalElementsField));
 

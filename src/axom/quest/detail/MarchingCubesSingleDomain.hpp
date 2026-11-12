@@ -43,14 +43,16 @@ class MarchingCubesImpl;
  * @brief Applies Marching Cubes to one Blueprint domain.
  *
  * MarchingCubes uses this internal class for each local domain.
- *
  * \sa MarchingCubes
  */
 class MarchingCubesSingleDomain
 {
 public:
   using RuntimePolicy = axom::runtime_policy::Policy;
-  //! \brief Construct a single-domain worker for \a mc.
+  /*!
+   * \brief Construct a single-domain worker for \a mc.
+   * \param[in] mc Owning MarchingCubes object that supplies execution settings and output arrays.
+   */
   MarchingCubesSingleDomain(MarchingCubes& mc);
 
   /*!
@@ -118,13 +120,23 @@ public:
   void scanCrossings() { m_impl->scanCrossings(); }
   void computeFacets() { m_impl->computeFacets(); }
 
-  //! @brief Return \c state/domain_id, or \a defaultId when the domain omits it.
+  /*!
+   * @brief Return \c state/domain_id, or \a defaultId when the domain omits it.
+   * @param[in] defaultId Domain id to use when \c state/domain_id is absent.
+   * @return The domain's id, or \a defaultId if it has no explicit id.
+   */
   int32_t getDomainId(int32_t defaultId) const;
 
-  //! @brief Return the number of cells in the generated contour mesh.
+  /*!
+   * @brief Return the number of cells in the generated contour mesh.
+   * @return The number of contour facets generated for this domain.
+   */
   axom::IndexType getContourCellCount() const { return m_impl->getContourCellCount(); }
 
-  //! @brief Return the number of nodes in the generated contour mesh.
+  /*!
+   * @brief Return the number of nodes in the generated contour mesh.
+   * @return The number of contour nodes generated for this domain.
+   */
   axom::IndexType getContourNodeCount() const { return m_impl->getContourNodeCount(); }
 
   /*!
@@ -135,9 +147,11 @@ public:
   struct ImplBase
   {
     /*!
-     * @brief Prepare internal data for operating on the given domain.
+     * @brief Set up the input domain.
      *
-     * Implementations use the compile-time dimension and execution space.
+     * @param[in] dom Blueprint single-domain input mesh.
+     * @param[in] topologyName Name of the topology to contour in \a dom.
+     * @param[in] maskPath Name of the optional element-associated mask field.
      */
     virtual void setDomain(const conduit::Node& dom,
                            const std::string& topologyName,
@@ -149,7 +163,10 @@ public:
 
     virtual void setDataParallelism(MarchingCubesDataParallelism dataPar) = 0;
 
-    //! @brief Return the backend this implementation provides.
+    /*!
+     * @brief Return the backend this implementation provides.
+     * @return The backend implemented by this worker.
+     */
     virtual MarchingCubesBackend getBackend() const = 0;
 
     ///@{
@@ -170,20 +187,31 @@ public:
     ///@{
     //!@name Output methods
 
-    //! @brief Return the number of generated contour facets.
+    /*!
+     * @brief Return the number of generated contour facets.
+     * @return The number of facets generated for this domain.
+     */
     virtual axom::IndexType getContourCellCount() const = 0;
 
-    //! @brief Return the number of generated contour nodes.
+    /*!
+     * @brief Return the number of generated contour nodes.
+     * @return The number of nodes generated for this domain.
+     */
     virtual axom::IndexType getContourNodeCount() const = 0;
 
-    //! @brief Whether this implementation has a Blueprint contour.
+    /*!
+     * @brief Check whether cached Blueprint output is available.
+     * @return True if cached Blueprint contour output is available, even if empty.
+     */
     virtual bool hasContourMeshBlueprint() const { return false; }
 
     /*!
      * @brief Copy the implementation's Blueprint contour.
      *
-     * The legacy backend does not provide this representation;
-     * callers should check hasContourMeshBlueprint() before invoking this method.
+     * @param[out] bpMesh Output Blueprint single-domain contour mesh.
+     * @param[in] triangulate Whether to fan-triangulate 3D polygonal faces.
+     *
+     * Check hasContourMeshBlueprint() first. The legacy backend has no Blueprint output.
      */
     virtual void copyContourMeshBlueprint(conduit::Node& bpMesh, bool triangulate) const
     {
@@ -194,8 +222,9 @@ public:
     /*!
      * @brief Move the implementation's Blueprint contour.
      *
-     * The legacy backend does not provide this representation;
-     * callers should check hasContourMeshBlueprint() before invoking this method.
+     * @param[out] bpMesh Output Blueprint single-domain contour mesh.
+     *
+     * Check hasContourMeshBlueprint() first. The legacy backend has no Blueprint output.
      */
     virtual void relinquishContourMeshBlueprint(conduit::Node& bpMesh) { bpMesh.reset(); }
     ///@}
@@ -235,11 +264,14 @@ private:
   /*!
    * \brief Cache a Blueprint single-domain mesh.
    *
-   * The implementation retains references to data in \a dom.
+   * \param[in] dom Blueprint domain retained by reference.
    */
   void setDomain(const conduit::Node& dom);
 
-  //! @brief Create the backend implementation selected at runtime.
+  /*!
+   * @brief Create the backend implementation selected at runtime.
+   * @return A new worker for the selected backend, execution policy and dimension.
+   */
   std::unique_ptr<ImplBase> newMarchingCubesImpl();
   std::unique_ptr<ImplBase> newMarchingCubesSeqImpl(std::integral_constant<int, 2>);
   std::unique_ptr<ImplBase> newMarchingCubesSeqImpl(std::integral_constant<int, 3>);
@@ -259,9 +291,12 @@ private:
   /*!
    * @brief Create the implementation for one execution policy and dimension.
    *
-   * Defined in MarchingCubesSingleDomainPolicy.hpp.
-   * Each per-policy source file instantiates it once, so no translation unit
-   * compiles more than one MarchingCubesImpl specialization.
+   * @tparam DIM Spatial dimension, 2 or 3.
+   * @tparam ExecSpace Execution space for data-parallel phases.
+   * @tparam SequentialExecSpace Execution space for the legacy sequential-loop phase.
+   * @return A new worker for the selected backend and supplied policy types.
+   *
+   * Defined in MarchingCubesSingleDomainPolicy.hpp and instantiated once per policy and dimension.
    */
   template <int DIM, typename ExecSpace, typename SequentialExecSpace>
   std::unique_ptr<ImplBase> newMarchingCubesPolicyImpl();
