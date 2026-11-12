@@ -954,19 +954,19 @@ void test_float_ulp_band_falsification(RuntimePolicy policy)
 
 }  // namespace
 
-TEST(quest_marching_cubes_equivalence, planar_3d) { forEachHostPolicy(test_planar_3d); }
+TEST(quest_marching_cubes_equivalence, planar_3d) { forEachEnabledPolicy(test_planar_3d); }
 TEST(quest_marching_cubes_equivalence, sidre_native_layout)
 {
   forEachHostPolicy(test_sidre_native_layout);
 }
-TEST(quest_marching_cubes_equivalence, oblique_planar_3d_seq)
+TEST(quest_marching_cubes_equivalence, oblique_planar_3d)
 {
-  test_oblique_planar_3d(RuntimePolicy::seq);
+  forEachEnabledPolicy(test_oblique_planar_3d);
 }
 TEST(quest_marching_cubes_equivalence, round_3d) { forEachEnabledPolicy(test_round_3d); }
 TEST(quest_marching_cubes_equivalence, gyroid_3d) { forEachEnabledPolicy(test_gyroid_3d); }
-TEST(quest_marching_cubes_equivalence, planar_2d_seq) { test_planar_2d(RuntimePolicy::seq); }
-TEST(quest_marching_cubes_equivalence, round_2d) { forEachHostPolicy(test_round_2d); }
+TEST(quest_marching_cubes_equivalence, planar_2d) { forEachEnabledPolicy(test_planar_2d); }
+TEST(quest_marching_cubes_equivalence, round_2d) { forEachEnabledPolicy(test_round_2d); }
 TEST(quest_marching_cubes_equivalence, accumulated_fields_2d)
 {
   forEachEnabledPolicy([](RuntimePolicy policy) { test_accumulated_fields<2>(policy); });
@@ -975,9 +975,9 @@ TEST(quest_marching_cubes_equivalence, accumulated_fields_3d)
 {
   forEachEnabledPolicy([](RuntimePolicy policy) { test_accumulated_fields<3>(policy); });
 }
-TEST(quest_marching_cubes_equivalence, uniform_and_rectilinear_seq)
+TEST(quest_marching_cubes_equivalence, uniform_and_rectilinear)
 {
-  test_uniform_and_rectilinear(RuntimePolicy::seq);
+  forEachEnabledPolicy(test_uniform_and_rectilinear);
 }
 TEST(quest_marching_cubes_equivalence, strided_structured)
 {
@@ -999,17 +999,17 @@ TEST(quest_marching_cubes_equivalence, invalid_field_layouts_rejected_seq)
 {
   test_invalid_field_layouts_rejected(RuntimePolicy::seq);
 }
-TEST(quest_marching_cubes_equivalence, original_elements_collision_seq)
+TEST(quest_marching_cubes_equivalence, original_elements_collision)
 {
-  test_original_elements_collision(RuntimePolicy::seq);
+  forEachEnabledPolicy(test_original_elements_collision);
 }
 TEST(quest_marching_cubes_equivalence, empty_contour_seq)
 {
   test_empty_contour(RuntimePolicy::seq);
 }
-TEST(quest_marching_cubes_equivalence, float_ulp_band_falsification_seq)
+TEST(quest_marching_cubes_equivalence, float_ulp_band_falsification)
 {
-  test_float_ulp_band_falsification(RuntimePolicy::seq);
+  forEachEnabledPolicy(test_float_ulp_band_falsification);
 }
 
 int main(int argc, char** argv)

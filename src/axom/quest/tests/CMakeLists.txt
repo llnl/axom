@@ -341,6 +341,11 @@ if(CONDUIT_FOUND AND AXOM_ENABLE_BUMP)
         set(quest_mc_bump_mpi_tasks 1)
     endif()
 
+    set(quest_mc_bump_processors 1)
+    if(AXOM_ENABLE_OPENMP)
+        set(quest_mc_bump_processors ${AXOM_TEST_NUM_OMP_THREADS})
+    endif()
+
     foreach(_suite quest_marching_cubes_bump
                    quest_marching_cubes_equivalence)
         axom_add_executable(
@@ -356,8 +361,9 @@ if(CONDUIT_FOUND AND AXOM_ENABLE_BUMP)
             NAME    ${_suite}
             COMMAND ${_suite}_test
             NUM_MPI_TASKS ${quest_mc_bump_mpi_tasks}
+            NUM_OMP_THREADS ${AXOM_TEST_NUM_OMP_THREADS}
             )
-        set_tests_properties(${_suite} PROPERTIES PROCESSORS 1)
+        set_tests_properties(${_suite} PROPERTIES PROCESSORS ${quest_mc_bump_processors})
     endforeach()
 endif()
 
