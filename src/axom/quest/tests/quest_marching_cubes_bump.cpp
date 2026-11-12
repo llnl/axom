@@ -614,6 +614,31 @@ void test_unstructured_hex_round(RuntimePolicy policy)
                   5.0e-3);
 }
 
+// The 2D analogue of test_unstructured_hex_round, on single-shape quads.
+void test_unstructured_quad_round(RuntimePolicy policy)
+{
+  conduit::Node unstructured;
+  RoundField f {{0.5, 0.5, 0.0}, 0.25};  // circle fully inside [0,1]^2
+  mctest::buildStructured<2>(unstructured, 16, f, "fcn");
+  axom::quest::util::convert_blueprint_structured_explicit_to_unstructured(unstructured,
+                                                                           "mesh",
+                                                                           RuntimePolicy::seq);
+
+  ASSERT_EQ(unstructured["topologies/mesh/type"].as_string(), std::string("unstructured"));
+  ASSERT_EQ(unstructured["topologies/mesh/elements/shape"].as_string(), std::string("quad"));
+  conduit::Node info;
+  ASSERT_TRUE(conduit::blueprint::mesh::verify(unstructured, info)) << info.to_yaml();
+
+  // The edge-incidence check applies only in 3D, so expect_closed_interior is unused here.
+  runAndVerify<2>(unstructured,
+                  f,
+                  0.0,
+                  policy,
+                  "fcn",
+                  /*expect_closed_interior=*/true,
+                  5.0e-3);
+}
+
 // Exercise physical-edge interpolation on a curvilinear hex mesh.
 void test_unstructured_hex_round_warped(RuntimePolicy policy)
 {
@@ -1016,6 +1041,10 @@ TEST(quest_marching_cubes_bump, strided_planar_mask_with_field_layout)
 TEST(quest_marching_cubes_bump, unstructured_hex_round)
 {
   forEachEnabledPolicy(test_unstructured_hex_round);
+}
+TEST(quest_marching_cubes_bump, unstructured_quad_round)
+{
+  forEachEnabledPolicy(test_unstructured_quad_round);
 }
 TEST(quest_marching_cubes_bump, unstructured_hex_round_warped)
 {
