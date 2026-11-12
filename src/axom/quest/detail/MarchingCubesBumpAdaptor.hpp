@@ -229,52 +229,57 @@ void triangulateBlueprintMeshViews(conduit::Node& n_output,
 template <int DIM, typename ExecSpace>
 void triangulateBlueprintMesh(conduit::Node& n_output, int allocatorID)
 {
+  // 2D output is already segments. Keep the 3D body in the constexpr branch
+  // so 2D translation units do not instantiate the connectivity dispatch.
   if constexpr(DIM != 3)
   {
-    return;
+    AXOM_UNUSED_VAR(n_output);
+    AXOM_UNUSED_VAR(allocatorID);
   }
-
-  namespace bputils = axom::bump::utilities;
-  namespace bpviews = axom::bump::views;
-
-  if(!n_output.has_child("topologies"))
+  else
   {
-    return;  // An isovalue outside the data range produces no topology.
-  }
-  const conduit::Node& n_topos = n_output.fetch_existing("topologies");
-  SLIC_ASSERT(n_topos.number_of_children() == 1);
-  const std::string topologyName = n_topos.child(0).name();
-  conduit::Node& n_topo = n_output["topologies"][topologyName];
-  conduit::Node& n_elems = n_topo.fetch_existing("elements");
+    namespace bputils = axom::bump::utilities;
+    namespace bpviews = axom::bump::views;
 
-  conduit::Node& n_conn = n_elems.fetch_existing("connectivity");
-  conduit::Node& n_sizes = n_elems.fetch_existing("sizes");
-  conduit::Node& n_offsets = n_elems.fetch_existing("offsets");
+    if(!n_output.has_child("topologies"))
+    {
+      return;  // An isovalue outside the data range produces no topology.
+    }
+    const conduit::Node& n_topos = n_output.fetch_existing("topologies");
+    SLIC_ASSERT(n_topos.number_of_children() == 1);
+    const std::string topologyName = n_topos.child(0).name();
+    conduit::Node& n_topo = n_output["topologies"][topologyName];
+    conduit::Node& n_elems = n_topo.fetch_existing("elements");
 
-  SLIC_ERROR_IF(
-    n_offsets.dtype().id() != n_sizes.dtype().id() || n_conn.dtype().id() != n_sizes.dtype().id(),
-    "MarchingCubes Bump Blueprint triangulation expects connectivity, "
-    "sizes, and offsets to use the same integer type.");
+    conduit::Node& n_conn = n_elems.fetch_existing("connectivity");
+    conduit::Node& n_sizes = n_elems.fetch_existing("sizes");
+    conduit::Node& n_offsets = n_elems.fetch_existing("offsets");
 
-  auto triangulateViews = [&](auto sizesView, auto offsetsView, auto connView) {
-    triangulateBlueprintMeshViews<DIM, ExecSpace>(n_output,
-                                                  n_conn,
-                                                  n_sizes,
-                                                  n_offsets,
-                                                  topologyName,
-                                                  sizesView,
-                                                  offsetsView,
-                                                  connView,
-                                                  allocatorID);
-  };
+    SLIC_ERROR_IF(
+      n_offsets.dtype().id() != n_sizes.dtype().id() || n_conn.dtype().id() != n_sizes.dtype().id(),
+      "MarchingCubes Bump Blueprint triangulation expects connectivity, "
+      "sizes, and offsets to use the same integer type.");
+
+    auto triangulateViews = [&](auto sizesView, auto offsetsView, auto connView) {
+      triangulateBlueprintMeshViews<DIM, ExecSpace>(n_output,
+                                                    n_conn,
+                                                    n_sizes,
+                                                    n_offsets,
+                                                    topologyName,
+                                                    sizesView,
+                                                    offsetsView,
+                                                    connView,
+                                                    allocatorID);
+    };
 
 #if defined(_WIN32)
-  triangulateViews(bputils::make_array_view<axom::IndexType>(n_sizes),
-                   bputils::make_array_view<axom::IndexType>(n_offsets),
-                   bputils::make_array_view<axom::IndexType>(n_conn));
+    triangulateViews(bputils::make_array_view<axom::IndexType>(n_sizes),
+                     bputils::make_array_view<axom::IndexType>(n_offsets),
+                     bputils::make_array_view<axom::IndexType>(n_conn));
 #else
-  bpviews::indexNodeToArrayViewSame(n_sizes, n_offsets, n_conn, std::move(triangulateViews));
+    bpviews::indexNodeToArrayViewSame(n_sizes, n_offsets, n_conn, std::move(triangulateViews));
 #endif
+  }
 }
 
 template <int DIM, typename ExecSpace, typename SizesView, typename OffsetsView, typename ConnView, typename OrigView>
