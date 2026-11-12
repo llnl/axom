@@ -460,11 +460,9 @@ private:
             return;
           }
 
-          conduit::Node execOptions;
-          axom::bump::utilities::copy<ExecSpace>(execOptions, n_options, m_allocatorID);
           {
             AXOM_ANNOTATE_SCOPE("MarchingCubesBumpImpl::CutField::execute");
-            iso.execute(*m_dom, execOptions, n_out);
+            iso.execute(*m_dom, n_options, n_out);
 
             // Rename the field before exposing the result. The private request
             // name prevents an input field from replacing the parent-zone ids.

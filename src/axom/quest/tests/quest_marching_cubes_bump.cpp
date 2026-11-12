@@ -723,6 +723,44 @@ void test_accumulated_analytic_fields(RuntimePolicy policy)
                             gyroid_end);
 }
 
+// Contour a field that crosses exactly one cell for coverage related to memory copies
+template <int DIM>
+void test_single_crossing_cell(RuntimePolicy policy)
+{
+  namespace quest = axom::quest;
+
+  constexpr int n = 4;
+  conduit::Node mesh;
+  mctest::buildStructured<DIM>(mesh, n, [](double, double, double) { return 1.0; }, "fcn");
+  // Node 0 is a corner of the domain and belongs only to cell 0.
+  mesh["fields/fcn/values"].as_float64_ptr()[0] = -1.0;
+
+  const int allocator_id = axom::policyToDefaultAllocatorID(policy);
+  conduit::Node exec_mesh;
+  copyBlueprintToPolicy(exec_mesh, mesh, policy, allocator_id);
+
+  quest::MarchingCubes mc(policy, allocator_id, quest::MarchingCubesDataParallelism::byPolicy);
+  mc.setBackend(quest::MarchingCubesBackend::bump);
+  mc.setMesh(exec_mesh, "mesh");
+  mc.setFunctionField("fcn");
+  mc.computeIsocontour(0.0);
+
+  // The contour is one segment in 2D and one triangle in 3D.
+  ASSERT_EQ(mc.getContourFacetCount(), 1);
+  const axom::Array<axom::IndexType> parents_host(mc.getContourFacetParents(), hostAllocatorID());
+  EXPECT_EQ(parents_host[0], 0);
+
+  conduit::Node bp_exec;
+  mc.populateContourMeshBlueprint(bp_exec);
+  conduit::Node bp;
+  copyBlueprintToHost(bp, bp_exec);
+  ASSERT_EQ(conduit::blueprint::mesh::number_of_domains(bp), 1);
+  const auto orig =
+    bp.child(0).fetch_existing("fields/originalElements/values").as_index_t_accessor();
+  ASSERT_EQ(orig.number_of_elements(), 1);
+  EXPECT_EQ(orig[0], 0);
+}
+
 //---------------------------------------------------------------------------
 // Multi-domain accumulation.
 // Separate runs provide counts without output offsets.
@@ -923,6 +961,14 @@ TEST(quest_marching_cubes_bump, unstructured_hex_round)
 TEST(quest_marching_cubes_bump, unstructured_hex_round_warped)
 {
   forEachEnabledPolicy(test_unstructured_hex_round_warped);
+}
+TEST(quest_marching_cubes_bump, single_crossing_cell_2d)
+{
+  forEachEnabledPolicy([](RuntimePolicy policy) { test_single_crossing_cell<2>(policy); });
+}
+TEST(quest_marching_cubes_bump, single_crossing_cell_3d)
+{
+  forEachEnabledPolicy([](RuntimePolicy policy) { test_single_crossing_cell<3>(policy); });
 }
 TEST(quest_marching_cubes_bump, multidomain_planar_2d)
 {
