@@ -149,6 +149,9 @@ public:
 
     virtual void setDataParallelism(MarchingCubesDataParallelism dataPar) = 0;
 
+    //! @brief Return the backend this implementation provides.
+    virtual MarchingCubesBackend getBackend() const = 0;
+
     ///@{
     //! @name Distinct phases in contour generation.
 

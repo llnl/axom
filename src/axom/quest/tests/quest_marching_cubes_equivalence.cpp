@@ -490,6 +490,40 @@ void test_float32_field_rejected(RuntimePolicy policy)
     axom::slic::SlicAbortException);
 }
 
+// Check that changing the backend after setMesh() requires another setMesh() call
+void test_backend_change_after_set_mesh(RuntimePolicy policy)
+{
+  namespace quest = axom::quest;
+  conduit::Node mesh;
+  RoundField f {{0.5, 0.5, 0.5}, 0.25};
+  mctest::buildStructured<3>(mesh, 6, f, "fcn");
+
+  const int allocatorID = axom::policyToDefaultAllocatorID(policy);
+  quest::MarchingCubes mc(policy, allocatorID, quest::MarchingCubesDataParallelism::byPolicy);
+  mc.setMesh(mesh, "mesh");
+  mc.setFunctionField("fcn");
+  mc.setBackend(quest::MarchingCubesBackend::bump);
+
+  {
+    axom::slic::ScopedAbortToThrow abort_guard;
+    EXPECT_THROW(mc.computeIsocontour(0.0), axom::slic::SlicAbortException);
+  }
+
+  // Rebuilding the workers selects the new backend.
+  mc.setMesh(mesh, "mesh");
+  mc.setFunctionField("fcn");
+  mc.computeIsocontour(0.0);
+  ASSERT_GT(mc.getContourFacetCount(), 0);
+
+  // Switching back makes the Bump output unreachable until setMesh() runs again.
+  mc.setBackend(quest::MarchingCubesBackend::legacy);
+  {
+    axom::slic::ScopedAbortToThrow abort_guard;
+    conduit::Node bp;
+    EXPECT_THROW(mc.populateContourMeshBlueprint(bp), axom::slic::SlicAbortException);
+  }
+}
+
 //! @brief Run the Bump backend and require a field-layout error.
 void expectBumpFieldLayoutRejected(const conduit::Node& mesh, RuntimePolicy policy)
 {
@@ -891,6 +925,10 @@ TEST(quest_marching_cubes_equivalence, strided_structured)
 TEST(quest_marching_cubes_equivalence, float32_field_rejected_seq)
 {
   test_float32_field_rejected(RuntimePolicy::seq);
+}
+TEST(quest_marching_cubes_equivalence, backend_change_after_set_mesh_seq)
+{
+  test_backend_change_after_set_mesh(RuntimePolicy::seq);
 }
 TEST(quest_marching_cubes_equivalence, invalid_field_layouts_rejected_seq)
 {

@@ -175,8 +175,9 @@ public:
    * The legacy backend only accepts structured meshes. Bump also accepts uniform
    * and rectilinear topologies and single-shape unstructured quad or hex meshes.
    *
-   * Call this method before setMesh(), which constructs backend-specific
-   * workers for the input domains.
+   * Call this method before setMesh(), which constructs backend-specific workers
+   * for the input domains. If the backend changes after setMesh(), call setMesh() again.
+   * Otherwise computeIsocontour() and the Blueprint output methods report an error.
    *
    * @note The MarchingCubesDataParallelism constructor argument selects the
    *       legacy backend's scan strategy. Bump ignores it.
@@ -363,6 +364,9 @@ public:
 private:
   //! @brief Allocate output buffers corresponding to runtime policy.
   void allocateOutputBuffers();
+
+  //! @brief Report an error if the domain workers do not use the selected backend.
+  void checkBackendMatchesMesh() const;
 
 private:
   RuntimePolicy m_runtimePolicy;

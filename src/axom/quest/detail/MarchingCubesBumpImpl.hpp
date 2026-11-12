@@ -192,6 +192,8 @@ public:
 
   void setMaskValue(int maskVal) override { m_maskVal = maskVal; }
 
+  MarchingCubesBackend getBackend() const override { return MarchingCubesBackend::bump; }
+
   //! Retain the value for the shared interface; only the legacy backend reads it.
   void setDataParallelism(MarchingCubesDataParallelism dataPar) override
   {

@@ -102,6 +102,8 @@ public:
     }
   }
 
+  MarchingCubesBackend getBackend() const override { return MarchingCubesBackend::legacy; }
+
   AXOM_HOST void setDataParallelism(MarchingCubesDataParallelism dataPar) override
   {
     constexpr MarchingCubesDataParallelism autoPolicy =

@@ -122,9 +122,20 @@ void MarchingCubes::setBackend(MarchingCubesBackend backend)
   m_backend = backend;
 }
 
+void MarchingCubes::checkBackendMatchesMesh() const
+{
+  for(axom::IndexType d = 0; d < m_domainCount; ++d)
+  {
+    SLIC_ERROR_IF(m_singles[d]->getImpl().getBackend() != m_backend,
+                  "MarchingCubes: the backend changed after setMesh(). "
+                  "Call setMesh() again so its domains use the selected backend.");
+  }
+}
+
 void MarchingCubes::computeIsocontour(double contourVal)
 {
   AXOM_ANNOTATE_SCOPE("MarchingCubes::computeIsoContour");
+  checkBackendMatchesMesh();
 
   // Keep prior output so callers can append contours from several fields or isovalues.
   // clearOutput() starts a new output mesh.
@@ -259,6 +270,7 @@ void MarchingCubes::populateContourMeshBlueprint(conduit::Node& bpMesh, bool tri
 {
   AXOM_ANNOTATE_SCOPE("MarchingCubes::populateContourMeshBlueprint");
   bpMesh.reset();
+  checkBackendMatchesMesh();
 
   SLIC_ERROR_IF(m_backend != MarchingCubesBackend::bump,
                 "MarchingCubes Blueprint contour output is available only with "
@@ -291,6 +303,7 @@ void MarchingCubes::relinquishContourDataBlueprint(conduit::Node& bpMesh)
 {
   AXOM_ANNOTATE_SCOPE("MarchingCubes::relinquishContourDataBlueprint");
   bpMesh.reset();
+  checkBackendMatchesMesh();
 
   SLIC_ERROR_IF(m_backend != MarchingCubesBackend::bump,
                 "MarchingCubes Blueprint contour output is available only with "
