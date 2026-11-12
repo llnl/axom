@@ -183,6 +183,8 @@ void MarchingCubes::computeIsocontour(double contourVal)
       (d < m_domainCount - 1 ? m_facetIndexOffsets[d + 1] : m_facetCount) - m_facetIndexOffsets[d];
     m_facetDomainIds.fill(domainId, domainFacetCount, m_facetIndexOffsets[d]);
   }
+
+  ++m_contourCount;
 }
 
 axom::IndexType MarchingCubes::getContourNodeCount() const { return m_nodeCount; }
@@ -195,6 +197,7 @@ void MarchingCubes::clearOutput()
   }
   m_facetCount = 0;
   m_nodeCount = 0;
+  m_contourCount = 0;
   m_facetNodeIds.clear();
   m_facetNodeCoords.clear();
   m_facetParentIds.clear();
@@ -275,6 +278,12 @@ void MarchingCubes::populateContourMeshBlueprint(conduit::Node& bpMesh, bool tri
   SLIC_ERROR_IF(m_backend != MarchingCubesBackend::bump,
                 "MarchingCubes Blueprint contour output is available only with "
                 "MarchingCubesBackend::bump.");
+  SLIC_ERROR_IF(
+    m_contourCount > 1,
+    axom::fmt::format("MarchingCubes Blueprint output holds one contour per domain, "
+                      "but computeIsocontour() was called {} times since clearOutput(). "
+                      "Call clearOutput() between contours to use Blueprint output.",
+                      m_contourCount));
 
   for(axom::IndexType d = 0; d < m_domainCount; ++d)
   {
@@ -308,6 +317,12 @@ void MarchingCubes::relinquishContourDataBlueprint(conduit::Node& bpMesh)
   SLIC_ERROR_IF(m_backend != MarchingCubesBackend::bump,
                 "MarchingCubes Blueprint contour output is available only with "
                 "MarchingCubesBackend::bump.");
+  SLIC_ERROR_IF(
+    m_contourCount > 1,
+    axom::fmt::format("MarchingCubes Blueprint output holds one contour per domain, "
+                      "but computeIsocontour() was called {} times since clearOutput(). "
+                      "Call clearOutput() between contours to use Blueprint output.",
+                      m_contourCount));
 
   for(axom::IndexType d = 0; d < m_domainCount; ++d)
   {

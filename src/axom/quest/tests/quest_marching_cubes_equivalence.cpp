@@ -524,6 +524,39 @@ void test_backend_change_after_set_mesh(RuntimePolicy policy)
   }
 }
 
+// Blueprint output requires a single contour since clearOutput().
+void test_blueprint_output_after_accumulation(RuntimePolicy policy)
+{
+  namespace quest = axom::quest;
+  conduit::Node mesh;
+  RoundField f {{0.5, 0.5, 0.5}, 0.25};
+  mctest::buildStructured<3>(mesh, 6, f, "fcn");
+
+  const int allocatorID = axom::policyToDefaultAllocatorID(policy);
+  quest::MarchingCubes mc(policy, allocatorID, quest::MarchingCubesDataParallelism::byPolicy);
+  mc.setBackend(quest::MarchingCubesBackend::bump);
+  mc.setMesh(mesh, "mesh");
+  mc.setFunctionField("fcn");
+  mc.computeIsocontour(0.0);
+  mc.computeIsocontour(0.05);
+
+  {
+    axom::slic::ScopedAbortToThrow abort_guard;
+    conduit::Node bp;
+    EXPECT_THROW(mc.populateContourMeshBlueprint(bp), axom::slic::SlicAbortException);
+    EXPECT_THROW(mc.relinquishContourDataBlueprint(bp), axom::slic::SlicAbortException);
+  }
+
+  // After clearOutput() and one computeIsocontour() call, the Blueprint output is available.
+  mc.clearOutput();
+  mc.computeIsocontour(0.05);
+  conduit::Node bp;
+  mc.populateContourMeshBlueprint(bp);
+  ASSERT_EQ(bp.number_of_children(), 1);
+  const conduit::Node& n_topo = bp.child(0).fetch_existing("topologies").child(0);
+  EXPECT_GT(n_topo.fetch_existing("elements/sizes").dtype().number_of_elements(), 0);
+}
+
 //! @brief Run the Bump backend and require a field-layout error.
 void expectBumpFieldLayoutRejected(const conduit::Node& mesh, RuntimePolicy policy)
 {
@@ -929,6 +962,10 @@ TEST(quest_marching_cubes_equivalence, float32_field_rejected_seq)
 TEST(quest_marching_cubes_equivalence, backend_change_after_set_mesh_seq)
 {
   test_backend_change_after_set_mesh(RuntimePolicy::seq);
+}
+TEST(quest_marching_cubes_equivalence, blueprint_output_after_accumulation_seq)
+{
+  test_blueprint_output_after_accumulation(RuntimePolicy::seq);
 }
 TEST(quest_marching_cubes_equivalence, invalid_field_layouts_rejected_seq)
 {

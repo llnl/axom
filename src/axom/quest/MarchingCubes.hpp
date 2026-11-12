@@ -193,7 +193,8 @@ public:
    *
    * Each call appends to the array output used by populateContourMesh().
    * Call clearOutput() first to replace prior results.
-   * Bump's Blueprint output contains only the most recent call for each domain.
+   * The Blueprint output methods hold one contour per domain,
+   * so they require exactly one call since the last clearOutput().
    */
   void computeIsocontour(double contourVal = 0.0);
 
@@ -241,7 +242,9 @@ public:
    *
    * Arrays in \a bpMesh use the allocator supplied to the constructor.
    * Callers must copy device data to host before reading it on the host.
-   * The mesh contains only the most recent computeIsocontour() result for each input domain.
+   *
+   * @pre computeIsocontour() was called exactly once since the last clearOutput().
+   *      The array output can accumulate several contours, but this mesh holds one.
    *
    * Input domains whose contour is empty are omitted, so \a bpMesh may have
    * fewer domains than the input mesh, and none if the isovalue misses every domain.
@@ -340,7 +343,7 @@ public:
    * It is available only for contours computed with the Bump backend
    * and leaves this MarchingCubes object with no accessible contour output,
    * as though clearOutput() had been called.
-   * Only the most recent computeIsocontour() call for each domain is moved.
+   * It has the same precondition as populateContourMeshBlueprint().
    * As in populateContourMeshBlueprint(), domains with an empty contour are omitted.
    */
   void relinquishContourDataBlueprint(conduit::Node& bpMesh);
@@ -400,6 +403,9 @@ private:
   std::string m_maskPath;
 
   int m_maskVal {1};
+
+  //! @brief Number of computeIsocontour() calls since the last clearOutput().
+  axom::IndexType m_contourCount {0};
 
   //! @brief Selected backend implementation.
   MarchingCubesBackend m_backend {MarchingCubesBackend::legacy};
