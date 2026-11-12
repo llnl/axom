@@ -382,17 +382,17 @@ void test_empty_contour(RuntimePolicy policy)
   EXPECT_EQ(mc.getContourCellCount(), 0);
   EXPECT_EQ(mc.getContourNodeCount(), 0);
 
-  // Neither of these may throw or abort.
+  // Neither of these may throw or abort. A domain with no contour is omitted.
   conduit::Node bp;
   mc.populateContourMeshBlueprint(bp);
-  ASSERT_EQ(bp.number_of_children(), 1);
-  EXPECT_FALSE(bp.child(0).has_path("topologies"));
+  EXPECT_EQ(bp.number_of_children(), 0);
   conduit::Node bpTri;
   mc.populateContourMeshBlueprint(bpTri, /*triangulate=*/true);
+  EXPECT_EQ(bpTri.number_of_children(), 0);
 
   conduit::Node relinquished;
   mc.relinquishContourDataBlueprint(relinquished);
-  SUCCEED();
+  EXPECT_EQ(relinquished.number_of_children(), 0);
 }
 
 /*!

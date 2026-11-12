@@ -272,6 +272,12 @@ void MarchingCubes::populateContourMeshBlueprint(conduit::Node& bpMesh, bool tri
                   "MarchingCubes has no Blueprint contour output. "
                   "Call computeIsocontour() before requesting it.");
 
+    // An empty node is not a valid Blueprint domain, so omit it.
+    if(impl.getContourCellCount() == 0)
+    {
+      continue;
+    }
+
     conduit::Node& outDom = bpMesh.append();
     impl.copyContourMeshBlueprint(outDom, triangulate);
     if(!outDom.has_path("state/domain_id"))
@@ -297,6 +303,12 @@ void MarchingCubes::relinquishContourDataBlueprint(conduit::Node& bpMesh)
     SLIC_ERROR_IF(!impl.hasContourMeshBlueprint(),
                   "MarchingCubes has no Blueprint contour output. "
                   "Call computeIsocontour() before requesting it.");
+
+    // An empty node is not a valid Blueprint domain, so omit it.
+    if(impl.getContourCellCount() == 0)
+    {
+      continue;
+    }
 
     conduit::Node& outDom = bpMesh.append();
     impl.relinquishContourMeshBlueprint(outDom);

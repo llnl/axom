@@ -241,6 +241,10 @@ public:
    * Arrays in \a bpMesh use the allocator supplied to the constructor.
    * Callers must copy device data to host before reading it on the host.
    * The mesh contains only the most recent computeIsocontour() result for each input domain.
+   *
+   * Input domains whose contour is empty are omitted, so \a bpMesh may have
+   * fewer domains than the input mesh, and none if the isovalue misses every domain.
+   * Each output domain has \c state/domain_id.
    */
   void populateContourMeshBlueprint(conduit::Node& bpMesh, bool triangulate = false) const;
 
@@ -336,6 +340,7 @@ public:
    * and leaves this MarchingCubes object with no accessible contour output,
    * as though clearOutput() had been called.
    * Only the most recent computeIsocontour() call for each domain is moved.
+   * As in populateContourMeshBlueprint(), domains with an empty contour are omitted.
    */
   void relinquishContourDataBlueprint(conduit::Node& bpMesh);
   ///@}

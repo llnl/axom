@@ -761,6 +761,65 @@ void test_single_crossing_cell(RuntimePolicy policy)
   EXPECT_EQ(orig[0], 0);
 }
 
+// Blueprint output for a multi-domain mesh where one domain has no contour.
+// The empty domain comes first, so omitting it must not shift the domain ids of the remaining output.
+// Every output form must pass Blueprint verification.
+template <int DIM>
+void test_multidomain_with_empty_domain(RuntimePolicy policy)
+{
+  namespace quest = axom::quest;
+
+  constexpr int n = 6;
+  PlanarField plane {{0.5, 0.5, DIM == 3 ? 0.5 : 0.0}, {1.0, 0.0, 0.0}};  // x = 0.5
+
+  conduit::Node emptyDom, crossingDom;
+  mctest::buildStructured<DIM>(emptyDom, n, plane, "fcn");
+  // Shift the coordinates to x in [1,2] and resample, so the plane misses this domain.
+  mctest::translateExplicitCoordsX(emptyDom, 1.0);
+  mctest::addVertexField<DIM>(emptyDom, plane, "fcn");
+  emptyDom["state/domain_id"] = 5;
+  mctest::buildStructured<DIM>(crossingDom, n, plane, "fcn");
+  crossingDom["state/domain_id"] = 3;
+
+  conduit::Node mdMesh;
+  mdMesh.append().set_external(emptyDom);
+  mdMesh.append().set_external(crossingDom);
+  conduit::Node info;
+  ASSERT_TRUE(conduit::blueprint::mesh::verify(mdMesh, info)) << info.to_yaml();
+
+  const int allocator_id = axom::policyToDefaultAllocatorID(policy);
+  conduit::Node exec_mesh;
+  copyBlueprintToPolicy(exec_mesh, mdMesh, policy, allocator_id);
+  quest::MarchingCubes mc(policy, allocator_id, quest::MarchingCubesDataParallelism::byPolicy);
+  mc.setBackend(quest::MarchingCubesBackend::bump);
+  mc.setMesh(exec_mesh, "mesh");
+  mc.setFunctionField("fcn");
+  mc.computeIsocontour(0.0);
+  ASSERT_GT(mc.getContourFacetCount(), 0);
+
+  const auto expectOnlyCrossingDomain = [&](const conduit::Node& bp_exec, const char* label) {
+    SCOPED_TRACE(label);
+    conduit::Node bp;
+    copyBlueprintToHost(bp, bp_exec);
+    conduit::Node bp_info;
+    EXPECT_TRUE(conduit::blueprint::mesh::verify(bp, bp_info)) << bp_info.to_yaml();
+    ASSERT_EQ(conduit::blueprint::mesh::number_of_domains(bp), 1);
+    EXPECT_EQ(bp.child(0).fetch_existing("state/domain_id").to_int64(), 3);
+  };
+
+  conduit::Node polygons;
+  mc.populateContourMeshBlueprint(polygons);
+  expectOnlyCrossingDomain(polygons, "populate");
+
+  conduit::Node triangles;
+  mc.populateContourMeshBlueprint(triangles, /*triangulate=*/true);
+  expectOnlyCrossingDomain(triangles, "populate, triangulated");
+
+  conduit::Node relinquished;
+  mc.relinquishContourDataBlueprint(relinquished);
+  expectOnlyCrossingDomain(relinquished, "relinquish");
+}
+
 //---------------------------------------------------------------------------
 // Multi-domain accumulation.
 // Separate runs provide counts without output offsets.
@@ -969,6 +1028,14 @@ TEST(quest_marching_cubes_bump, single_crossing_cell_2d)
 TEST(quest_marching_cubes_bump, single_crossing_cell_3d)
 {
   forEachEnabledPolicy([](RuntimePolicy policy) { test_single_crossing_cell<3>(policy); });
+}
+TEST(quest_marching_cubes_bump, multidomain_with_empty_domain_2d)
+{
+  forEachEnabledPolicy([](RuntimePolicy policy) { test_multidomain_with_empty_domain<2>(policy); });
+}
+TEST(quest_marching_cubes_bump, multidomain_with_empty_domain_3d)
+{
+  forEachEnabledPolicy([](RuntimePolicy policy) { test_multidomain_with_empty_domain<3>(policy); });
 }
 TEST(quest_marching_cubes_bump, multidomain_planar_2d)
 {
