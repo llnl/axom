@@ -1,0 +1,1086 @@
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
+//
+// SPDX-License-Identifier: (BSD-3-Clause)
+
+/*!
+ * @file quest_marching_cubes_bump.cpp
+ *
+ * @brief Tests the Bump backend of quest::MarchingCubes.
+ *
+ * Tests cover structured and single-shape unstructured quad and hex meshes
+ * under each enabled runtime policy. They check field residuals, parent cell ids,
+ * crossing cells and welded edge incidence.
+ */
+
+#include "axom/config.hpp"
+
+#ifndef AXOM_USE_CONDUIT
+  #error "quest_marching_cubes_bump.cpp requires conduit"
+#endif
+#ifndef AXOM_USE_BUMP
+  #error "quest_marching_cubes_bump.cpp requires bump"
+#endif
+
+#include "axom/core.hpp"
+#include "axom/slic.hpp"
+#include "axom/primal.hpp"
+#include "axom/bump/utilities/conduit_memory.hpp"
+#include "axom/mint/mesh/UnstructuredMesh.hpp"
+#include "axom/quest/MarchingCubes.hpp"
+#include "axom/quest/detail/MarchingCubesBumpAdaptor.hpp"
+#include "axom/quest/util/mesh_helpers.hpp"
+
+#include "conduit_blueprint.hpp"
+
+#include "axom/quest/tests/quest_marching_cubes_testing_helpers.hpp"
+
+#include "gtest/gtest.h"
+
+#include <algorithm>
+#include <array>
+#include <cmath>
+#include <limits>
+#include <map>
+#include <set>
+#include <utility>
+#include <vector>
+
+namespace
+{
+namespace mctest = axom::quest::testing::marching_cubes;
+
+using mctest::copyBlueprintToHost;
+using mctest::copyBlueprintToPolicy;
+using mctest::forEachEnabledPolicy;
+using mctest::GyroidField;
+using mctest::hostAllocatorID;
+using mctest::PlanarField;
+using mctest::policyName;
+using mctest::RoundField;
+using mctest::SinusoidalWarp;
+
+using RuntimePolicy = axom::runtime_policy::Policy;
+
+//---------------------------------------------------------------------------
+// Edge-manifold checks
+//---------------------------------------------------------------------------
+
+/// Summary of edge incidence in a welded surface mesh.
+struct EdgeManifoldResult
+{
+  int maxMultiplicity = 0;
+  axom::IndexType boundaryEdges = 0;  // used exactly once
+};
+
+/// Count edge incidence directly from a welded Blueprint contour.
+EdgeManifoldResult checkBlueprintEdgeManifold3D(const conduit::Node& contourDom)
+{
+  // Blueprint output is already welded, so count its connectivity directly.
+  const conduit::Node& n_topo = contourDom.fetch_existing("topologies").child(0);
+  const conduit::Node& n_elems = n_topo.fetch_existing("elements");
+  const auto sizes = n_elems.fetch_existing("sizes").as_index_t_accessor();
+  const auto offsets = n_elems.fetch_existing("offsets").as_index_t_accessor();
+  const auto conn = n_elems.fetch_existing("connectivity").as_index_t_accessor();
+
+  std::map<std::pair<axom::IndexType, axom::IndexType>, int> edgeUse;
+  const conduit::index_t nZones = sizes.number_of_elements();
+  for(conduit::index_t z = 0; z < nZones; ++z)
+  {
+    const auto nCorners = static_cast<axom::IndexType>(sizes[z]);
+    const auto offset = static_cast<axom::IndexType>(offsets[z]);
+    for(axom::IndexType e = 0; e < nCorners; ++e)
+    {
+      axom::IndexType a = static_cast<axom::IndexType>(conn[offset + e]);
+      axom::IndexType b = static_cast<axom::IndexType>(conn[offset + ((e + 1) % nCorners)]);
+      if(a == b)
+      {
+        continue;  // degenerate edge; ignore
+      }
+      if(a > b)
+      {
+        std::swap(a, b);
+      }
+      edgeUse[{a, b}]++;
+    }
+  }
+
+  EdgeManifoldResult res;
+  for(const auto& kv : edgeUse)
+  {
+    res.maxMultiplicity = std::max(res.maxMultiplicity, kv.second);
+    if(kv.second == 1)
+    {
+      res.boundaryEdges++;
+    }
+  }
+  return res;
+}
+
+template <int DIM>
+using Point = axom::primal::Point<double, DIM>;
+
+template <int DIM>
+using BoundingBox = axom::primal::BoundingBox<double, DIM>;
+
+template <int DIM>
+bool parentCellNodeIds(const conduit::Node& mesh,
+                       axom::IndexType cell_index,
+                       std::array<axom::IndexType, 1 << DIM>& node_ids)
+{
+  const conduit::Node& topo = mesh.fetch_existing("topologies/mesh");
+  const std::string topo_type = topo.fetch_existing("type").as_string();
+
+  if(topo_type == "structured")
+  {
+    const axom::IndexType ni = topo.fetch_existing("elements/dims/i").to_index_t();
+    const axom::IndexType nj = topo.fetch_existing("elements/dims/j").to_index_t();
+    const axom::IndexType nk = DIM == 3 ? topo.fetch_existing("elements/dims/k").to_index_t() : 1;
+    if(cell_index < 0 || cell_index >= ni * nj * nk)
+    {
+      return false;
+    }
+
+    const axom::IndexType i = cell_index % ni;
+    const axom::IndexType j = (cell_index / ni) % nj;
+    const axom::IndexType k = DIM == 3 ? cell_index / (ni * nj) : 0;
+    const axom::IndexType nni = ni + 1;
+    const axom::IndexType nnj = nj + 1;
+
+    for(int corner = 0; corner < (1 << DIM); ++corner)
+    {
+      const axom::IndexType ii = i + ((corner & 1) != 0);
+      const axom::IndexType jj = j + ((corner & 2) != 0);
+      const axom::IndexType kk = k + ((corner & 4) != 0);
+      node_ids[corner] = ii + jj * nni + kk * nni * nnj;
+    }
+    return true;
+  }
+
+  if(topo_type == "unstructured")
+  {
+    const std::string expected_shape = DIM == 3 ? "hex" : "quad";
+    if(topo.fetch_existing("elements/shape").as_string() != expected_shape)
+    {
+      return false;
+    }
+
+    const auto conn = topo.fetch_existing("elements/connectivity").as_index_t_accessor();
+    constexpr axom::IndexType nodes_per_cell = 1 << DIM;
+    const axom::IndexType first = cell_index * nodes_per_cell;
+    if(cell_index < 0 || first + nodes_per_cell > conn.number_of_elements())
+    {
+      return false;
+    }
+    for(int corner = 0; corner < nodes_per_cell; ++corner)
+    {
+      node_ids[corner] = static_cast<axom::IndexType>(conn[first + corner]);
+    }
+    return true;
+  }
+
+  return false;
+}
+
+template <int DIM>
+bool parentCellBounds(const conduit::Node& mesh, axom::IndexType cell_index, BoundingBox<DIM>& bounds)
+{
+  std::array<axom::IndexType, 1 << DIM> node_ids;
+  if(!parentCellNodeIds<DIM>(mesh, cell_index, node_ids))
+  {
+    return false;
+  }
+
+  const conduit::Node& topo = mesh.fetch_existing("topologies/mesh");
+  const std::string coordset_name = topo.fetch_existing("coordset").as_string();
+  const conduit::Node& values = mesh.fetch_existing("coordsets/" + coordset_name + "/values");
+  const auto x = values.fetch_existing("x").as_double_accessor();
+  const auto y = values.fetch_existing("y").as_double_accessor();
+  const auto z =
+    DIM == 3 ? values.fetch_existing("z").as_double_accessor() : conduit::double_accessor {};
+
+  for(const auto node_id : node_ids)
+  {
+    Point<DIM> point;
+    point[0] = x[node_id];
+    point[1] = y[node_id];
+    if(DIM == 3)
+    {
+      point[2] = z[node_id];
+    }
+    bounds.addPoint(point);
+  }
+  return bounds.isValid();
+}
+
+template <int DIM>
+void verifyExpectedCrossingCells(const conduit::Node& mesh,
+                                 const std::string& field_name,
+                                 double contour_value,
+                                 const std::set<axom::IndexType>& actual_cells,
+                                 const std::string& mask_field_name = {},
+                                 int mask_value = 1)
+{
+  const auto field = mesh.fetch_existing("fields/" + field_name + "/values").as_double_accessor();
+  const conduit::index_t num_cells =
+    conduit::blueprint::mesh::topology::length(mesh.fetch_existing("topologies/mesh"));
+  const conduit::Node* mask = mask_field_name.empty()
+    ? nullptr
+    : &mesh.fetch_existing("fields/" + mask_field_name + "/values");
+
+  for(axom::IndexType cell = 0; cell < num_cells; ++cell)
+  {
+    std::array<axom::IndexType, 1 << DIM> node_ids;
+    ASSERT_TRUE(parentCellNodeIds<DIM>(mesh, cell, node_ids));
+
+    bool below = false;
+    bool at_or_above = false;
+    for(const auto node_id : node_ids)
+    {
+      const float value = static_cast<float>(field[node_id]);
+      below = below || value < static_cast<float>(contour_value);
+      at_or_above = at_or_above || value >= static_cast<float>(contour_value);
+    }
+
+    const bool selected = mask == nullptr || mask->as_int32_accessor()[cell] == mask_value;
+    const bool expected = selected && below && at_or_above;
+    EXPECT_EQ(actual_cells.count(cell) != 0, expected)
+      << "parent cell " << cell << " disagrees with its corner classification";
+  }
+}
+
+template <int DIM, typename Field>
+void verifyAnalyticFacet(const conduit::Node& mesh,
+                         const Field& field,
+                         double contour_value,
+                         double surface_tolerance,
+                         double geometry_tolerance,
+                         const axom::ArrayView<const double, 2>& node_coords,
+                         const axom::ArrayView<const axom::IndexType, 2>& facet_corners,
+                         const axom::ArrayView<const axom::IndexType>& facet_parents,
+                         axom::IndexType facet)
+{
+  const axom::IndexType num_cells = static_cast<axom::IndexType>(
+    conduit::blueprint::mesh::topology::length(mesh.fetch_existing("topologies/mesh")));
+  const axom::IndexType parent = facet_parents[facet];
+  ASSERT_GE(parent, 0);
+  ASSERT_LT(parent, num_cells);
+
+  BoundingBox<DIM> bounds;
+  ASSERT_TRUE(parentCellBounds<DIM>(mesh, parent, bounds));
+  BoundingBox<DIM> expanded(bounds);
+  expanded.expand(geometry_tolerance);
+  const bool structured = mesh.fetch_existing("topologies/mesh/type").as_string() == "structured";
+
+  for(int corner = 0; corner < DIM; ++corner)
+  {
+    const axom::IndexType node = facet_corners(facet, corner);
+    ASSERT_GE(node, 0);
+    ASSERT_LT(node, node_coords.shape()[0]);
+
+    Point<DIM> point;
+    point[0] = node_coords(node, 0);
+    point[1] = node_coords(node, 1);
+    if(DIM == 3)
+    {
+      point[2] = node_coords(node, 2);
+    }
+
+    const double z = DIM == 3 ? point[2] : 0.0;
+    EXPECT_NEAR(field(point[0], point[1], z), contour_value, surface_tolerance)
+      << "facet " << facet << ", corner " << corner << " is off the analytic contour";
+    EXPECT_TRUE(expanded.contains(point))
+      << "facet " << facet << ", corner " << corner << " lies outside parent cell " << parent;
+
+    if(structured)
+    {
+      double distance_to_face = std::numeric_limits<double>::max();
+      for(int dim = 0; dim < DIM; ++dim)
+      {
+        distance_to_face = std::min(distance_to_face, std::abs(point[dim] - bounds.getMin()[dim]));
+        distance_to_face = std::min(distance_to_face, std::abs(point[dim] - bounds.getMax()[dim]));
+      }
+      EXPECT_LE(distance_to_face, geometry_tolerance)
+        << "facet " << facet << ", corner " << corner
+        << " lies in the interior of its structured parent cell";
+    }
+  }
+}
+
+template <int DIM, typename Field>
+void verifyAnalyticFacets(const conduit::Node& mesh,
+                          const Field& field,
+                          const std::string& field_name,
+                          double contour_value,
+                          double surface_tolerance,
+                          double geometry_tolerance,
+                          const axom::ArrayView<const double, 2>& node_coords,
+                          const axom::ArrayView<const axom::IndexType, 2>& facet_corners,
+                          const axom::ArrayView<const axom::IndexType>& facet_parents,
+                          axom::IndexType facet_begin,
+                          axom::IndexType facet_end,
+                          const std::string& mask_field_name = {},
+                          int mask_value = 1)
+{
+  std::set<axom::IndexType> actual_cells;
+  for(axom::IndexType facet = facet_begin; facet < facet_end; ++facet)
+  {
+    verifyAnalyticFacet<DIM>(mesh,
+                             field,
+                             contour_value,
+                             surface_tolerance,
+                             geometry_tolerance,
+                             node_coords,
+                             facet_corners,
+                             facet_parents,
+                             facet);
+    actual_cells.insert(facet_parents[facet]);
+  }
+
+  verifyExpectedCrossingCells<DIM>(mesh,
+                                   field_name,
+                                   contour_value,
+                                   actual_cells,
+                                   mask_field_name,
+                                   mask_value);
+}
+
+//---------------------------------------------------------------------------
+// Run MarchingCubes and validate its Bump output.
+//---------------------------------------------------------------------------
+
+template <int DIM, typename Field>
+void runAndVerify(conduit::Node& mesh,
+                  const Field& field,
+                  double contour_value,
+                  RuntimePolicy policy,
+                  const std::string& field_name,
+                  bool expect_closed_interior,
+                  double surface_tolerance,
+                  const std::string& mask_field_name = {},
+                  int mask_value = 1)
+{
+  namespace quest = axom::quest;
+
+  const int allocatorID = axom::policyToDefaultAllocatorID(policy);
+  quest::MarchingCubes mc(policy, allocatorID, quest::MarchingCubesDataParallelism::byPolicy);
+  mc.setBackend(quest::MarchingCubesBackend::bump);
+
+  conduit::Node execMesh;
+  copyBlueprintToPolicy(execMesh, mesh, policy, allocatorID);
+  mc.setMesh(execMesh, "mesh", mask_field_name);
+  if(!mask_field_name.empty())
+  {
+    mc.setMaskValue(mask_value);
+  }
+  mc.setFunctionField(field_name);
+  mc.computeIsocontour(contour_value);
+
+  conduit::Node contourBpExec;
+  mc.populateContourMeshBlueprint(contourBpExec);
+  conduit::Node contourBp;
+  copyBlueprintToHost(contourBp, contourBpExec);
+  // Check welded Blueprint output and fixed-stride arrays.
+  ASSERT_TRUE(conduit::blueprint::mesh::is_multi_domain(contourBp));
+  ASSERT_EQ(conduit::blueprint::mesh::number_of_domains(contourBp), 1);
+  const conduit::Node& contourDom = contourBp.child(0);
+  ASSERT_TRUE(contourDom.has_path("state/domain_id"));
+  EXPECT_EQ(contourDom["state/domain_id"].to_int32(), 0);
+  ASSERT_TRUE(contourDom.has_path("topologies"));
+  ASSERT_EQ(contourDom["topologies"].number_of_children(), 1);
+  const conduit::Node& contourTopo = contourDom["topologies"].child(0);
+  ASSERT_TRUE(contourTopo.has_path("elements/connectivity"));
+  ASSERT_TRUE(contourTopo.has_path("elements/sizes"));
+  ASSERT_TRUE(contourTopo.has_path("elements/offsets"));
+  ASSERT_TRUE(contourDom.has_path("fields/originalElements/values"));
+
+  conduit::Node triContourBpExec;
+  mc.populateContourMeshBlueprint(triContourBpExec, true);
+  conduit::Node triContourBp;
+  copyBlueprintToHost(triContourBp, triContourBpExec);
+  ASSERT_TRUE(conduit::blueprint::mesh::is_multi_domain(triContourBp));
+  ASSERT_EQ(conduit::blueprint::mesh::number_of_domains(triContourBp), 1);
+  const conduit::Node& triContourDom = triContourBp.child(0);
+  const conduit::Node& triContourTopo = triContourDom["topologies"].child(0);
+  const conduit::Node& triElems = triContourTopo.fetch_existing("elements");
+  const auto triSizes = triElems.fetch_existing("sizes").as_index_t_accessor();
+  const auto triConn = triElems.fetch_existing("connectivity").as_index_t_accessor();
+  ASSERT_EQ(triConn.number_of_elements(), triSizes.number_of_elements() * DIM);
+  for(conduit::index_t z = 0; z < triSizes.number_of_elements(); ++z)
+  {
+    EXPECT_EQ(triSizes[z], DIM);
+  }
+  EXPECT_EQ(triContourDom["fields/originalElements/values"].dtype().number_of_elements(),
+            triSizes.number_of_elements());
+  const std::string contourCoordsetName = contourTopo.fetch_existing("coordset").as_string();
+  const std::string triCoordsetName = triContourTopo.fetch_existing("coordset").as_string();
+  EXPECT_EQ(contourDom.fetch_existing("coordsets/" + contourCoordsetName + "/values/x")
+              .dtype()
+              .number_of_elements(),
+            triContourDom.fetch_existing("coordsets/" + triCoordsetName + "/values/x")
+              .dtype()
+              .number_of_elements());
+
+  const axom::Array<double, 2> coordsHost(mc.getContourNodeCoords(), hostAllocatorID());
+  const axom::Array<axom::IndexType, 2> cornersHost(mc.getContourFacetCorners(), hostAllocatorID());
+  const axom::Array<axom::IndexType> parentsHost(mc.getContourFacetParents(), hostAllocatorID());
+  const auto coords = coordsHost.view();
+  const auto corners = cornersHost.view();
+  const auto parents = parentsHost.view();
+  const axom::IndexType nFacets = mc.getContourCellCount();
+
+  ASSERT_GT(nFacets, 0) << "Expected a non-empty contour.";
+  for(axom::IndexType fIdx = 0; fIdx < nFacets; ++fIdx)
+  {
+    for(int c = 0; c < DIM; ++c)
+    {
+      EXPECT_GE(corners(fIdx, c), 0);
+      EXPECT_LT(corners(fIdx, c), mc.getContourNodeCount());
+    }
+  }
+
+  verifyAnalyticFacets<DIM>(mesh,
+                            field,
+                            field_name,
+                            contour_value,
+                            surface_tolerance,
+                            1.0e-5,
+                            coords,
+                            corners,
+                            parents,
+                            0,
+                            nFacets,
+                            mask_field_name,
+                            mask_value);
+
+  // Check edge incidence on the welded Blueprint output.
+  if(DIM == 3)
+  {
+    const auto em = checkBlueprintEdgeManifold3D(contourDom);
+    EXPECT_LE(em.maxMultiplicity, 2) << "Contour edge multiplicity exceeds two.";
+    if(expect_closed_interior)
+    {
+      EXPECT_LT(mc.getContourNodeCount(), nFacets * DIM)
+        << "Closed contour did not reuse vertices.";
+      EXPECT_EQ(em.boundaryEdges, 0) << "Closed contour has boundary edges.";
+    }
+  }
+
+  conduit::Node relinquishedBpExec;
+  mc.relinquishContourDataBlueprint(relinquishedBpExec);
+  conduit::Node relinquishedBp;
+  copyBlueprintToHost(relinquishedBp, relinquishedBpExec);
+  ASSERT_TRUE(conduit::blueprint::mesh::is_multi_domain(relinquishedBp));
+  ASSERT_EQ(conduit::blueprint::mesh::number_of_domains(relinquishedBp), 1);
+  EXPECT_EQ(mc.getContourCellCount(), 0);
+  EXPECT_EQ(mc.getContourNodeCount(), 0);
+}
+
+//---------------------------------------------------------------------------
+// Structured and unstructured tests
+//---------------------------------------------------------------------------
+
+void test_structured_planar(RuntimePolicy policy)
+{
+  conduit::Node mesh;
+  PlanarField f {{0.5, 0.5, 0.5}, {0.0, 0.0, 1.0}};  // horizontal plane z=0.5
+  mctest::buildStructured<3>(mesh, 8, f, "fcn");
+  // The plane clips the domain, so the contour is open.
+  runAndVerify<3>(mesh, f, 0.0, policy, "fcn", /*expect_closed_interior=*/false, 1.0e-6);
+}
+
+void test_structured_round(RuntimePolicy policy)
+{
+  conduit::Node mesh;
+  RoundField f {{0.5, 0.5, 0.5}, 0.25};  // sphere fully inside [0,1]^3
+  mctest::buildStructured<3>(mesh, 16, f, "fcn");
+  // The contour is closed. Linear interpolation gives an O(h^2) signed-distance residual.
+  runAndVerify<3>(mesh, f, 0.0, policy, "fcn", /*expect_closed_interior=*/true, 5.0e-3);
+}
+
+void test_structured_planar_mask(RuntimePolicy policy)
+{
+  constexpr int n = 8;
+  conduit::Node mesh;
+  PlanarField f {{0.5, 0.5, 0.30}, {0.0, 0.0, 1.0}};  // horizontal plane z=0.30
+  mctest::buildStructured<3>(mesh, n, f, "fcn");
+
+  // The plane crosses the selected lower k-slab. Check that every parent cell matches the mask.
+  mctest::addCellField<3>(mesh, [=](int, int, int k) { return k < n / 2 ? 7 : 3; }, "mask");
+  runAndVerify<3>(mesh,
+                  f,
+                  0.0,
+                  policy,
+                  "fcn",
+                  /*expect_closed_interior=*/false,
+                  1.0e-6,
+                  "mask",
+                  7);
+}
+
+void test_strided_planar_mask_with_field_layout(RuntimePolicy policy)
+{
+  constexpr int n = 8;
+  conduit::Node mesh;
+  PlanarField f {{0.30, 0.5, 0.5}, {1.0, 0.0, 0.0}};
+  mctest::buildStridedStructured<3>(mesh, n, 1, f, "fcn");
+
+  constexpr int MASK_INCLUDE = 7;
+  constexpr int MASK_EXCLUDE = 3;
+  const auto in_mask = [](int, int j, int) { return j < n / 2; };
+  const auto index_to_ijk = [](axom::IndexType index) {
+    return std::array<int, 3> {static_cast<int>(index % n),
+                               static_cast<int>((index / n) % n),
+                               static_cast<int>(index / (n * n))};
+  };
+
+  // Add a padded element field whose layout differs from the topology and coordinate layout.
+  [&] {
+    constexpr int pad = 2;
+    constexpr int extent = n + 2 * pad;
+    const std::vector<int> offsets {pad, pad, pad};
+    const std::vector<int> strides {1, extent, extent * extent};
+    const auto ijk_to_index = [&](int i, int j, int k) {
+      return (i + offsets[0]) * strides[0] + (j + offsets[1]) * strides[1] +
+        (k + offsets[2]) * strides[2];
+    };
+
+    conduit::Node& mask = mesh["fields/mask"];
+    mask["topology"] = "mesh";
+    mask["association"] = "element";
+    mask["offsets"].set(offsets);
+    mask["strides"].set(strides);
+    mask["values"].set(conduit::DataType::int32(conduit::index_t(extent) * extent * extent));
+    auto* values = mask["values"].as_int32_ptr();
+    std::fill(values, values + mask["values"].dtype().number_of_elements(), MASK_EXCLUDE);
+
+    for(int k = 0; k < n; ++k)
+    {
+      for(int j = 0; j < n; ++j)
+      {
+        for(int i = 0; i < n; ++i)
+        {
+          values[ijk_to_index(i, j, k)] = in_mask(i, j, k) ? MASK_INCLUDE : MASK_EXCLUDE;
+        }
+      }
+    }
+  }();
+
+  const int allocatorID = axom::policyToDefaultAllocatorID(policy);
+  axom::quest::MarchingCubes mc(policy,
+                                allocatorID,
+                                axom::quest::MarchingCubesDataParallelism::byPolicy);
+  mc.setBackend(axom::quest::MarchingCubesBackend::bump);
+
+  conduit::Node execMesh;
+  copyBlueprintToPolicy(execMesh, mesh, policy, allocatorID);
+  mc.setMesh(execMesh, "mesh", "mask");
+  mc.setMaskValue(MASK_INCLUDE);
+  mc.setFunctionField("fcn");
+  mc.computeIsocontour(0.0);
+
+  const axom::Array<axom::IndexType> parentsHost(mc.getContourFacetParents(), hostAllocatorID());
+  const auto parents = parentsHost.view();
+  // Each selected cell produces two facets. Check their parent cells against the mask.
+  EXPECT_EQ(parents.size(), axom::IndexType(n) * n);
+  for(const auto parent : parents)
+  {
+    const auto ijk = index_to_ijk(parent);
+    EXPECT_TRUE(in_mask(ijk[0], ijk[1], ijk[2]));
+  }
+}
+
+void test_unstructured_hex_round(RuntimePolicy policy)
+{
+  conduit::Node unstructured;
+  RoundField f {{0.5, 0.5, 0.5}, 0.25};
+  mctest::buildStructured<3>(unstructured, 16, f, "fcn");
+  axom::quest::util::convert_blueprint_structured_explicit_to_unstructured(unstructured,
+                                                                           "mesh",
+                                                                           RuntimePolicy::seq);
+
+  ASSERT_EQ(unstructured["topologies/mesh/type"].as_string(), std::string("unstructured"));
+  runAndVerify<3>(unstructured,
+                  f,
+                  0.0,
+                  policy,
+                  "fcn",
+                  /*expect_closed_interior=*/true,
+                  5.0e-3);
+}
+
+void test_unstructured_quad_round(RuntimePolicy policy)
+{
+  conduit::Node unstructured;
+  RoundField f {{0.5, 0.5, 0.0}, 0.25};  // circle fully inside [0,1]^2
+  mctest::buildStructured<2>(unstructured, 16, f, "fcn");
+  axom::quest::util::convert_blueprint_structured_explicit_to_unstructured(unstructured,
+                                                                           "mesh",
+                                                                           RuntimePolicy::seq);
+
+  ASSERT_EQ(unstructured["topologies/mesh/type"].as_string(), std::string("unstructured"));
+  ASSERT_EQ(unstructured["topologies/mesh/elements/shape"].as_string(), std::string("quad"));
+  conduit::Node info;
+  ASSERT_TRUE(conduit::blueprint::mesh::verify(unstructured, info)) << info.to_yaml();
+
+  // The 2D check ignores expect_closed_interior.
+  runAndVerify<2>(unstructured,
+                  f,
+                  0.0,
+                  policy,
+                  "fcn",
+                  /*expect_closed_interior=*/true,
+                  5.0e-3);
+}
+
+// Exercise physical-edge interpolation on a curvilinear hex mesh.
+void test_unstructured_hex_round_warped(RuntimePolicy policy)
+{
+  conduit::Node unstructured;
+  RoundField f {{0.5, 0.5, 0.5}, 0.22};  // stays inside the warped mesh
+  mctest::buildStructured<3>(unstructured, 16, f, "fcn", SinusoidalWarp {0.015});
+  axom::quest::util::convert_blueprint_structured_explicit_to_unstructured(unstructured,
+                                                                           "mesh",
+                                                                           RuntimePolicy::seq);
+
+  ASSERT_EQ(unstructured["topologies/mesh/type"].as_string(), std::string("unstructured"));
+  // Cell distortion increases the piecewise-linear contour's residual.
+  runAndVerify<3>(unstructured,
+                  f,
+                  0.0,
+                  policy,
+                  "fcn",
+                  /*expect_closed_interior=*/true,
+                  2.0e-2);
+}
+
+template <int DIM>
+void test_accumulated_analytic_fields(RuntimePolicy policy)
+{
+  namespace quest = axom::quest;
+
+  constexpr int n = 12;
+  PlanarField plane {{0.47, 0.43, 0.39}, {1.0, 0.4, 1.2}};
+  RoundField round {{0.5, 0.5, DIM == 3 ? 0.5 : 0.0}, 0.27};
+  GyroidField gyroid {{3.0, 3.0, DIM == 3 ? 1.5 : 0.0}};
+  const double mesh_spacing = 1.0 / n;
+  const double geometry_tolerance = 1.0e-5 * mesh_spacing;
+  const double round_tolerance = 0.1 * mesh_spacing;
+  const double gyroid_scale_norm =
+    std::sqrt(gyroid.scale[0] * gyroid.scale[0] + gyroid.scale[1] * gyroid.scale[1] +
+              gyroid.scale[2] * gyroid.scale[2]);
+  const double gyroid_tolerance = 0.1 * gyroid_scale_norm * mesh_spacing;
+
+  conduit::Node mesh;
+  mctest::buildStructured<DIM>(mesh, n, plane, "plane");
+  mctest::addVertexField<DIM>(mesh, round, "round");
+  mctest::addVertexField<DIM>(mesh, gyroid, "gyroid");
+
+  const int allocator_id = axom::policyToDefaultAllocatorID(policy);
+  conduit::Node exec_mesh;
+  copyBlueprintToPolicy(exec_mesh, mesh, policy, allocator_id);
+
+  quest::MarchingCubes mc(policy, allocator_id, quest::MarchingCubesDataParallelism::byPolicy);
+  mc.setBackend(quest::MarchingCubesBackend::bump);
+  mc.setMesh(exec_mesh, "mesh");
+
+  mc.setFunctionField("plane");
+  mc.computeIsocontour(0.0);
+  const axom::IndexType plane_end = mc.getContourFacetCount();
+
+  mc.setFunctionField("round");
+  mc.computeIsocontour(0.0);
+  const axom::IndexType round_end = mc.getContourFacetCount();
+
+  mc.setFunctionField("gyroid");
+  mc.computeIsocontour(0.0);
+  const axom::IndexType gyroid_end = mc.getContourFacetCount();
+
+  ASSERT_GT(plane_end, 0);
+  ASSERT_GT(round_end, plane_end);
+  ASSERT_GT(gyroid_end, round_end);
+
+  const axom::Array<double, 2> coords_host(mc.getContourNodeCoords(), hostAllocatorID());
+  const axom::Array<axom::IndexType, 2> corners_host(mc.getContourFacetCorners(), hostAllocatorID());
+  const axom::Array<axom::IndexType> parents_host(mc.getContourFacetParents(), hostAllocatorID());
+  const auto coords = coords_host.view();
+  const auto corners = corners_host.view();
+  const auto parents = parents_host.view();
+
+  verifyAnalyticFacets<DIM>(mesh,
+                            plane,
+                            "plane",
+                            0.0,
+                            geometry_tolerance,
+                            geometry_tolerance,
+                            coords,
+                            corners,
+                            parents,
+                            0,
+                            plane_end);
+  verifyAnalyticFacets<DIM>(mesh,
+                            round,
+                            "round",
+                            0.0,
+                            round_tolerance,
+                            geometry_tolerance,
+                            coords,
+                            corners,
+                            parents,
+                            plane_end,
+                            round_end);
+  verifyAnalyticFacets<DIM>(mesh,
+                            gyroid,
+                            "gyroid",
+                            0.0,
+                            gyroid_tolerance,
+                            geometry_tolerance,
+                            coords,
+                            corners,
+                            parents,
+                            round_end,
+                            gyroid_end);
+}
+
+// Check memory copies for a contour crossing one cell.
+template <int DIM>
+void test_single_crossing_cell(RuntimePolicy policy)
+{
+  namespace quest = axom::quest;
+
+  constexpr int n = 4;
+  conduit::Node mesh;
+  mctest::buildStructured<DIM>(mesh, n, [](double, double, double) { return 1.0; }, "fcn");
+  // Node 0 is a corner of the domain and belongs only to cell 0.
+  mesh["fields/fcn/values"].as_float64_ptr()[0] = -1.0;
+
+  const int allocator_id = axom::policyToDefaultAllocatorID(policy);
+  conduit::Node exec_mesh;
+  copyBlueprintToPolicy(exec_mesh, mesh, policy, allocator_id);
+
+  quest::MarchingCubes mc(policy, allocator_id, quest::MarchingCubesDataParallelism::byPolicy);
+  mc.setBackend(quest::MarchingCubesBackend::bump);
+  mc.setMesh(exec_mesh, "mesh");
+  mc.setFunctionField("fcn");
+  mc.computeIsocontour(0.0);
+
+  // The contour is one segment in 2D and one triangle in 3D.
+  ASSERT_EQ(mc.getContourFacetCount(), 1);
+  const axom::Array<axom::IndexType> parents_host(mc.getContourFacetParents(), hostAllocatorID());
+  EXPECT_EQ(parents_host[0], 0);
+
+  conduit::Node bp_exec;
+  mc.populateContourMeshBlueprint(bp_exec);
+  conduit::Node bp;
+  copyBlueprintToHost(bp, bp_exec);
+  ASSERT_EQ(conduit::blueprint::mesh::number_of_domains(bp), 1);
+  const auto orig =
+    bp.child(0).fetch_existing("fields/originalElements/values").as_index_t_accessor();
+  ASSERT_EQ(orig.number_of_elements(), 1);
+  EXPECT_EQ(orig[0], 0);
+}
+
+// Put the empty domain first to check that omitting it preserves the remaining domain ids.
+template <int DIM>
+void test_multidomain_with_empty_domain(RuntimePolicy policy)
+{
+  namespace quest = axom::quest;
+
+  constexpr int n = 6;
+  PlanarField plane {{0.5, 0.5, DIM == 3 ? 0.5 : 0.0}, {1.0, 0.0, 0.0}};  // x = 0.5
+
+  conduit::Node emptyDom, crossingDom;
+  mctest::buildStructured<DIM>(emptyDom, n, plane, "fcn");
+  // Shift the coordinates to x in [1,2] and resample, so the plane misses this domain.
+  mctest::translateExplicitCoordsX(emptyDom, 1.0);
+  mctest::addVertexField<DIM>(emptyDom, plane, "fcn");
+  emptyDom["state/domain_id"] = 5;
+  mctest::buildStructured<DIM>(crossingDom, n, plane, "fcn");
+  crossingDom["state/domain_id"] = 3;
+
+  conduit::Node mdMesh;
+  mdMesh.append().set_external(emptyDom);
+  mdMesh.append().set_external(crossingDom);
+  conduit::Node info;
+  ASSERT_TRUE(conduit::blueprint::mesh::verify(mdMesh, info)) << info.to_yaml();
+
+  const int allocator_id = axom::policyToDefaultAllocatorID(policy);
+  conduit::Node exec_mesh;
+  copyBlueprintToPolicy(exec_mesh, mdMesh, policy, allocator_id);
+  quest::MarchingCubes mc(policy, allocator_id, quest::MarchingCubesDataParallelism::byPolicy);
+  mc.setBackend(quest::MarchingCubesBackend::bump);
+  mc.setMesh(exec_mesh, "mesh");
+  mc.setFunctionField("fcn");
+  mc.computeIsocontour(0.0);
+  ASSERT_GT(mc.getContourFacetCount(), 0);
+
+  const auto expectOnlyCrossingDomain = [&](const conduit::Node& bp_exec, const char* label) {
+    SCOPED_TRACE(label);
+    conduit::Node bp;
+    copyBlueprintToHost(bp, bp_exec);
+    conduit::Node bp_info;
+    EXPECT_TRUE(conduit::blueprint::mesh::verify(bp, bp_info)) << bp_info.to_yaml();
+    ASSERT_EQ(conduit::blueprint::mesh::number_of_domains(bp), 1);
+    EXPECT_EQ(bp.child(0).fetch_existing("state/domain_id").to_int64(), 3);
+  };
+
+  conduit::Node polygons;
+  mc.populateContourMeshBlueprint(polygons);
+  expectOnlyCrossingDomain(polygons, "populate");
+
+  conduit::Node triangles;
+  mc.populateContourMeshBlueprint(triangles, /*triangulate=*/true);
+  expectOnlyCrossingDomain(triangles, "populate, triangulated");
+
+  conduit::Node relinquished;
+  mc.relinquishContourDataBlueprint(relinquished);
+  expectOnlyCrossingDomain(relinquished, "relinquish");
+}
+
+//---------------------------------------------------------------------------
+// Multi-domain output offsets.
+//---------------------------------------------------------------------------
+
+template <int DIM>
+void test_multidomain_planar(RuntimePolicy policy)
+{
+  namespace quest = axom::quest;
+
+  // Different plane heights reveal facets stored at the wrong domain offset.
+  PlanarField f0 {{0.5, 0.5, DIM == 3 ? 0.5 : 0.0},
+                  {0.0, DIM == 2 ? 1.0 : 0.0, DIM == 3 ? 1.0 : 0.0}};
+  PlanarField f1 {{0.5, 0.3, DIM == 3 ? 0.3 : 0.0},
+                  {0.0, DIM == 2 ? 1.0 : 0.0, DIM == 3 ? 1.0 : 0.0}};
+
+  conduit::Node dom0, dom1;
+  mctest::buildStructured<DIM>(dom0, 10, f0, "fcn");
+  mctest::buildStructured<DIM>(dom1, 10, f1, "fcn");
+  mctest::translateExplicitCoordsX(dom1, 2.0);
+  dom0["state/domain_id"] = 7;
+  dom1["state/domain_id"] = 19;
+
+  const int allocator_id = axom::policyToDefaultAllocatorID(policy);
+  const std::array<const conduit::Node*, 2> domains {{&dom0, &dom1}};
+  const std::array<const PlanarField*, 2> fields {{&f0, &f1}};
+  const std::array<axom::IndexType, 2> domain_ids {{7, 19}};
+
+  // Get reference counts without multi-domain offsets.
+  axom::IndexType separate_facet_count = 0;
+  axom::IndexType separate_node_count = 0;
+  for(const conduit::Node* domain : domains)
+  {
+    conduit::Node exec_domain;
+    copyBlueprintToPolicy(exec_domain, *domain, policy, allocator_id);
+    quest::MarchingCubes mc(policy, allocator_id, quest::MarchingCubesDataParallelism::byPolicy);
+    mc.setBackend(quest::MarchingCubesBackend::bump);
+    mc.setMesh(exec_domain, "mesh");
+    mc.setFunctionField("fcn");
+    mc.computeIsocontour(0.0);
+    separate_facet_count += mc.getContourCellCount();
+    separate_node_count += mc.getContourNodeCount();
+  }
+  ASSERT_GT(separate_facet_count, 0);
+
+  // Run both domains through one MarchingCubes instance.
+  conduit::Node mdMesh;
+  mdMesh.append().set_external(dom0);
+  mdMesh.append().set_external(dom1);
+  ASSERT_TRUE(conduit::blueprint::mesh::is_multi_domain(mdMesh));
+
+  conduit::Node exec_mesh;
+  copyBlueprintToPolicy(exec_mesh, mdMesh, policy, allocator_id);
+  quest::MarchingCubes mc(policy, allocator_id, quest::MarchingCubesDataParallelism::byPolicy);
+  mc.setBackend(quest::MarchingCubesBackend::bump);
+  mc.setMesh(exec_mesh, "mesh");
+  mc.setFunctionField("fcn");
+  mc.computeIsocontour(0.0);
+
+  EXPECT_EQ(mc.getContourCellCount(), separate_facet_count)
+    << "Multi-domain facet count differs from the separate runs.";
+  EXPECT_EQ(mc.getContourNodeCount(), separate_node_count)
+    << "Multi-domain node count differs from the separate runs.";
+
+  axom::Array<axom::IndexType, 2> facetNodeIds;
+  axom::Array<double, 2> facetNodeCoords;
+  axom::Array<axom::IndexType, 1> facetParentIds;
+  axom::Array<axom::IndexType> facetDomainIds;
+  mc.relinquishContourData(facetNodeIds, facetNodeCoords, facetParentIds, facetDomainIds);
+  EXPECT_EQ(mc.getContourCellCount(), 0);
+  EXPECT_EQ(mc.getContourNodeCount(), 0);
+
+  // Copy policy-allocated output to the host for validation.
+  const axom::Array<axom::IndexType, 2> ids(facetNodeIds, hostAllocatorID());
+  const axom::Array<double, 2> coords(facetNodeCoords, hostAllocatorID());
+  const axom::Array<axom::IndexType> parents(facetParentIds, hostAllocatorID());
+  const axom::Array<axom::IndexType> output_domain_ids(facetDomainIds, hostAllocatorID());
+
+  const axom::IndexType num_facets = output_domain_ids.size();
+  ASSERT_EQ(ids.shape()[0], num_facets);
+  ASSERT_EQ(parents.size(), num_facets);
+
+  std::array<std::set<axom::IndexType>, 2> actual_cells;
+  std::array<bool, 2> saw_domain {{false, false}};
+  for(axom::IndexType facet = 0; facet < num_facets; ++facet)
+  {
+    const auto domain_id = output_domain_ids[facet];
+    const int domain_index = domain_id == domain_ids[0] ? 0 : domain_id == domain_ids[1] ? 1 : -1;
+    ASSERT_GE(domain_index, 0) << "Unexpected parent domain id " << domain_id;
+    saw_domain[domain_index] = true;
+    actual_cells[domain_index].insert(parents[facet]);
+    verifyAnalyticFacet<DIM>(*domains[domain_index],
+                             *fields[domain_index],
+                             0.0,
+                             1.0e-6,
+                             1.0e-5,
+                             coords.view(),
+                             ids.view(),
+                             parents.view(),
+                             facet);
+  }
+  EXPECT_TRUE(saw_domain[0] && saw_domain[1]) << "Both domains should contribute facets.";
+  for(int domain = 0; domain < 2; ++domain)
+  {
+    verifyExpectedCrossingCells<DIM>(*domains[domain], "fcn", 0.0, actual_cells[domain]);
+  }
+}
+
+//---------------------------------------------------------------------------
+// gtest registration
+//---------------------------------------------------------------------------
+
+TEST(quest_marching_cubes_bump, triangulation_preserves_fields)
+{
+  const auto policy = RuntimePolicy::seq;
+  namespace bumpviews = axom::bump::views;
+  conduit::Node mesh;
+  mesh["coordsets/coords/type"] = "explicit";
+  mesh["coordsets/coords/values/x"].set(std::vector<double> {0., 1., 1., 0., -1.});
+  mesh["coordsets/coords/values/y"].set(std::vector<double> {0., 0., 1., 1., 0.});
+  mesh["coordsets/coords/values/z"].set(std::vector<double>(5, 0.));
+  mesh["topologies/surface/type"] = "unstructured";
+  mesh["topologies/surface/coordset"] = "coords";
+  auto& elements = mesh["topologies/surface/elements"];
+  elements["shape"] = "mixed";
+  elements["shape_map/tri"] = bumpviews::Tri_ShapeID;
+  elements["shape_map/quad"] = bumpviews::Quad_ShapeID;
+  elements["shapes"].set(
+    std::vector<axom::IndexType> {bumpviews::Tri_ShapeID, bumpviews::Quad_ShapeID});
+  elements["sizes"].set(std::vector<axom::IndexType> {3, 4});
+  elements["offsets"].set(std::vector<axom::IndexType> {0, 3});
+  elements["connectivity"].set(std::vector<axom::IndexType> {0, 1, 2, 0, 2, 3, 4});
+  auto& scalar = mesh["fields/scalar"];
+  scalar["association"] = "element";
+  scalar["topology"] = "surface";
+  scalar["units"] = "ids";
+  scalar["values"].set(std::vector<conduit::int32> {7, 11});
+  auto& vector = mesh["fields/vector"];
+  vector["association"] = "element";
+  vector["topology"] = "surface";
+  vector["values/x"].set(std::vector<float> {1.5f, 2.5f});
+  vector["values/y"].set(std::vector<float> {3.5f, 4.5f});
+  auto& vertex = mesh["fields/vertex"];
+  vertex["association"] = "vertex";
+  vertex["topology"] = "surface";
+  vertex["values"].set(std::vector<double> {0., 1., 2., 3., 4.});
+  conduit::Node info;
+  ASSERT_TRUE(conduit::blueprint::mesh::verify(mesh, info)) << info.to_yaml();
+
+  const int allocatorID = axom::policyToDefaultAllocatorID(policy);
+  conduit::Node execMesh;
+  copyBlueprintToPolicy(execMesh, mesh, policy, allocatorID);
+  axom::quest::detail::marching_cubes::triangulateBlueprintMesh<3, axom::SEQ_EXEC>(execMesh,
+                                                                                   allocatorID);
+  conduit::Node triangles;
+  copyBlueprintToHost(triangles, execMesh);
+  ASSERT_TRUE(conduit::blueprint::mesh::verify(triangles, info)) << info.to_yaml();
+  EXPECT_EQ(conduit::blueprint::mesh::topology::length(triangles["topologies/surface"]), 3);
+  EXPECT_FALSE(mesh["coordsets"].diff(triangles["coordsets"], info)) << info.to_yaml();
+  EXPECT_FALSE(vertex.diff(triangles["fields/vertex"], info)) << info.to_yaml();
+  EXPECT_EQ(triangles["fields/scalar/units"].as_string(), "ids");
+  EXPECT_TRUE(triangles["fields/scalar/values"].dtype().is_int32());
+  EXPECT_TRUE(triangles["fields/vector/values/x"].dtype().is_float32());
+  const auto parentValues = triangles["fields/scalar/values"].as_int32_accessor();
+  const auto xValues = triangles["fields/vector/values/x"].as_float_accessor();
+  const auto yValues = triangles["fields/vector/values/y"].as_float_accessor();
+  ASSERT_EQ(parentValues.number_of_elements(), 3);
+  ASSERT_EQ(xValues.number_of_elements(), 3);
+  ASSERT_EQ(yValues.number_of_elements(), 3);
+  std::multiset<conduit::int32> source_values;
+  for(conduit::index_t triangle = 0; triangle < 3; ++triangle)
+  {
+    source_values.insert(parentValues[triangle]);
+    EXPECT_EQ(xValues[triangle], parentValues[triangle] == 7 ? 1.5f : 2.5f);
+    EXPECT_EQ(yValues[triangle], parentValues[triangle] == 7 ? 3.5f : 4.5f);
+  }
+  EXPECT_EQ(source_values, (std::multiset<conduit::int32> {7, 11, 11}));
+}
+
+TEST(quest_marching_cubes_bump, structured_planar_seq)
+{
+  test_structured_planar(RuntimePolicy::seq);
+}
+TEST(quest_marching_cubes_bump, structured_round) { forEachEnabledPolicy(test_structured_round); }
+TEST(quest_marching_cubes_bump, structured_planar_mask)
+{
+  forEachEnabledPolicy(test_structured_planar_mask);
+}
+TEST(quest_marching_cubes_bump, strided_planar_mask_with_field_layout)
+{
+  forEachEnabledPolicy(test_strided_planar_mask_with_field_layout);
+}
+TEST(quest_marching_cubes_bump, unstructured_hex_round)
+{
+  forEachEnabledPolicy(test_unstructured_hex_round);
+}
+TEST(quest_marching_cubes_bump, unstructured_quad_round)
+{
+  forEachEnabledPolicy(test_unstructured_quad_round);
+}
+TEST(quest_marching_cubes_bump, unstructured_hex_round_warped)
+{
+  forEachEnabledPolicy(test_unstructured_hex_round_warped);
+}
+TEST(quest_marching_cubes_bump, single_crossing_cell_2d)
+{
+  forEachEnabledPolicy([](RuntimePolicy policy) { test_single_crossing_cell<2>(policy); });
+}
+TEST(quest_marching_cubes_bump, single_crossing_cell_3d)
+{
+  forEachEnabledPolicy([](RuntimePolicy policy) { test_single_crossing_cell<3>(policy); });
+}
+TEST(quest_marching_cubes_bump, multidomain_with_empty_domain_2d)
+{
+  forEachEnabledPolicy([](RuntimePolicy policy) { test_multidomain_with_empty_domain<2>(policy); });
+}
+TEST(quest_marching_cubes_bump, multidomain_with_empty_domain_3d)
+{
+  forEachEnabledPolicy([](RuntimePolicy policy) { test_multidomain_with_empty_domain<3>(policy); });
+}
+TEST(quest_marching_cubes_bump, multidomain_planar_2d)
+{
+  forEachEnabledPolicy([](RuntimePolicy policy) { test_multidomain_planar<2>(policy); });
+}
+TEST(quest_marching_cubes_bump, multidomain_planar_3d)
+{
+  forEachEnabledPolicy([](RuntimePolicy policy) { test_multidomain_planar<3>(policy); });
+}
+TEST(quest_marching_cubes_bump, accumulated_analytic_fields_2d)
+{
+  forEachEnabledPolicy([](RuntimePolicy policy) { test_accumulated_analytic_fields<2>(policy); });
+}
+TEST(quest_marching_cubes_bump, accumulated_analytic_fields_3d)
+{
+  forEachEnabledPolicy([](RuntimePolicy policy) { test_accumulated_analytic_fields<3>(policy); });
+}
+
+}  // namespace
+
+int main(int argc, char** argv)
+{
+  ::testing::InitGoogleTest(&argc, argv);
+  axom::slic::SimpleLogger logger;
+
+  int result = RUN_ALL_TESTS();
+  return result;
+}

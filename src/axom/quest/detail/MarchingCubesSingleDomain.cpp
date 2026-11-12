@@ -15,6 +15,8 @@
 #include "axom/quest/detail/MarchingCubesSingleDomain.hpp"
 #include "axom/fmt.hpp"
 
+#include <type_traits>
+
 namespace axom::quest::detail::marching_cubes
 {
 MarchingCubesSingleDomain::MarchingCubesSingleDomain(MarchingCubes& mc)
@@ -46,13 +48,17 @@ void MarchingCubesSingleDomain::setDomain(const conduit::Node& dom,
   SLIC_ERROR_IF(!dom.has_path("topologies/" + m_topologyName),
                 axom::fmt::format("MarchingCubes: the domain has no topology '{}'.", m_topologyName));
 
-  const std::string topologyType =
-    dom.fetch_existing("topologies/" + m_topologyName + "/type").as_string();
-  SLIC_ERROR_IF(topologyType != "structured",
-                axom::fmt::format("MarchingCubes requires a structured topology, "
-                                  "but topology '{}' has type '{}'.",
-                                  m_topologyName,
-                                  topologyType));
+  // Bump validates topology types in its implementation.
+  if(m_mc.m_backend != MarchingCubesBackend::bump)
+  {
+    const std::string topologyType =
+      dom.fetch_existing("topologies/" + m_topologyName + "/type").as_string();
+    SLIC_ERROR_IF(topologyType != "structured",
+                  axom::fmt::format("MarchingCubes requires a structured topology, "
+                                    "but topology '{}' has type '{}'.",
+                                    m_topologyName,
+                                    topologyType));
+  }
 
   const std::string coordsetPath =
     "coordsets/" + dom.fetch_existing("topologies/" + m_topologyName + "/coordset").as_string();
@@ -84,11 +90,13 @@ void MarchingCubesSingleDomain::setDomain(const conduit::Node& dom,
                                   m_topologyName,
                                   m_ndim));
 
-  SLIC_ERROR_IF(
-    conduit::blueprint::mcarray::is_interleaved(dom.fetch_existing(coordsetPath + "/values")),
-    axom::fmt::format("MarchingCubes requires a contiguous coordinate layout, "
-                      "but '{}' is interleaved.",
-                      coordsetPath));
+  // Bump validates coordinate layouts during dispatch.
+  if(m_mc.m_backend != MarchingCubesBackend::bump)
+  {
+    SLIC_ERROR_IF(
+      conduit::blueprint::mcarray::is_interleaved(dom.fetch_existing(coordsetPath + "/values")),
+      "The legacy MarchingCubes backend requires a contiguous coordinate layout.");
+  }
 
   m_impl = newMarchingCubesImpl();
 

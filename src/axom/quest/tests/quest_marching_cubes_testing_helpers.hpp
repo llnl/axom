@@ -7,10 +7,7 @@
 /*!
  * @file quest_marching_cubes_testing_helpers.hpp
  *
- * @brief Shared setup for the quest::MarchingCubes test suites.
- *
- * The suites share analytic fields, Blueprint memory copies, and structured mesh builders.
- * Each suite defines its own checks.
+ * @brief Shared fields, memory copies and mesh builders for MarchingCubes tests.
  */
 
 #pragma once
@@ -18,17 +15,78 @@
 #include "axom/config.hpp"
 #include "axom/core.hpp"
 #include "axom/primal.hpp"
-#include "axom/sidre/core/ConduitMemory.hpp"
+
+#if defined(AXOM_USE_BUMP)
+  #include "axom/bump/utilities/conduit_memory.hpp"
+#else
+  #include "axom/sidre/core/ConduitMemory.hpp"
+#endif
 
 #include <conduit/conduit.hpp>
+#include <gtest/gtest.h>
 
 #include <cmath>
 #include <string>
+#include <vector>
 
 namespace axom::quest::testing::marching_cubes
 {
 
 using RuntimePolicy = axom::runtime_policy::Policy;
+
+/*!
+ * @brief Return each runtime policy enabled in this build.
+ * @return Enabled policies, starting with the sequential policy.
+ */
+inline std::vector<RuntimePolicy> enabledPolicies()
+{
+  std::vector<RuntimePolicy> policies {RuntimePolicy::seq};
+#if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
+  policies.push_back(RuntimePolicy::omp);
+#endif
+#if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
+  policies.push_back(RuntimePolicy::cuda);
+#endif
+#if defined(AXOM_RUNTIME_POLICY_USE_HIP)
+  policies.push_back(RuntimePolicy::hip);
+#endif
+  return policies;
+}
+
+/*!
+ * @brief Return the printable name of a runtime policy.
+ * @param[in] policy Runtime policy to name.
+ * @return The policy's printable name.
+ */
+inline std::string policyName(RuntimePolicy policy)
+{
+  return axom::runtime_policy::policyToName(policy);
+}
+
+template <typename Func>
+void forEachEnabledPolicy(Func&& func)
+{
+  for(const auto policy : enabledPolicies())
+  {
+    SCOPED_TRACE(policyName(policy));
+    func(policy);
+  }
+}
+
+template <typename Func>
+void forEachHostPolicy(Func&& func)
+{
+  {
+    SCOPED_TRACE(policyName(RuntimePolicy::seq));
+    func(RuntimePolicy::seq);
+  }
+#if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
+  {
+    SCOPED_TRACE(policyName(RuntimePolicy::omp));
+    func(RuntimePolicy::omp);
+  }
+#endif
+}
 
 //---------------------------------------------------------------------------
 // Memory copies
@@ -36,13 +94,16 @@ using RuntimePolicy = axom::runtime_policy::Policy;
 
 inline int hostAllocatorID() { return axom::execution_space<axom::SEQ_EXEC>::allocatorID(); }
 
+#if !defined(AXOM_USE_BUMP)
 /*!
- * @brief Deep-copy a Conduit tree, placing its arrays in \a allocatorID memory.
+ * @brief Copy a Conduit tree with arrays in \a allocatorID memory.
  *
- * Leaves with more than one element are copied into memory from \a allocatorID.
- * Scalars and strings stay in host memory, so Blueprint metadata
- * such as \c elements/dims/i remains readable on the host,
- * while metadata arrays such as \c elements/dims/strides move with the data.
+ * @param[out] dst Destination tree, overwritten.
+ * @param[in] src Source tree.
+ * @param[in] allocatorID Allocator used for destination arrays.
+ *
+ * Scalars and strings stay on the host. All multi-element arrays, including
+ * Blueprint offsets and strides, use \a allocatorID.
  */
 inline void copyBlueprintToAllocator(conduit::Node& dst, const conduit::Node& src, int allocatorID)
 {
@@ -76,11 +137,15 @@ inline void copyBlueprintToAllocator(conduit::Node& dst, const conduit::Node& sr
   dst.set(conduit::DataType(compactSrc->dtype().id(), compactSrc->dtype().number_of_elements()));
   axom::copy(dst.data_ptr(), compactSrc->data_ptr(), compactSrc->dtype().bytes_compact());
 }
+#endif
 
 /*!
  * @brief Copy a Blueprint tree into memory accessible to a runtime policy.
  *
- * Tests build meshes on the host, then copy them before calling MarchingCubes.
+ * @param[out] dst Destination tree, overwritten.
+ * @param[in] src Source tree.
+ * @param[in] policy Runtime policy that will access the destination arrays.
+ * @param[in] allocatorID Allocator for device-policy copies. Host policies use \c dst.set(src).
  */
 inline void copyBlueprintToPolicy(conduit::Node& dst,
                                   const conduit::Node& src,
@@ -90,7 +155,11 @@ inline void copyBlueprintToPolicy(conduit::Node& dst,
 #if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
   if(policy == RuntimePolicy::cuda)
   {
+  #if defined(AXOM_USE_BUMP)
+    axom::bump::utilities::copy<axom::CUDA_EXEC<256>>(dst, src, allocatorID);
+  #else
     copyBlueprintToAllocator(dst, src, allocatorID);
+  #endif
     return;
   }
 #endif
@@ -98,7 +167,11 @@ inline void copyBlueprintToPolicy(conduit::Node& dst,
 #if defined(AXOM_RUNTIME_POLICY_USE_HIP)
   if(policy == RuntimePolicy::hip)
   {
+  #if defined(AXOM_USE_BUMP)
+    axom::bump::utilities::copy<axom::HIP_EXEC<256>>(dst, src, allocatorID);
+  #else
     copyBlueprintToAllocator(dst, src, allocatorID);
+  #endif
     return;
   }
 #endif
@@ -108,10 +181,33 @@ inline void copyBlueprintToPolicy(conduit::Node& dst,
   dst.set(src);
 }
 
-//! @brief Copy a Blueprint tree back to host memory for inspection.
+/*!
+ * @brief Copy a Blueprint tree back to host memory for inspection.
+ * @param[out] dst Host-memory destination tree, overwritten.
+ * @param[in] src Source tree.
+ */
 inline void copyBlueprintToHost(conduit::Node& dst, const conduit::Node& src)
 {
+#if defined(AXOM_USE_BUMP)
+  axom::bump::utilities::copy<axom::SEQ_EXEC>(dst, src, hostAllocatorID());
+#else
   copyBlueprintToAllocator(dst, src, hostAllocatorID());
+#endif
+}
+
+/*!
+ * @brief Shift the explicit x coordinates of @a mesh by @a offset.
+ * @param[in,out] mesh Host mesh with float64 coordinates at coordsets/coords/values/x.
+ * @param[in] offset Displacement to add to every x coordinate.
+ */
+inline void translateExplicitCoordsX(conduit::Node& mesh, double offset)
+{
+  conduit::Node& x_node = mesh.fetch_existing("coordsets/coords/values/x");
+  auto* x_values = x_node.as_float64_ptr();
+  for(conduit::index_t node_index = 0; node_index < x_node.dtype().number_of_elements(); ++node_index)
+  {
+    x_values[node_index] += offset;
+  }
 }
 
 //---------------------------------------------------------------------------
@@ -132,15 +228,18 @@ struct PlanarField
   using VectorType = axom::primal::Vector<double, 3>;
   using PlaneType = axom::primal::Plane<double, 3>;
 
-  //! @brief The plane through @a origin with the given @a normal.
+  /*!
+   * @brief Construct a plane through \a origin.
+   * @param[in] origin Point on the plane.
+   * @param[in] normal Plane normal, scaled to unit length by the constructor.
+   */
   PlanarField(const PointType& origin, const VectorType& normal) : plane(normal, origin) { }
 
   /*!
-   * @brief The plane \f$\hat{n} \cdot p = offset\f$, where \f$\hat{n}\f$ is
-   *        @a normal scaled to unit length.
+   * @brief Construct a plane at a signed offset from the origin.
    *
-   * @a offset is a distance along the unit normal, so scaling @a normal
-   * does not move the plane.
+   * @param[in] normal Plane normal, scaled to unit length by the constructor.
+   * @param[in] offset Signed distance from the origin along the unit normal.
    */
   PlanarField(const VectorType& normal, double offset) : plane(normal, offset) { }
 
@@ -225,8 +324,13 @@ struct SinusoidalWarp
 /*!
  * @brief Sample @a f at the nodes of an explicit coordset and store it as a vertex field.
  *
- * The field copies the coordset's layout. When the topology has \c elements/dims/offsets
- * and \c strides, the field receives the same \c offsets and \c strides.
+ * @tparam DIM Spatial dimension, 2 or 3.
+ * @tparam Field Callable scalar field accepting x, y and z coordinates.
+ * @param[in,out] mesh Structured mesh to receive the sampled field.
+ * @param[in] f Scalar function evaluated at each node, with z set to zero in 2D.
+ * @param[in] fieldName Name of the vertex field to create or replace.
+ *
+ * The field uses the coordset's layout and copies topology offsets and strides when present.
  */
 template <int DIM, typename Field>
 void addVertexField(conduit::Node& mesh, const Field& f, const std::string& fieldName)
@@ -264,8 +368,13 @@ void addVertexField(conduit::Node& mesh, const Field& f, const std::string& fiel
 /*!
  * @brief Add an element-associated \c int32 field whose value is \a g(i, j, k).
  *
- * @a g receives the logical indices of each real (non-ghost) cell.
- * The field is stored compactly, without padding, in i-fastest order.
+ * @tparam DIM Spatial dimension, 2 or 3.
+ * @tparam CellFunction Callable integer field accepting logical cell indices.
+ * @param[in,out] mesh Structured mesh to receive the element field.
+ * @param[in] g Function of logical cell indices, with k set to zero in 2D.
+ * @param[in] fieldName Name of the element field to create or replace.
+ *
+ * Samples only real cells and stores values compactly in i-fastest order.
  */
 template <int DIM, typename CellFunction>
 void addCellField(conduit::Node& mesh, const CellFunction& g, const std::string& fieldName)
@@ -300,7 +409,16 @@ void addCellField(conduit::Node& mesh, const CellFunction& g, const std::string&
  * @brief Build a single-domain structured mesh with an explicit coordset on
  *        [0,1]^DIM with @a n cells per side.
  *
- * If @a warp is supplied, the function is evaluated at the warped coordinates.
+ * @tparam DIM Spatial dimension, 2 or 3.
+ * @tparam Field Callable scalar field accepting x, y and z coordinates.
+ * @tparam Warp Callable that modifies x, y and z coordinates in place.
+ *
+ * @param[out] mesh Output Blueprint mesh, replacing its prior contents.
+ * @param[in] n Number of cells along each axis.
+ * @param[in] f Scalar function sampled at each node.
+ * @param[in] fieldName Name of the vertex field to create.
+ * @param[in] warp Coordinate transformation applied before sampling the field.
+ *
  * Nodes use i-fastest order.
  */
 template <int DIM, typename Field, typename Warp = NoWarp>
@@ -370,10 +488,17 @@ void buildStructured(conduit::Node& mesh,
  * @brief Build a strided structured mesh on [0,1]^DIM with @a n real cells per side
  *        and @a pad ghost nodes on each side of every axis.
  *
- * The coordset and vertex field store (n + 1 + 2*pad)^DIM nodes in i-fastest order.
- * The topology's \c elements/dims/offsets and \c strides select the real nodes.
- * Ghost nodes continue the uniform spacing outside [0,1],
- * so an isocontour that ignores the offsets would include ghost cells.
+ * @tparam DIM Spatial dimension, 2 or 3.
+ * @tparam Field Callable scalar field accepting x, y and z coordinates.
+ *
+ * @param[out] mesh Output Blueprint mesh, replacing its prior contents.
+ * @param[in] n Number of real cells along each axis.
+ * @param[in] pad Number of ghost nodes on each side of each axis.
+ * @param[in] f Scalar function sampled at each node, including ghost nodes.
+ * @param[in] fieldName Name of the vertex field to create.
+ *
+ * Nodes use i-fastest order. Topology offsets and strides select the real nodes.
+ * Ghost nodes extend the uniform spacing outside [0,1] so ignoring offsets produces extra facets.
  */
 template <int DIM, typename Field>
 void buildStridedStructured(conduit::Node& mesh,

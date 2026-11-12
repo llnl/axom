@@ -112,9 +112,30 @@ void MarchingCubes::setFunctionField(const std::string& fcnField)
   }
 }
 
+void MarchingCubes::setBackend(MarchingCubesBackend backend)
+{
+#if !defined(AXOM_USE_BUMP)
+  SLIC_ERROR_IF(backend == MarchingCubesBackend::bump,
+                "MarchingCubes Bump backend requires Axom to be configured "
+                "with the bump component.");
+#endif
+  m_backend = backend;
+}
+
+void MarchingCubes::checkBackendMatchesMesh() const
+{
+  for(axom::IndexType d = 0; d < m_domainCount; ++d)
+  {
+    SLIC_ERROR_IF(m_singles[d]->getImpl().getBackend() != m_backend,
+                  "MarchingCubes: the backend changed after setMesh(). "
+                  "Call setMesh() again so its domains use the selected backend.");
+  }
+}
+
 void MarchingCubes::computeIsocontour(double contourVal)
 {
   AXOM_ANNOTATE_SCOPE("MarchingCubes::computeIsoContour");
+  checkBackendMatchesMesh();
 
   // Keep prior output so callers can append contours from several fields or isovalues.
   // clearOutput() starts a new output mesh.
@@ -162,14 +183,21 @@ void MarchingCubes::computeIsocontour(double contourVal)
       (d < m_domainCount - 1 ? m_facetIndexOffsets[d + 1] : m_facetCount) - m_facetIndexOffsets[d];
     m_facetDomainIds.fill(domainId, domainFacetCount, m_facetIndexOffsets[d]);
   }
+
+  ++m_contourCount;
 }
 
 axom::IndexType MarchingCubes::getContourNodeCount() const { return m_nodeCount; }
 
 void MarchingCubes::clearOutput()
 {
+  for(axom::IndexType d = 0; d < m_domainCount; ++d)
+  {
+    m_singles[d]->getImpl().clearDomain();
+  }
   m_facetCount = 0;
   m_nodeCount = 0;
+  m_contourCount = 0;
   m_facetNodeIds.clear();
   m_facetNodeCoords.clear();
   m_facetParentIds.clear();
@@ -239,6 +267,86 @@ void MarchingCubes::populateContourMesh(axom::mint::UnstructuredMesh<axom::mint:
       axom::copy(domainIdPtr, m_facetDomainIds.data(), m_facetCount * sizeof(axom::IndexType));
     }
   }
+}
+
+void MarchingCubes::populateContourMeshBlueprint(conduit::Node& bpMesh, bool triangulate) const
+{
+  AXOM_ANNOTATE_SCOPE("MarchingCubes::populateContourMeshBlueprint");
+  bpMesh.reset();
+  checkBackendMatchesMesh();
+
+  SLIC_ERROR_IF(m_backend != MarchingCubesBackend::bump,
+                "MarchingCubes Blueprint contour output is available only with "
+                "MarchingCubesBackend::bump.");
+  SLIC_ERROR_IF(
+    m_contourCount > 1,
+    axom::fmt::format("MarchingCubes Blueprint output holds one contour per domain, "
+                      "but computeIsocontour() was called {} times since clearOutput(). "
+                      "Call clearOutput() between contours to use Blueprint output.",
+                      m_contourCount));
+
+  for(axom::IndexType d = 0; d < m_domainCount; ++d)
+  {
+    const auto& single = *m_singles[d];
+    const auto& impl = single.getImpl();
+    SLIC_ERROR_IF(!impl.hasContourMeshBlueprint(),
+                  "MarchingCubes has no Blueprint contour output. "
+                  "Call computeIsocontour() before requesting it.");
+
+    // An empty node is not a valid Blueprint domain, so omit it.
+    if(impl.getContourCellCount() == 0)
+    {
+      continue;
+    }
+
+    conduit::Node& outDom = bpMesh.append();
+    impl.copyContourMeshBlueprint(outDom, triangulate);
+    if(!outDom.has_path("state/domain_id"))
+    {
+      outDom["state/domain_id"] = single.getDomainId(static_cast<int32_t>(d));
+    }
+  }
+}
+
+void MarchingCubes::relinquishContourDataBlueprint(conduit::Node& bpMesh)
+{
+  AXOM_ANNOTATE_SCOPE("MarchingCubes::relinquishContourDataBlueprint");
+  bpMesh.reset();
+  checkBackendMatchesMesh();
+
+  SLIC_ERROR_IF(m_backend != MarchingCubesBackend::bump,
+                "MarchingCubes Blueprint contour output is available only with "
+                "MarchingCubesBackend::bump.");
+  SLIC_ERROR_IF(
+    m_contourCount > 1,
+    axom::fmt::format("MarchingCubes Blueprint output holds one contour per domain, "
+                      "but computeIsocontour() was called {} times since clearOutput(). "
+                      "Call clearOutput() between contours to use Blueprint output.",
+                      m_contourCount));
+
+  for(axom::IndexType d = 0; d < m_domainCount; ++d)
+  {
+    auto& single = *m_singles[d];
+    auto& impl = single.getImpl();
+    SLIC_ERROR_IF(!impl.hasContourMeshBlueprint(),
+                  "MarchingCubes has no Blueprint contour output. "
+                  "Call computeIsocontour() before requesting it.");
+
+    // An empty node is not a valid Blueprint domain, so omit it.
+    if(impl.getContourCellCount() == 0)
+    {
+      continue;
+    }
+
+    conduit::Node& outDom = bpMesh.append();
+    impl.relinquishContourMeshBlueprint(outDom);
+    if(!outDom.has_path("state/domain_id"))
+    {
+      outDom["state/domain_id"] = single.getDomainId(static_cast<int32_t>(d));
+    }
+  }
+
+  clearOutput();
 }
 
 void MarchingCubes::allocateOutputBuffers()
