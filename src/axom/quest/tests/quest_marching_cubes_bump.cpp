@@ -365,7 +365,7 @@ void runAndVerify(conduit::Node& mesh,
 
   const int allocatorID = axom::policyToDefaultAllocatorID(policy);
   quest::MarchingCubes mc(policy, allocatorID, quest::MarchingCubesDataParallelism::byPolicy);
-  mc.setUseBumpBackend(true);
+  mc.setBackend(quest::MarchingCubesBackend::bump);
 
   conduit::Node execMesh;
   copyBlueprintToPolicy(execMesh, mesh, policy, allocatorID);
@@ -575,7 +575,7 @@ void test_strided_planar_mask_with_field_layout(RuntimePolicy policy)
   axom::quest::MarchingCubes mc(policy,
                                 allocatorID,
                                 axom::quest::MarchingCubesDataParallelism::byPolicy);
-  mc.setUseBumpBackend(true);
+  mc.setBackend(axom::quest::MarchingCubesBackend::bump);
 
   conduit::Node execMesh;
   copyBlueprintToPolicy(execMesh, mesh, policy, allocatorID);
@@ -662,7 +662,7 @@ void test_accumulated_analytic_fields(RuntimePolicy policy)
   copyBlueprintToPolicy(exec_mesh, mesh, policy, allocator_id);
 
   quest::MarchingCubes mc(policy, allocator_id, quest::MarchingCubesDataParallelism::byPolicy);
-  mc.setUseBumpBackend(true);
+  mc.setBackend(quest::MarchingCubesBackend::bump);
   mc.setMesh(exec_mesh, "mesh");
 
   mc.setFunctionField("plane");
@@ -760,7 +760,7 @@ void test_multidomain_planar(RuntimePolicy policy)
     conduit::Node exec_domain;
     copyBlueprintToPolicy(exec_domain, *domain, policy, allocator_id);
     quest::MarchingCubes mc(policy, allocator_id, quest::MarchingCubesDataParallelism::byPolicy);
-    mc.setUseBumpBackend(true);
+    mc.setBackend(quest::MarchingCubesBackend::bump);
     mc.setMesh(exec_domain, "mesh");
     mc.setFunctionField("fcn");
     mc.computeIsocontour(0.0);
@@ -778,7 +778,7 @@ void test_multidomain_planar(RuntimePolicy policy)
   conduit::Node exec_mesh;
   copyBlueprintToPolicy(exec_mesh, mdMesh, policy, allocator_id);
   quest::MarchingCubes mc(policy, allocator_id, quest::MarchingCubesDataParallelism::byPolicy);
-  mc.setUseBumpBackend(true);
+  mc.setBackend(quest::MarchingCubesBackend::bump);
   mc.setMesh(exec_mesh, "mesh");
   mc.setFunctionField("fcn");
   mc.computeIsocontour(0.0);

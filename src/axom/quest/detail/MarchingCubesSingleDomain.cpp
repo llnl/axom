@@ -49,7 +49,7 @@ void MarchingCubesSingleDomain::setDomain(const conduit::Node& dom,
                 axom::fmt::format("MarchingCubes: the domain has no topology '{}'.", m_topologyName));
 
   // The Bump implementation validates its supported topology types
-  if(!m_mc.m_useBumpBackend)
+  if(m_mc.m_backend != MarchingCubesBackend::bump)
   {
     const std::string topologyType =
       dom.fetch_existing("topologies/" + m_topologyName + "/type").as_string();
@@ -91,7 +91,7 @@ void MarchingCubesSingleDomain::setDomain(const conduit::Node& dom,
                                   m_ndim));
 
   // The Bump coordset dispatcher validates its supported layouts
-  if(!m_mc.m_useBumpBackend)
+  if(m_mc.m_backend != MarchingCubesBackend::bump)
   {
     SLIC_ERROR_IF(
       conduit::blueprint::mcarray::is_interleaved(dom.fetch_existing(coordsetPath + "/values")),

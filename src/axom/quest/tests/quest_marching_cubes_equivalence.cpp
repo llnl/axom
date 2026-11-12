@@ -195,7 +195,7 @@ BackendResult runBackend(const conduit::Node& mesh,
 
   const int allocator_id = axom::policyToDefaultAllocatorID(policy);
   quest::MarchingCubes mc(policy, allocator_id, quest::MarchingCubesDataParallelism::byPolicy);
-  mc.setUseBumpBackend(use_bump);
+  mc.setBackend(use_bump ? quest::MarchingCubesBackend::bump : quest::MarchingCubesBackend::legacy);
 
   conduit::Node exec_mesh;
   copyBlueprintToPolicy(exec_mesh, mesh, policy, allocator_id);
@@ -216,7 +216,7 @@ std::array<BackendResult, 3> runAccumulatedBackend(const conduit::Node& mesh,
 
   const int allocator_id = axom::policyToDefaultAllocatorID(policy);
   quest::MarchingCubes mc(policy, allocator_id, quest::MarchingCubesDataParallelism::byPolicy);
-  mc.setUseBumpBackend(use_bump);
+  mc.setBackend(use_bump ? quest::MarchingCubesBackend::bump : quest::MarchingCubesBackend::legacy);
 
   conduit::Node exec_mesh;
   copyBlueprintToPolicy(exec_mesh, mesh, policy, allocator_id);
@@ -371,7 +371,7 @@ void test_empty_contour(RuntimePolicy policy)
 
   const int allocatorID = axom::policyToDefaultAllocatorID(policy);
   quest::MarchingCubes mc(policy, allocatorID, quest::MarchingCubesDataParallelism::byPolicy);
-  mc.setUseBumpBackend(true);
+  mc.setBackend(quest::MarchingCubesBackend::bump);
   mc.setMesh(mesh, "mesh");
   mc.setFunctionField("fcn");
   mc.computeIsocontour(0.0);
@@ -478,7 +478,7 @@ void test_float32_field_rejected(RuntimePolicy policy)
 
   const int allocatorID = axom::policyToDefaultAllocatorID(policy);
   quest::MarchingCubes mc(policy, allocatorID, quest::MarchingCubesDataParallelism::byPolicy);
-  mc.setUseBumpBackend(true);
+  mc.setBackend(quest::MarchingCubesBackend::bump);
 
   axom::slic::ScopedAbortToThrow abort_guard;
   EXPECT_THROW(
@@ -500,7 +500,7 @@ void expectBumpFieldLayoutRejected(const conduit::Node& mesh, RuntimePolicy poli
       axom::quest::MarchingCubes mc(policy,
                                     allocatorID,
                                     axom::quest::MarchingCubesDataParallelism::byPolicy);
-      mc.setUseBumpBackend(true);
+      mc.setBackend(axom::quest::MarchingCubesBackend::bump);
       mc.setMesh(mesh, "mesh");
       mc.setFunctionField("fcn");
       mc.computeIsocontour(0.0);
@@ -693,7 +693,8 @@ void test_sidre_native_layout(RuntimePolicy policy)
       axom::quest::MarchingCubes mc(policy,
                                     hostAllocatorID(),
                                     axom::quest::MarchingCubesDataParallelism::byPolicy);
-      mc.setUseBumpBackend(use_bump);
+      mc.setBackend(use_bump ? axom::quest::MarchingCubesBackend::bump
+                             : axom::quest::MarchingCubesBackend::legacy);
       mc.setMesh(*input, "mesh", "mask");
       mc.setMaskValue(mask_value);
       mc.setFunctionField("fcn");

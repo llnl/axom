@@ -112,14 +112,14 @@ void MarchingCubes::setFunctionField(const std::string& fcnField)
   }
 }
 
-void MarchingCubes::setUseBumpBackend(bool useBump)
+void MarchingCubes::setBackend(MarchingCubesBackend backend)
 {
 #if !defined(AXOM_USE_BUMP)
-  SLIC_ERROR_IF(useBump,
+  SLIC_ERROR_IF(backend == MarchingCubesBackend::bump,
                 "MarchingCubes Bump backend requires Axom to be configured "
                 "with the bump component.");
 #endif
-  m_useBumpBackend = useBump;
+  m_backend = backend;
 }
 
 void MarchingCubes::computeIsocontour(double contourVal)
@@ -260,9 +260,9 @@ void MarchingCubes::populateContourMeshBlueprint(conduit::Node& bpMesh, bool tri
   AXOM_ANNOTATE_SCOPE("MarchingCubes::populateContourMeshBlueprint");
   bpMesh.reset();
 
-  SLIC_ERROR_IF(!m_useBumpBackend,
-                "MarchingCubes Blueprint contour output is available only when "
-                "setUseBumpBackend(true) was used.");
+  SLIC_ERROR_IF(m_backend != MarchingCubesBackend::bump,
+                "MarchingCubes Blueprint contour output is available only with "
+                "MarchingCubesBackend::bump.");
 
   for(axom::IndexType d = 0; d < m_domainCount; ++d)
   {
@@ -286,9 +286,9 @@ void MarchingCubes::relinquishContourDataBlueprint(conduit::Node& bpMesh)
   AXOM_ANNOTATE_SCOPE("MarchingCubes::relinquishContourDataBlueprint");
   bpMesh.reset();
 
-  SLIC_ERROR_IF(!m_useBumpBackend,
-                "MarchingCubes Blueprint contour output is available only when "
-                "setUseBumpBackend(true) was used.");
+  SLIC_ERROR_IF(m_backend != MarchingCubesBackend::bump,
+                "MarchingCubes Blueprint contour output is available only with "
+                "MarchingCubesBackend::bump.");
 
   for(axom::IndexType d = 0; d < m_domainCount; ++d)
   {

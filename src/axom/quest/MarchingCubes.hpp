@@ -57,6 +57,20 @@ enum class MarchingCubesDataParallelism
 };
 
 /*!
+ * @brief Selects the MarchingCubes implementation.
+ *
+ * \c legacy is the original structured-mesh implementation.
+ * \c bump uses Bump's CutField. It also accepts uniform and rectilinear topologies,
+ *    and single-shape unstructured quad (2D) or hex (3D) topologies.
+ *    Only \c bump can return its welded contour as a Blueprint mesh.
+ */
+enum class MarchingCubesBackend
+{
+  legacy = 0,
+  bump = 1
+};
+
+/*!
  * @brief Extracts a contour mesh from a scalar field.
  *
  * The legacy backend implements the original 1987 algorithm:
@@ -155,8 +169,8 @@ public:
   void setMaskValue(int maskVal) { m_maskVal = maskVal; }
 
   /*!
-   * @brief Enable or disable the Bump-based backend.
-   * @param [in] useBump If true, use Bump. If false, use the legacy backend.
+   * @brief Select the backend implementation.
+   * @param [in] backend The backend. The default is MarchingCubesBackend::legacy.
    *
    * The legacy backend only accepts structured meshes. Bump also accepts uniform
    * and rectilinear topologies and single-shape unstructured quad or hex meshes.
@@ -167,7 +181,10 @@ public:
    * @note The MarchingCubesDataParallelism constructor argument selects the
    *       legacy backend's scan strategy. Bump ignores it.
    */
-  void setUseBumpBackend(bool useBump);
+  void setBackend(MarchingCubesBackend backend);
+
+  //! @brief Return the selected backend.
+  MarchingCubesBackend getBackend() const { return m_backend; }
 
   /*!
    * @brief Compute the isocontour.
@@ -375,8 +392,8 @@ private:
 
   int m_maskVal {1};
 
-  //! @brief Whether to use the Bump-based backend.
-  bool m_useBumpBackend {false};
+  //! @brief Selected backend implementation.
+  MarchingCubesBackend m_backend {MarchingCubesBackend::legacy};
 
   //! @brief First facet index from each parent domain.
   axom::Array<axom::IndexType> m_facetIndexOffsets;

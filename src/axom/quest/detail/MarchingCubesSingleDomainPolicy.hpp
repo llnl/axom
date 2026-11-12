@@ -40,7 +40,7 @@ std::unique_ptr<MarchingCubesSingleDomain::ImplBase> MarchingCubesSingleDomain::
   static_assert(DIM == 2 || DIM == 3, "MarchingCubes supports only 2D and 3D meshes");
 
 #if defined(AXOM_USE_BUMP)
-  if(m_mc.m_useBumpBackend)
+  if(m_mc.m_backend == MarchingCubesBackend::bump)
   {
     return std::make_unique<MarchingCubesBumpImpl<DIM, ExecSpace>>(m_mc.m_allocatorID);
   }
