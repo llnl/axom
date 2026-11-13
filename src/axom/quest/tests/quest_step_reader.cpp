@@ -354,6 +354,31 @@ void readStepReference(const std::string& path, STEPControl_Reader& reader)
   ASSERT_GT(reader.TransferRoots(), 0) << path;
 }
 
+// Import face \a index of the source geometry, for comparison with Axom's exported trims.
+void readReferenceFace(const std::string& path, TopoDS_Face& face, int index = 0)
+{
+  STEPControl_Reader reader;
+  ASSERT_NO_FATAL_FAILURE(readStepReference(path, reader));
+  TopExp_Explorer faces(reader.OneShape(), TopAbs_FACE);
+  for(int i = 0; i < index && faces.More(); ++i)
+  {
+    faces.Next();
+  }
+  ASSERT_TRUE(faces.More()) << path;
+  face = TopoDS::Face(faces.Current());
+}
+
+// Check that patch \a patchIndex has \a numTrims trimming curves, all in wire 0.
+void expectSingleWire(const quest::STEPReader& reader, int patchIndex, int numTrims)
+{
+  ASSERT_EQ(reader.getPatchArray()[patchIndex].getNumTrimmingCurves(), numTrims);
+  ASSERT_EQ(reader.getTrimmingCurveWireIds(patchIndex).size(), numTrims);
+  for(int wire_id : reader.getTrimmingCurveWireIds(patchIndex))
+  {
+    EXPECT_EQ(wire_id, 0);
+  }
+}
+
 // Every edge uses [0,parameterSpan], but its stored pcurve has unused tails on both sides.
 // B-spline pcurves keep their unused tails through the STEP round trip.
 TopoDS_Face makeRestrictedPcurveFace(double parameterSpan = 1.)
@@ -638,6 +663,12 @@ std::string readWithDiagnostics(quest::STEPReader& reader, bool validate)
   return messages;
 }
 
+void expectNoUVDiagnostics(const std::string& messages)
+{
+  EXPECT_EQ(messages.find("leave the exported UV domain"), std::string::npos) << messages;
+  EXPECT_EQ(messages.find("UV endpoint gap"), std::string::npos) << messages;
+}
+
 void expectTrimGaps(const quest::STEPReader::NURBSPatch& patch,
                     axom::ArrayView<const int> wire_ids,
                     double expected_uv_gap,
@@ -751,12 +782,7 @@ TEST(quest_step_reader, repeated_reads)
         EXPECT_FALSE(reader.patchWasOriginallyPeriodic_v(i));
         const auto& patch = reader.getPatchArray()[i];
         EXPECT_TRUE(patch.isValidNURBS());
-        EXPECT_EQ(patch.getNumTrimmingCurves(), test_case.trims_per_patch);
-        ASSERT_EQ(reader.getTrimmingCurveWireIds(i).size(), test_case.trims_per_patch);
-        for(int wire_id : reader.getTrimmingCurveWireIds(i))
-        {
-          EXPECT_EQ(wire_id, 0);
-        }
+        expectSingleWire(reader, i, test_case.trims_per_patch);
       }
     }
     reader.setFileName(empty_file.getPath());
@@ -789,12 +815,7 @@ TEST(quest_step_reader, restricted_pcurves_and_located_reversed_face)
     ASSERT_EQ(reader.getPatchIds().size(), 1);
     EXPECT_EQ(reader.getPatchIds()[0], 0);
     const auto& patch = reader.getPatchArray()[0];
-    ASSERT_EQ(patch.getNumTrimmingCurves(), 4);
-    ASSERT_EQ(reader.getTrimmingCurveWireIds(0).size(), 4);
-    for(int wire_id : reader.getTrimmingCurveWireIds(0))
-    {
-      EXPECT_EQ(wire_id, 0);
-    }
+    ASSERT_NO_FATAL_FAILURE(expectSingleWire(reader, 0, 4));
     expectPositiveTrimWinding(patch, 0.5, 0.5, 1.5, 0.5);
 
     for(const auto& curve : patch.getTrimmingCurves())
@@ -889,11 +910,9 @@ TEST(quest_step_reader, short_pcurve_parameter_range)
         EXPECT_NEAR(curve.getMaxKnot(), span, span * 1e-10);
       }
       expectPositiveTrimWinding(patch, 0.5, 0.5, 1.5, 0.5);
-      STEPControl_Reader reference;
-      ASSERT_NO_FATAL_FAILURE(readStepReference(file.getPath(), reference));
-      TopExp_Explorer faces(reference.OneShape(), TopAbs_FACE);
-      ASSERT_TRUE(faces.More());
-      expectSingleWireTrimGeometry(reader, 0, TopoDS::Face(faces.Current()));
+      TopoDS_Face sourceFace;
+      ASSERT_NO_FATAL_FAILURE(readReferenceFace(file.getPath(), sourceFace));
+      expectSingleWireTrimGeometry(reader, 0, sourceFace);
     }
   }
 }
@@ -920,11 +939,9 @@ TEST(quest_step_reader, pcurve_endpoint_roundoff)
   ASSERT_EQ(reader.numPatches(), 1);
   ASSERT_EQ(reader.getPatchArray()[0].getNumTrimmingCurves(), 4);
   expectPositiveTrimWinding(reader.getPatchArray()[0], 0.5, 0.5, 1.5, 0.5);
-  STEPControl_Reader reference;
-  ASSERT_NO_FATAL_FAILURE(readStepReference(file.getPath(), reference));
-  TopExp_Explorer faces(reference.OneShape(), TopAbs_FACE);
-  ASSERT_TRUE(faces.More());
-  expectSingleWireTrimGeometry(reader, 0, TopoDS::Face(faces.Current()));
+  TopoDS_Face sourceFace;
+  ASSERT_NO_FATAL_FAILURE(readReferenceFace(file.getPath(), sourceFace));
+  expectSingleWireTrimGeometry(reader, 0, sourceFace);
 }
 
 TEST(quest_step_reader, periodic_faces_and_both_seam_occurrences)
@@ -959,13 +976,8 @@ TEST(quest_step_reader, periodic_faces_and_both_seam_occurrences)
     EXPECT_TRUE(reader.patchWasOriginallyPeriodic_u(i));
     EXPECT_FALSE(reader.patchWasOriginallyPeriodic_v(i));
     const auto& patch = reader.getPatchArray()[i];
-    ASSERT_EQ(patch.getNumTrimmingCurves(), 4);
-    ASSERT_EQ(reader.getTrimmingCurveWireIds(i).size(), 4);
     EXPECT_EQ(reader.getPatchIds()[i], i);
-    for(int wire_id : reader.getTrimmingCurveWireIds(i))
-    {
-      EXPECT_EQ(wire_id, 0);
-    }
+    ASSERT_NO_FATAL_FAILURE(expectSingleWire(reader, i, 4));
     const double centerV = 2. * i + 0.5;
     expectPositiveTrimWinding(patch, 0.5 * period, centerV, 0.5 * period, centerV + 1.);
     int lowSeams = 0;
@@ -1044,11 +1056,8 @@ TEST(quest_step_reader, wrapped_periodic_cylinder)
       }
       fs::TempFile file("axom_step_wrapped_", "step");
       ASSERT_NO_FATAL_FAILURE(writeStepFile(face, file.getPath()));
-      STEPControl_Reader reference;
-      ASSERT_NO_FATAL_FAILURE(readStepReference(file.getPath(), reference));
-      TopExp_Explorer faces(reference.OneShape(), TopAbs_FACE);
-      ASSERT_TRUE(faces.More());
-      const auto sourceFace = TopoDS::Face(faces.Current());
+      TopoDS_Face sourceFace;
+      ASSERT_NO_FATAL_FAILURE(readReferenceFace(file.getPath(), sourceFace));
       ASSERT_TRUE(BRepCheck_Analyzer(sourceFace).IsValid());
       const auto wrapper =
         Handle(Geom_RectangularTrimmedSurface)::DownCast(BRep_Tool::Surface(sourceFace));
@@ -1059,8 +1068,7 @@ TEST(quest_step_reader, wrapped_periodic_cylinder)
       quest::STEPReader reader;
       reader.setFileName(file.getPath());
       const auto messages = readWithDiagnostics(reader, true);
-      EXPECT_EQ(messages.find("leave the exported UV domain"), std::string::npos) << messages;
-      EXPECT_EQ(messages.find("UV endpoint gap"), std::string::npos) << messages;
+      expectNoUVDiagnostics(messages);
       ASSERT_EQ(reader.numPatches(), 1);
       EXPECT_TRUE(reader.patchWasOriginallyPeriodic_u(0));
       EXPECT_FALSE(reader.patchWasOriginallyPeriodic_v(0));
@@ -1153,11 +1161,8 @@ TEST(quest_step_reader, wrapped_periodic_lines_and_ellipses)
       writer.SetTolerance(testCase.fileTolerance);
       ASSERT_EQ(writer.Transfer(face, STEPControl_AsIs), IFSelect_RetDone);
       ASSERT_EQ(writer.Write(file.getPath().c_str()), IFSelect_RetDone);
-      STEPControl_Reader reference;
-      ASSERT_NO_FATAL_FAILURE(readStepReference(file.getPath(), reference));
-      TopExp_Explorer faces(reference.OneShape(), TopAbs_FACE);
-      ASSERT_TRUE(faces.More());
-      const auto sourceFace = TopoDS::Face(faces.Current());
+      TopoDS_Face sourceFace;
+      ASSERT_NO_FATAL_FAILURE(readReferenceFace(file.getPath(), sourceFace));
       ASSERT_TRUE(BRepCheck_Analyzer(sourceFace).IsValid());
       const auto wrapper =
         Handle(Geom_RectangularTrimmedSurface)::DownCast(BRep_Tool::Surface(sourceFace));
@@ -1179,8 +1184,7 @@ TEST(quest_step_reader, wrapped_periodic_lines_and_ellipses)
       quest::STEPReader reader;
       reader.setFileName(file.getPath());
       const auto messages = readWithDiagnostics(reader, true);
-      EXPECT_EQ(messages.find("leave the exported UV domain"), std::string::npos) << messages;
-      EXPECT_EQ(messages.find("UV endpoint gap"), std::string::npos) << messages;
+      expectNoUVDiagnostics(messages);
       ASSERT_EQ(reader.numPatches(), 1);
       EXPECT_TRUE(reader.patchWasOriginallyPeriodic_u(0));
       EXPECT_FALSE(reader.patchWasOriginallyPeriodic_v(0));
@@ -1227,20 +1231,14 @@ TEST(quest_step_reader, periodic_bspline_seam_crossing)
         quest::STEPReader reader;
         reader.setFileName(file.getPath());
         const auto messages = readWithDiagnostics(reader, true);
-        EXPECT_EQ(messages.find("leave the exported UV domain"), std::string::npos) << messages;
-        EXPECT_EQ(messages.find("UV endpoint gap"), std::string::npos) << messages;
+        expectNoUVDiagnostics(messages);
         ASSERT_EQ(reader.numPatches(), 1);
         ASSERT_EQ(reader.getPatchIds().size(), 1);
         EXPECT_EQ(reader.getPatchIds()[0], 0);
         EXPECT_EQ(reader.patchWasOriginallyPeriodic_u(0), periodic_u);
         EXPECT_EQ(reader.patchWasOriginallyPeriodic_v(0), !periodic_u);
         const auto& patch = reader.getPatchArray()[0];
-        ASSERT_EQ(patch.getNumTrimmingCurves(), 4);
-        ASSERT_EQ(reader.getTrimmingCurveWireIds(0).size(), 4);
-        for(int wire_id : reader.getTrimmingCurveWireIds(0))
-        {
-          EXPECT_EQ(wire_id, 0);
-        }
+        ASSERT_NO_FATAL_FAILURE(expectSingleWire(reader, 0, 4));
         primal::BoundingBox<double, 2> trimBounds;
         primal::BoundingBox<double, 2> domain({patch.getMinKnot_u(), patch.getMinKnot_v()},
                                               {patch.getMaxKnot_u(), patch.getMaxKnot_v()});
@@ -1375,17 +1373,14 @@ TEST(quest_step_reader, periodic_bspline_multiple_turns)
       }
       fs::TempFile file("axom_step_multiple_turns_", "step");
       ASSERT_NO_FATAL_FAILURE(writeStepFile(face, file.getPath()));
-      STEPControl_Reader reference;
-      ASSERT_NO_FATAL_FAILURE(readStepReference(file.getPath(), reference));
-      TopExp_Explorer faces(reference.OneShape(), TopAbs_FACE);
-      ASSERT_TRUE(faces.More());
-      ASSERT_TRUE(BRepCheck_Analyzer(faces.Current()).IsValid());
+      TopoDS_Face sourceFace;
+      ASSERT_NO_FATAL_FAILURE(readReferenceFace(file.getPath(), sourceFace));
+      ASSERT_TRUE(BRepCheck_Analyzer(sourceFace).IsValid());
 
       quest::STEPReader reader;
       reader.setFileName(file.getPath());
       const auto messages = readWithDiagnostics(reader, true);
-      EXPECT_EQ(messages.find("leave the exported UV domain"), std::string::npos) << messages;
-      EXPECT_EQ(messages.find("UV endpoint gap"), std::string::npos) << messages;
+      expectNoUVDiagnostics(messages);
       ASSERT_EQ(reader.numPatches(), 1);
       EXPECT_EQ(reader.patchWasOriginallyPeriodic_u(0), periodic_u);
       EXPECT_EQ(reader.patchWasOriginallyPeriodic_v(0), periodic_v);
@@ -1395,7 +1390,7 @@ TEST(quest_step_reader, periodic_bspline_multiple_turns)
       EXPECT_GT(periodic_u ? patch.getMaxKnot_u() - patch.getMinKnot_u()
                            : patch.getMaxKnot_v() - patch.getMinKnot_v(),
                 2 * period);
-      expectSingleWireTrimGeometry(reader, 0, TopoDS::Face(faces.Current()));
+      expectSingleWireTrimGeometry(reader, 0, sourceFace);
     }
   }
 }
@@ -1414,11 +1409,8 @@ TEST(quest_step_reader, converted_periodic_cylinder_pcurves)
     }
     fs::TempFile file("axom_step_spiral_", "step");
     ASSERT_NO_FATAL_FAILURE(writeStepFile(face, file.getPath()));
-    STEPControl_Reader reference;
-    ASSERT_NO_FATAL_FAILURE(readStepReference(file.getPath(), reference));
-    TopExp_Explorer faces(reference.OneShape(), TopAbs_FACE);
-    ASSERT_TRUE(faces.More());
-    const auto sourceFace = TopoDS::Face(faces.Current());
+    TopoDS_Face sourceFace;
+    ASSERT_NO_FATAL_FAILURE(readReferenceFace(file.getPath(), sourceFace));
     ASSERT_TRUE(BRepCheck_Analyzer(sourceFace).IsValid());
 
     quest::STEPReader reader;
@@ -1454,11 +1446,8 @@ TEST(quest_step_reader, periodic_cylinder_projection_across_multiple_turns)
       }
       fs::TempFile file("axom_step_spiral_turns_", "step");
       ASSERT_NO_FATAL_FAILURE(writeStepFile(face, file.getPath()));
-      STEPControl_Reader reference;
-      ASSERT_NO_FATAL_FAILURE(readStepReference(file.getPath(), reference));
-      TopExp_Explorer faces(reference.OneShape(), TopAbs_FACE);
-      ASSERT_TRUE(faces.More());
-      const auto sourceFace = TopoDS::Face(faces.Current());
+      TopoDS_Face sourceFace;
+      ASSERT_NO_FATAL_FAILURE(readReferenceFace(file.getPath(), sourceFace));
       ASSERT_TRUE(BRepCheck_Analyzer(sourceFace).IsValid());
 
       quest::STEPReader reader;
@@ -1527,23 +1516,20 @@ TEST(quest_step_reader, periodic_analytic_cone)
     }
     fs::TempFile file("axom_step_cone_", "step");
     ASSERT_NO_FATAL_FAILURE(writeStepFile(face, file.getPath()));
-    STEPControl_Reader reference;
-    ASSERT_NO_FATAL_FAILURE(readStepReference(file.getPath(), reference));
-    TopExp_Explorer faceExp(reference.OneShape(), TopAbs_FACE);
-    ASSERT_TRUE(faceExp.More());
+    TopoDS_Face sourceFace;
+    ASSERT_NO_FATAL_FAILURE(readReferenceFace(file.getPath(), sourceFace));
 
     quest::STEPReader reader;
     reader.setFileName(file.getPath());
     const auto messages = readWithDiagnostics(reader, true);
-    EXPECT_EQ(messages.find("leave the exported UV domain"), std::string::npos) << messages;
-    EXPECT_EQ(messages.find("UV endpoint gap"), std::string::npos) << messages;
+    expectNoUVDiagnostics(messages);
     ASSERT_EQ(reader.numPatches(), 1);
     ASSERT_EQ(reader.getPatchIds().size(), 1);
     EXPECT_EQ(reader.getPatchIds()[0], 0);
     EXPECT_TRUE(reader.patchWasOriginallyPeriodic_u(0));
     EXPECT_FALSE(reader.patchWasOriginallyPeriodic_v(0));
     ASSERT_EQ(reader.getPatchArray()[0].getNumTrimmingCurves(), 6);
-    expectSingleWireTrimGeometry(reader, 0, TopoDS::Face(faceExp.Current()));
+    expectSingleWireTrimGeometry(reader, 0, sourceFace);
   }
 }
 
@@ -1555,15 +1541,8 @@ TEST(quest_step_reader, solid56_periodic_face26)
   {
     GTEST_SKIP() << "Solid_56.step is not available in AXOM_DATA_DIR";
   }
-  STEPControl_Reader reference;
-  ASSERT_NO_FATAL_FAILURE(readStepReference(path, reference));
-  TopExp_Explorer faceExp(reference.OneShape(), TopAbs_FACE);
-  for(int i = 0; i < 26 && faceExp.More(); ++i)
-  {
-    faceExp.Next();
-  }
-  ASSERT_TRUE(faceExp.More());
-  auto sourceFace = TopoDS::Face(faceExp.Current());
+  TopoDS_Face sourceFace;
+  ASSERT_NO_FATAL_FAILURE(readReferenceFace(path, sourceFace, 26));
   quest::STEPReader reader;
   reader.setFileName(path);
   int status = -1;
@@ -1606,8 +1585,7 @@ TEST(quest_step_reader, stored_periodic_cone_fixtures)
       quest::STEPReader reader;
       reader.setFileName(path);
       const auto messages = readWithDiagnostics(reader, validate);
-      EXPECT_EQ(messages.find("leave the exported UV domain"), std::string::npos) << messages;
-      EXPECT_EQ(messages.find("UV endpoint gap"), std::string::npos) << messages;
+      expectNoUVDiagnostics(messages);
       ASSERT_EQ(reader.numPatches(), 1);
       ASSERT_EQ(reader.getPatchIds().size(), 1);
       EXPECT_EQ(reader.getPatchIds()[0], 0);
