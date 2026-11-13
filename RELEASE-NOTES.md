@@ -82,6 +82,7 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
   otherwise. The read-only `AXOM_SLIC_DEBUG_MACROS_ENABLED` preprocessor macro
   provides the effective `0` or `1` state for source-code guards; it must not be
   defined directly.
+- Quest: Improves `STEPReader` trimming curve reconstruction for periodic patches.
 
 ## [Version 0.15.0] - Release date 2026-08-28
 
