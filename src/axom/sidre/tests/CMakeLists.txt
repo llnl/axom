@@ -121,6 +121,7 @@ endif()
 # Add Python tests
 #------------------------------------------------------------------------------
 if(NANOBIND_FOUND AND AXOM_ENABLE_PYTHON_TESTS)
+    set(_sidre_python_test_names "")
     foreach(test ${python_sidre_tests})
         get_filename_component( test_name ${test} NAME_WE )
 
@@ -128,6 +129,7 @@ if(NANOBIND_FOUND AND AXOM_ENABLE_PYTHON_TESTS)
                               SOURCE ${test}
                               OUTPUT_DIR ${TEST_OUTPUT_DIRECTORY}
                               )
+        list(APPEND _sidre_python_test_names ${test_name})
     endforeach()
 
     if(AXOM_ENABLE_MPI)
@@ -136,7 +138,31 @@ if(NANOBIND_FOUND AND AXOM_ENABLE_PYTHON_TESTS)
                               OUTPUT_DIR ${TEST_OUTPUT_DIRECTORY}
                               NUM_MPI_TASKS 4
                               )
+        list(APPEND _sidre_python_test_names sidre_spio_Py)
     endif()
+
+    # CCE 21.0.0 can crash in libcraymp initialization when Python loads _sidre
+    # after the ROCm profiling runtime. Preload CMake's detected Cray OpenMP
+    # runtime to avoid this initializer ordering. This workaround is limited
+    # to Sidre Python tests; direct/installed Python use still needs LD_PRELOAD.
+    # Preserve existing preload entries from the configure-time environment.
+    if(AXOM_ENABLE_HIP AND AXOM_ENABLE_OPENMP
+       AND CMAKE_CXX_COMPILER_ID STREQUAL "CrayClang"
+       AND CMAKE_CXX_COMPILER_VERSION VERSION_EQUAL "21.0.0")
+        if(NOT EXISTS "${OpenMP_craymp_LIBRARY}")
+            message(FATAL_ERROR
+                    "CCE 21.0.0 HIP/OpenMP Sidre Python tests require OpenMP_craymp_LIBRARY")
+        endif()
+
+        set(_cray_preload "${OpenMP_craymp_LIBRARY}")
+        if(NOT "$ENV{LD_PRELOAD}" STREQUAL "")
+            string(APPEND _cray_preload ":$ENV{LD_PRELOAD}")
+        endif()
+        set_property(TEST ${_sidre_python_test_names} APPEND PROPERTY ENVIRONMENT
+                     "LD_PRELOAD=${_cray_preload}")
+        unset(_cray_preload)
+    endif()
+    unset(_sidre_python_test_names)
 endif()
 
 #------------------------------------------------------------------------------
