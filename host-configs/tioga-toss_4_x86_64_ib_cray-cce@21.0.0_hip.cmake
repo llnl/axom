@@ -92,7 +92,7 @@ set(ROCM_ROOT_DIR "/opt/rocm-7.2.1" CACHE PATH "")
 
 set(BLT_CMAKE_IMPLICIT_LINK_LIBRARIES_EXCLUDE "unwind;ompstub" CACHE STRING "")
 
-set(CMAKE_EXE_LINKER_FLAGS "-lxpmem -L/opt/cray/pe/mpich/9.1.0/gtl/lib -Wl,-rpath,/opt/cray/pe/mpich/9.1.0/gtl/lib -lmpi_gtl_hsa -L/opt/rocm-7.2.1/lib/llvm/lib -Wl,-rpath,/opt/rocm-7.2.1/lib/llvm/lib -L/opt/rocm-7.2.1/lib -Wl,-rpath,/opt/rocm-7.2.1/lib -lpgmath -L/opt/cray/pe/cce/21.0.0/cce/x86_64/lib -Wl,-rpath,/opt/cray/pe/cce/21.0.0/cce/x86_64/lib-lamdhip64 -lhsakmt -lhsa-runtime64 -lamd_comgr " CACHE STRING "")
+set(CMAKE_EXE_LINKER_FLAGS "-lxpmem -L/opt/cray/pe/mpich/9.1.0/gtl/lib -Wl,-rpath,/opt/cray/pe/mpich/9.1.0/gtl/lib -lmpi_gtl_hsa -L/opt/rocm-7.2.1/lib/llvm/lib -Wl,-rpath,/opt/rocm-7.2.1/lib/llvm/lib -L/opt/rocm-7.2.1/lib -Wl,-rpath,/opt/rocm-7.2.1/lib -lpgmath -L/opt/cray/pe/cce/21.0.0/cce/x86_64/lib -Wl,-rpath,/opt/cray/pe/cce/21.0.0/cce/x86_64/lib -lamdhip64 -lhsakmt -lhsa-runtime64 -lamd_comgr " CACHE STRING "")
 
 #------------------------------------------------
 # Hardware Specifics
@@ -173,5 +173,4 @@ set(PY_PACKAGING_DIR "/usr/WS1/axom/libs/toss_4_x86_64_ib_cray/2026_09_02_16_17_
 set(PY_PYGMENTS_DIR "/usr/WS1/axom/libs/toss_4_x86_64_ib_cray/2026_09_02_16_17_20/none-none/py-pygments-2.20.0-njmkpx3c3rnnm7pnxhix5a232n2eayb2/lib/python3.13/site-packages" CACHE PATH "")
 
 set(PY_MPI4PY_DIR "${TPL_ROOT}/py-mpi4py-4.1.1-7pvice3wfklmfyukracgs7jtpupwonda/lib/python3.13/site-packages" CACHE PATH "")
-
 
