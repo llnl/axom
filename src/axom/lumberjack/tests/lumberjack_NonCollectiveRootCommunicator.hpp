@@ -10,6 +10,19 @@
 #include "gtest/gtest.h"
 #include "mpi.h"
 
+#include <cstddef>
+
+static void waitForNonCollectiveMessages(axom::lumberjack::NonCollectiveRootCommunicator& communicator,
+                                         std::vector<const char*>& receivedPackedMessages,
+                                         std::size_t expectedMessages)
+{
+  const double deadline = MPI_Wtime() + 10.0;
+  do
+  {
+    communicator.push(nullptr, receivedPackedMessages);
+  } while(receivedPackedMessages.size() < expectedMessages && MPI_Wtime() < deadline);
+}
+
 TEST(lumberjack_NonCollectiveRootCommunicator, noncollective_communication)
 {
   MPI_Barrier(MPI_COMM_WORLD);
@@ -25,6 +38,7 @@ TEST(lumberjack_NonCollectiveRootCommunicator, noncollective_communication)
   std::string message = std::to_string(c.rank());
 
   std::vector<const char*> receivedPackedMessages;
+  const int numMessagesToReceive = ((commSize % 2) == 0) ? ((commSize / 2) - 1) : (commSize / 2);
 
   // send message only from even ranks that are non-zero
   if((c.rank() % 2) == 0 && c.rank() != 0)
@@ -37,7 +51,7 @@ TEST(lumberjack_NonCollectiveRootCommunicator, noncollective_communication)
   // receive messages from rank 0 after barrier
   if(c.rank() == 0)
   {
-    c.push(message.c_str(), receivedPackedMessages);
+    waitForNonCollectiveMessages(c, receivedPackedMessages, numMessagesToReceive);
   }
 
   if(c.rank() != 0)
@@ -46,7 +60,6 @@ TEST(lumberjack_NonCollectiveRootCommunicator, noncollective_communication)
   }
   else
   {
-    const int numMessagesToReceive = ((commSize % 2) == 0) ? ((commSize / 2) - 1) : (commSize / 2);
     EXPECT_EQ((int)receivedPackedMessages.size(), numMessagesToReceive);
     for(int i = 1; i <= numMessagesToReceive; ++i)
     {
@@ -118,22 +131,25 @@ TEST(lumberjack_NonCollectiveRootCommunicator, multiple_communicators)
 
   if(commSize > 1 && c1.rank() == 0)
   {
-    while(receivedPackedMessages_c1.size() == 0)
-    {
-      c1.push(nullptr, receivedPackedMessages_c1);
-    }
+    waitForNonCollectiveMessages(c1, receivedPackedMessages_c1, 1);
 
     EXPECT_EQ(receivedPackedMessages_c1.size(), 1);
-    EXPECT_TRUE(!std::strcmp(receivedPackedMessages_c1[0], "c1"));
+    if(!receivedPackedMessages_c1.empty())
+    {
+      EXPECT_TRUE(!std::strcmp(receivedPackedMessages_c1[0], "c1"));
+    }
   }
 
   MPI_Barrier(MPI_COMM_WORLD);
 
   if(commSize > 1 && c2.rank() == 0)
   {
-    c2.push(nullptr, receivedPackedMessages_c2);
+    waitForNonCollectiveMessages(c2, receivedPackedMessages_c2, 1);
     EXPECT_EQ(receivedPackedMessages_c2.size(), 1);
-    EXPECT_TRUE(!std::strcmp(receivedPackedMessages_c2[0], "c2"));
+    if(!receivedPackedMessages_c2.empty())
+    {
+      EXPECT_TRUE(!std::strcmp(receivedPackedMessages_c2[0], "c2"));
+    }
   }
 
   MPI_Barrier(MPI_COMM_WORLD);
