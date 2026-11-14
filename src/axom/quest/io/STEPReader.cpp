@@ -354,15 +354,15 @@ private:
       {
         continue;
       }
+      // Without an interior foot point, the nearest point on the edge is an endpoint.
+      // This happens for samples beyond the ends of short edges, so keep measuring.
+      double distance = std::min(xyz.Distance(start), xyz.Distance(end));
       GeomAPI_ProjectPointOnCurve projection(xyz, m_source.curve, m_source.first, m_source.last);
-      if(projection.NbPoints() == 0)
+      if(projection.NbPoints() > 0)
       {
-        // Without a reliable error estimate, retain the converted pcurve.
-        return false;
+        distance = std::min(distance, projection.LowerDistance());
       }
-      error =
-        std::max(error,
-                 std::min({xyz.Distance(start), xyz.Distance(end), projection.LowerDistance()}));
+      error = std::max(error, distance);
       // Further samples cannot change the decision to try refining this pcurve.
       if(error > m_tolerance)
       {

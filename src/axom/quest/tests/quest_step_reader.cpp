@@ -30,6 +30,7 @@
 #include "opencascade/Geom_BSplineSurface.hxx"
 #include "opencascade/Geom_BSplineCurve.hxx"
 #include "opencascade/Geom_CylindricalSurface.hxx"
+#include "opencascade/Geom_Circle.hxx"
 #include "opencascade/Geom_ConicalSurface.hxx"
 #include "opencascade/Geom_ToroidalSurface.hxx"
 #include "opencascade/Geom_Ellipse.hxx"
@@ -1530,6 +1531,63 @@ TEST(quest_step_reader, periodic_analytic_cone)
     EXPECT_FALSE(reader.patchWasOriginallyPeriodic_v(0));
     ASSERT_EQ(reader.getPatchArray()[0].getNumTrimmingCurves(), 6);
     expectSingleWireTrimGeometry(reader, 0, sourceFace);
+  }
+}
+
+TEST(quest_step_reader, conical_ring_with_offset_rims)
+{
+  // A conical ring bounded by two full circles that start away from the cone's seam,
+  // as in ABC model 00010323. STEP import splits the circles at the seam and adds a short
+  // linear B-spline seam edge. Its converted pcurve can sit on the wrong side of the seam,
+  // where samples have no nearest point on the edge; the check must still measure them.
+  constexpr double period = 2 * std::numbers::pi;
+  constexpr double semiAngle = 0.96;
+  for(double bottomStart : {0.25 * period, 0.5 * period})
+  {
+    for(bool reversed : {false, true})
+    {
+      SCOPED_TRACE(axom::fmt::format("bottomStart={} reversed={}", bottomStart, reversed));
+      Handle(Geom_ConicalSurface) surface = new Geom_ConicalSurface(gp_Ax3(), semiAngle, 1.75);
+      BRep_Builder builder;
+      TopoDS_Face face;
+      builder.MakeFace(face, surface, 1e-7);
+      for(double v : {0., -0.25 / std::cos(semiAngle)})
+      {
+        const auto iso = Handle(Geom_Circle)::DownCast(surface->VIso(v));
+        gp_Ax2 axes = iso->Position();
+        axes.Rotate(axes.Axis(), v == 0. ? 0.25 * period : bottomStart);
+        Handle(Geom_Circle) circle = new Geom_Circle(axes, iso->Radius());
+        auto edge = BRepBuilderAPI_MakeEdge(circle, 0., period).Edge();
+        double tolerance = 1e-9;
+        const auto pcurve = GeomProjLib::Curve2d(circle, 0., period, surface, tolerance);
+        ASSERT_FALSE(pcurve.IsNull());
+        builder.UpdateEdge(edge, pcurve, face, 1e-7);
+        auto wire = BRepBuilderAPI_MakeWire(edge).Wire();
+        if(v == 0.)
+        {
+          wire.Reverse();
+        }
+        builder.Add(face, wire);
+      }
+      if(reversed)
+      {
+        face.Reverse();
+      }
+      fs::TempFile file("axom_step_cone_ring_", "step");
+      ASSERT_NO_FATAL_FAILURE(writeStepFile(face, file.getPath()));
+      TopoDS_Face sourceFace;
+      ASSERT_NO_FATAL_FAILURE(readReferenceFace(file.getPath(), sourceFace));
+      ASSERT_TRUE(BRepCheck_Analyzer(sourceFace).IsValid());
+
+      quest::STEPReader reader;
+      reader.setFileName(file.getPath());
+      const auto messages = readWithDiagnostics(reader, true);
+      expectNoUVDiagnostics(messages);
+      ASSERT_EQ(reader.numPatches(), 1);
+      EXPECT_TRUE(reader.patchWasOriginallyPeriodic_u(0));
+      EXPECT_FALSE(reader.patchWasOriginallyPeriodic_v(0));
+      expectSingleWireTrimGeometry(reader, 0, sourceFace);
+    }
   }
 }
 
