@@ -10,6 +10,50 @@ namespace axom
 {
 namespace inlet
 {
+namespace detail
+{
+void addSignatureToGroup(const FunctionTag ret_type,
+                         const std::vector<FunctionTag>& arg_types,
+                         axom::sidre::Group* group)
+{
+  group->createViewScalar("return_type", static_cast<int>(ret_type));
+  auto args_view =
+    group->createViewAndAllocate("function_arguments", sidre::INT_ID, arg_types.size());
+  int* args_array = args_view->getArray();
+  for(const auto arg_type : arg_types)
+  {
+    *args_array++ = static_cast<int>(arg_type);
+  }
+}
+
+bool hasSignature(const FunctionTag ret_type,
+                  const std::vector<FunctionTag>& arg_types,
+                  const axom::sidre::Group* group)
+{
+  if(!group->hasView("return_type") || !group->hasView("function_arguments"))
+  {
+    return false;
+  }
+  const int stored_ret = group->getView("return_type")->getData();
+  const auto args_view = group->getView("function_arguments");
+  if(stored_ret != static_cast<int>(ret_type) ||
+     args_view->getNumElements() != static_cast<axom::IndexType>(arg_types.size()))
+  {
+    return false;
+  }
+  const int* stored_args = args_view->getData();
+  for(std::size_t i = 0; i < arg_types.size(); ++i)
+  {
+    if(stored_args[i] != static_cast<int>(arg_types[i]))
+    {
+      return false;
+    }
+  }
+  return true;
+}
+
+}  // namespace detail
+
 std::string Function::name() const
 {
   return utilities::string::removePrefix(m_sidreRootGroup->getPathName(),

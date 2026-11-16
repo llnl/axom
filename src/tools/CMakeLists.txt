@@ -257,7 +257,7 @@ if(NANOBIND_FOUND)
     if(AXOM_ENABLE_PYTHON_TESTS AND AXOM_ENABLE_SIDRE)
         set(_testname "convert_sidre_protocol_py")
 
-        if(AXOM_ENABLE_MPI AND AXOM_DATA_DIR)
+        if(AXOM_ENABLE_MPI AND AXOM_DATA_DIR AND AXOM_USE_HDF5)
             set(box_dir "${AXOM_DATA_DIR}/quest/box_2D_r3.root")
 
             axom_add_python_test(

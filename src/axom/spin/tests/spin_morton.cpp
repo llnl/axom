@@ -14,6 +14,9 @@
 #include "axom/slic.hpp"
 
 #include <cstdlib>
+#include <cstdint>
+#include <random>
+#include <vector>
 
 // Uncomment the line below for true randomized points
 #ifndef MORTON_TESTER_SHOULD_SEED
@@ -54,6 +57,65 @@ Point<CoordType, DIM> randomPoint(CoordType beg, CoordType end)
   }
 
   return pt;
+}
+
+template <typename IndexType>
+void testMorton4DBits()
+{
+  using M = axom::spin::Mortonizer<std::uint64_t, IndexType, 4>;
+  using GridPoint = Point<std::uint64_t, 4>;
+  constexpr int index_bits = axom::numeric_limits<IndexType>::digits;
+  constexpr auto max_key = axom::numeric_limits<IndexType>::max();
+  EXPECT_EQ(M::maxBitsPerCoord(), index_bits / 4);
+
+  std::vector<IndexType> keys {0, max_key};
+  for(int bit = 0; bit < index_bits; ++bit)
+  {
+    keys.push_back(static_cast<IndexType>(std::uint64_t {1} << bit));
+  }
+  std::mt19937_64 rng(105);
+  for(int i = 0; i < 128; ++i)
+  {
+    keys.push_back(static_cast<IndexType>(rng()));
+  }
+
+  for(const auto key : keys)
+  {
+    SCOPED_TRACE(static_cast<std::uint64_t>(key));
+    // Decode each bit independently of the Morton functions.
+    GridPoint expected;
+    for(int bit = 0; bit < index_bits; ++bit)
+    {
+      expected[bit % 4] |= ((static_cast<std::uint64_t>(key) >> bit) & 1) << (bit / 4);
+    }
+    EXPECT_EQ(M::demortonize(key), expected);
+    EXPECT_EQ(M::mortonize(expected), key);
+    EXPECT_EQ(M::mortonize(expected[0], expected[1], expected[2], expected[3]), key);
+    GridPoint decoded;
+    M::demortonize(key, decoded[0], decoded[1], decoded[2], decoded[3]);
+    EXPECT_EQ(decoded, expected);
+    EXPECT_EQ(axom::spin::convertPointToMorton<IndexType>(expected), key);
+    EXPECT_EQ((axom::spin::convertMortonToPoint<std::uint64_t, 4>(key)), expected);
+    if constexpr(sizeof(std::size_t) >= sizeof(IndexType))
+    {
+      EXPECT_EQ(axom::spin::PointHash<std::uint64_t> {}(expected), key);
+    }
+  }
+
+  // Coordinate bits above the key capacity must not leak into adjacent dims.
+  const GridPoint low {1, 2, 3, 0};
+  const auto low_key = M::mortonize(low);
+  for(int bit = M::MAX_UNIQUE_BITS; bit < 64; ++bit)
+  {
+    SCOPED_TRACE(bit);
+    for(int dim = 0; dim < 4; ++dim)
+    {
+      SCOPED_TRACE(dim);
+      auto overflow = low;
+      overflow[dim] |= std::uint64_t {1} << bit;
+      EXPECT_EQ(M::mortonize(overflow), low_key);
+    }
+  }
 }
 }  // end anonymous namespace
 
@@ -232,6 +294,16 @@ TEST(spin_morton, test_integral_types_3D)
 
   const int DIM = 3;
   testIntegralTypes<DIM>();
+}
+
+TEST(spin_morton, test_integral_types_4D) { testIntegralTypes<4>(); }
+
+TEST(spin_morton, test_4D_bit_order_and_capacity)
+{
+  testMorton4DBits<std::uint8_t>();
+  testMorton4DBits<std::uint16_t>();
+  testMorton4DBits<std::uint32_t>();
+  testMorton4DBits<std::uint64_t>();
 }
 
 TEST(spin_morton, test_point_hasher)

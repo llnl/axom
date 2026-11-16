@@ -72,7 +72,7 @@ const int INIT_NUM_CYCLES_PER_DUMP = 200;
 const double INIT_P_RATIO = 0.5;
 const double INIT_D_RATIO = 0.5;
 
-#ifdef AXOM_DEBUG
+#if AXOM_SLIC_DEBUG_MACROS_ENABLED
 [[maybe_unused]] const bool verboseOutput = false;
 #endif
 

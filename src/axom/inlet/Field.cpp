@@ -5,6 +5,8 @@
 // SPDX-License-Identifier: (BSD-3-Clause)
 
 #include "axom/inlet/Field.hpp"
+#include "axom/inlet/Function.hpp"
+#include "axom/inlet/Reader.hpp"
 #include "axom/inlet/inlet_utils.hpp"
 
 #include "axom/fmt.hpp"
@@ -14,6 +16,22 @@ namespace axom
 {
 namespace inlet
 {
+Field::Field(axom::sidre::Group* sidreGroup,
+             axom::sidre::Group* root,
+             axom::sidre::DataTypeId type,
+             bool docEnabled,
+             Reader* reader,
+             const std::string& lookupPath)
+  : m_sidreGroup(sidreGroup)
+  , m_sidreRootGroup(root)
+  , m_type(type)
+  , m_docEnabled(docEnabled)
+  , m_reader(reader)
+  , m_lookupPath(lookupPath)
+{ }
+
+Field::~Field() = default;
+
 Field& Field::required(bool isRequired)
 {
   SLIC_ASSERT_MSG(m_sidreGroup != nullptr, "[Inlet] Field specific Sidre Datastore Group not set");
@@ -45,7 +63,8 @@ void Field::setDefaultValue(T value)
     {
       m_sidreGroup->createViewScalar("defaultValue", value);
     }
-    if(!m_sidreGroup->hasView("value"))
+    // A supplied function takes the place of the value, so the default does not apply
+    if(!m_sidreGroup->hasView("value") && !isFunction())
     {
       m_sidreGroup->createViewScalar("value", value);
     }
@@ -70,7 +89,8 @@ void Field::setDefaultValue<std::string>(std::string value)
     {
       m_sidreGroup->createViewString("defaultValue", value);
     }
-    if(!m_sidreGroup->hasView("value"))
+    // A supplied function takes the place of the value, so the default does not apply
+    if(!m_sidreGroup->hasView("value") && !isFunction())
     {
       m_sidreGroup->createViewString("value", value);
     }
@@ -243,10 +263,16 @@ std::string Field::get<std::string>() const
 
 const axom::sidre::View* Field::checkExistenceAndType(const axom::sidre::DataTypeId expected) const
 {
-  const axom::sidre::View* valueView = m_sidreGroup->getView("value");
+  // Check first, since Sidre reports a failed check when getting a missing View
+  const axom::sidre::View* valueView =
+    m_sidreGroup->hasView("value") ? m_sidreGroup->getView("value") : nullptr;
 
   if(valueView == nullptr)
   {
+    SLIC_ERROR_IF(isFunction(),
+                  fmt::format("[Inlet] Field '{0}' was supplied as a function. "
+                              "Use Proxy::evaluate() or check Proxy::type() before reading it",
+                              name()));
     SLIC_ERROR("[Inlet] Field does not contain a value");
   }
 
@@ -293,7 +319,7 @@ InletType Field::type() const
   }
 }
 
-bool Field::exists() const { return m_sidreGroup->hasView("value"); }
+bool Field::exists() const { return m_sidreGroup->hasView("value") || isFunction(); }
 
 bool Field::isUserProvided() const
 {
@@ -431,8 +457,9 @@ Field& Field::registerVerifier(Verifier lambda)
 
 bool Field::verify(std::vector<VerificationError>* errors) const
 {
-  // If this field was required, make sure something was defined in it
-  if(!verifyRequired(*m_sidreGroup, m_sidreGroup->hasView("value"), "Field", errors))
+  // If this field was required, make sure something was defined in it.
+  // A supplied function satisfies the requirement.
+  if(!verifyRequired(*m_sidreGroup, exists(), "Field", errors))
   {
     return false;
   }
@@ -563,6 +590,76 @@ bool Field::searchValidValues<std::string>(const axom::sidre::View& view,
     INLET_VERIFICATION_WARNING(view.getPath(), msg, errors);
   }
   return is_valid;
+}
+
+Field& Field::orFunction(const std::vector<FunctionTag>& arg_types)
+{
+  // The function returns the Field's type
+  FunctionTag ret_type;
+  switch(m_type)
+  {
+  case axom::sidre::DataTypeId::DOUBLE_ID:
+    ret_type = FunctionTag::Double;
+    break;
+  case axom::sidre::DataTypeId::CHAR8_STR_ID:
+    ret_type = FunctionTag::String;
+    break;
+  default:
+    SLIC_ERROR(
+      fmt::format("[Inlet] orFunction() supports double fields, string fields, "
+                  "and arrays of doubles, but Field '{0}' has type '{1}'",
+                  name(),
+                  conduit::DataType::id_to_name(m_type)));
+    return *this;
+  }
+
+  // Redeclaring with the same signature is a no-op (similar to redeclared entries)
+  if(m_sidreGroup->hasView("return_type"))
+  {
+    SLIC_ERROR_IF(!detail::hasSignature(ret_type, arg_types, m_sidreGroup),
+                  fmt::format("[Inlet] Field '{0}' already accepts a function with a "
+                              "different signature",
+                              name()));
+    return *this;
+  }
+
+  detail::addSignatureToGroup(ret_type, arg_types, m_sidreGroup);
+
+  // Some readers cannot supply functions, in which case only the value form is read
+  if(m_reader == nullptr || !m_reader->supportsFunctions())
+  {
+    return *this;
+  }
+
+  auto func = m_reader->getFunction(m_lookupPath, ret_type, arg_types);
+  if(func)
+  {
+    // The function shares this Field's Sidre group, so it has the Field's name and signature
+    m_function = std::make_unique<Function>(m_sidreGroup, m_sidreRootGroup, std::move(func));
+
+    // A default value may already be stored; the supplied function takes its place
+    if(m_sidreGroup->hasView("value"))
+    {
+      m_sidreGroup->destroyViewAndData("value");
+    }
+
+    // Reading the input as a value found a function and reported the wrong type
+    if(m_sidreGroup->hasView("retrieval_status"))
+    {
+      m_sidreGroup->destroyViewAndData("retrieval_status");
+    }
+    markRetrievalStatus(*m_sidreGroup, ReaderResult::Success);
+  }
+  return *this;
+}
+
+bool Field::isFunction() const { return m_function != nullptr && static_cast<bool>(*m_function); }
+
+const Function& Field::getFunction() const
+{
+  SLIC_ERROR_IF(!isFunction(),
+                fmt::format("[Inlet] Field '{0}' was not supplied as a function", name()));
+  return *m_function;
 }
 
 std::string Field::name() const
@@ -707,6 +804,15 @@ AggregateField& AggregateField::validValues(const std::initializer_list<double>&
   for(auto& field : m_fields)
   {
     field.get().validValues(set);
+  }
+  return *this;
+}
+
+AggregateField& AggregateField::orFunction(const std::vector<FunctionTag>& arg_types)
+{
+  for(auto& field : m_fields)
+  {
+    field.get().orFunction(arg_types);
   }
   return *this;
 }

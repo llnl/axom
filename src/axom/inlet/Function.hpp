@@ -273,6 +273,42 @@ private:
 
 using FunctionVariant = FunctionWrapper;
 
+namespace detail
+{
+/*!
+ *****************************************************************************
+ * \brief Writes function signature information to the sidre Group
+ * associated with an inlet::Function
+ *
+ * \param [in] ret_type The function's return type
+ * \param [in] arg_types The function's argument types
+ * \param [inout] group The group to add to
+ *
+ * The structure of the function signature information is as follows:
+ * <group>
+ *  ├─• function_arguments <integer array>
+ *  └─• return_type <integer>
+ *****************************************************************************
+ */
+void addSignatureToGroup(const FunctionTag ret_type,
+                         const std::vector<FunctionTag>& arg_types,
+                         axom::sidre::Group* group);
+
+/*!
+ *****************************************************************************
+ * \brief Returns whether a sidre Group holds the given function signature
+ *
+ * \param [in] ret_type The function's return type
+ * \param [in] arg_types The function's argument types
+ * \param [in] group The group written by addSignatureToGroup()
+ *****************************************************************************
+ */
+bool hasSignature(const FunctionTag ret_type,
+                  const std::vector<FunctionTag>& arg_types,
+                  const axom::sidre::Group* group);
+
+}  // namespace detail
+
 class Function : public Verifiable<Function>
 {
 public:
@@ -298,6 +334,18 @@ public:
     return m_func.get<FuncType>();
   }
 
+  /*!
+   *****************************************************************************
+   * \brief Calls the function
+   *
+   * \param [in] args The parameter pack for the function's arguments
+   * \tparam Ret The user-specified return type, needed to fully disambiguate the
+   * function to call
+   * \tparam Args The types of the user-specified arguments, deduced automatically
+   *
+   * \return The function's result
+   *****************************************************************************
+   */
   template <typename Ret, typename... Args>
   Ret call(Args&&... args) const
   {

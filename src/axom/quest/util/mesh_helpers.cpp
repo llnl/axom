@@ -75,7 +75,7 @@ axom::sidre::Group* make_structured_blueprint_box_mesh_3d(axom::sidre::Group* me
 
   fill_cartesian_coords_3d(runtimePolicy, bbox, xView, yView, zView);
 
-  #if defined(AXOM_DEBUG) && defined(AXOM_USE_CONDUIT)
+  #if AXOM_SLIC_DEBUG_MACROS_ENABLED && defined(AXOM_USE_CONDUIT)
   {
     conduit::Node info;
     bool isValid = verifyBlueprintMesh(meshGrp, info);
@@ -133,7 +133,7 @@ axom::sidre::Group* make_structured_blueprint_box_mesh_2d(axom::sidre::Group* me
 
   fill_cartesian_coords_2d(runtimePolicy, bbox, xView, yView);
 
-  #if defined(AXOM_DEBUG) && defined(AXOM_USE_CONDUIT)
+  #if AXOM_SLIC_DEBUG_MACROS_ENABLED && defined(AXOM_USE_CONDUIT)
   {
     conduit::Node info;
     bool isValid = verifyBlueprintMesh(meshGrp, info);
@@ -368,7 +368,7 @@ void convert_blueprint_structured_explicit_to_unstructured_3d_impl(axom::sidre::
     AXOM_ANNOTATE_END("add_extra");
   }
 
-  #if defined(AXOM_DEBUG) && defined(AXOM_USE_CONDUIT)
+  #if AXOM_SLIC_DEBUG_MACROS_ENABLED && defined(AXOM_USE_CONDUIT)
   AXOM_ANNOTATE_BEGIN("validate_post");
   conduit::Node info;
   bool isValid = verifyBlueprintMesh(meshGrp, info);
@@ -570,7 +570,7 @@ void fill_cartesian_coords_3d_impl(const primal::BoundingBox<double, 3>& domainB
                                    axom::ArrayView<double, 3>& yView,
                                    axom::ArrayView<double, 3>& zView)
 {
-#if defined(AXOM_DEBUG)
+#if AXOM_SLIC_DEBUG_MACROS_ENABLED
   using XS = axom::execution_space<ExecSpace>;
   SLIC_ASSERT_MSG(
     XS::usesAllocId(xView.getAllocatorID()) && XS::usesAllocId(yView.getAllocatorID()) &&
@@ -629,7 +629,7 @@ void fill_cartesian_coords_2d_impl(const primal::BoundingBox<double, 2>& domainB
                                    axom::ArrayView<double, 2>& xView,
                                    axom::ArrayView<double, 2>& yView)
 {
-#if defined(AXOM_DEBUG)
+#if AXOM_SLIC_DEBUG_MACROS_ENABLED
   using XS = axom::execution_space<ExecSpace>;
   SLIC_ASSERT_MSG(
     XS::usesAllocId(xView.getAllocatorID()) && XS::usesAllocId(yView.getAllocatorID()),

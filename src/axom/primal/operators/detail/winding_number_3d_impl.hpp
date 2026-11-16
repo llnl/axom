@@ -13,6 +13,7 @@
 #include "axom/primal/geometry/Polygon.hpp"
 #include "axom/primal/geometry/BezierCurve.hpp"
 #include "axom/primal/operators/is_convex.hpp"
+#include "axom/primal/operators/intersect.hpp"
 #include "axom/primal/operators/squared_distance.hpp"
 
 #include "axom/core/numerics/transforms.hpp"

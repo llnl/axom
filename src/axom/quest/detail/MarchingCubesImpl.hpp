@@ -437,7 +437,7 @@ public:
         loopBody(n);
       }
     });
-#if defined(AXOM_DEBUG)
+#if AXOM_SLIC_DEBUG_MACROS_ENABLED
     axom::IndexType serialCrossingCount = 0;
     axom::copy(&serialCrossingCount, crossingId, sizeof(axom::IndexType));
     SLIC_ASSERT(serialCrossingCount == m_crossingCount);

@@ -19,13 +19,20 @@
 #include "axom/inlet/VerifiableScalar.hpp"
 
 #include <memory>
+#include <string>
 #include <type_traits>
 #include <functional>
+#include <vector>
 
 namespace axom
 {
 namespace inlet
 {
+// Forward declarations
+class Function;
+class Reader;
+enum class FunctionTag;
+
 /*!
  *******************************************************************************
  * \class Field
@@ -53,19 +60,20 @@ public:
    * Default is FieldType::UNSPECIFIED.
    * \param [in] docEnabled Boolean indicating whether or not documentation
    * generation is enabled for Input file this Field instance belongs to.
+   * \param [in] reader The Reader for the input file, used by orFunction().
+   * Fields without a reader, e.g. those reconstructed from a datastore,
+   * cannot read a function alternative.
+   * \param [in] lookupPath The path of this Field within the input file
    *****************************************************************************
    */
   Field(axom::sidre::Group* sidreGroup,
         axom::sidre::Group* root,
         axom::sidre::DataTypeId type = axom::sidre::DataTypeId::NO_TYPE_ID,
-        bool docEnabled = true)
-    : m_sidreGroup(sidreGroup)
-    , m_sidreRootGroup(root)
-    , m_type(type)
-    , m_docEnabled(docEnabled)
-  { }
+        bool docEnabled = true,
+        Reader* reader = nullptr,
+        const std::string& lookupPath = "");
 
-  virtual ~Field() = default;
+  ~Field() override;
 
   /*!
    *****************************************************************************
@@ -109,6 +117,29 @@ public:
 
   Field& validValues(const std::initializer_list<double>& set) override;
 
+  /*!
+   *****************************************************************************
+   * \brief Allows this Field to accept a value or a function.
+   *
+   * The Field's type sets the function's return type.
+   * A double Field accepts a function returning FunctionTag::Double.
+   * A string Field accepts a function returning FunctionTag::String.
+   *
+   * A supplied function makes the Field present and user-provided, and satisfies required().
+   * In that case, the Field doesn't have a concrete value or a default.
+   * Use Proxy::evaluate() to read either form, or Proxy::type()
+   * to determine which form the input supplied.
+   *
+   * \param [in] arg_types The argument types of the function
+   *
+   * \return Reference to this Field, for chaining
+   *
+   * \pre The Field holds a double or a string
+   * \note Range and valid-value constraints apply only to a concrete value.
+   *****************************************************************************
+   */
+  Field& orFunction(const std::vector<FunctionTag>& arg_types = {}) override;
+
   using VerifiableScalar::registerVerifier;
 
   Field& registerVerifier(Verifier lambda) override;
@@ -147,6 +178,8 @@ public:
    *****************************************************************************
    * \brief Returns whether a value for the Field exists, i.e., if a value 
    * was provided in the input file or if a default was provided
+   *
+   * A function supplied through orFunction() also counts.
    *****************************************************************************
    */
   bool exists() const;
@@ -154,9 +187,29 @@ public:
   /*!
    *****************************************************************************
    * \brief Returns whether a value was provided in the input file
+   *
+   * A function supplied through orFunction() also counts.
    *****************************************************************************
    */
   bool isUserProvided() const;
+
+  /*!
+   *****************************************************************************
+   * \brief Returns whether the input supplied a function for this Field.
+   *
+   * \see orFunction()
+   *****************************************************************************
+   */
+  bool isFunction() const;
+
+  /*!
+   *****************************************************************************
+   * \brief Returns the function the input supplied for this Field.
+   *
+   * \pre isFunction() is true
+   *****************************************************************************
+   */
+  const Function& getFunction() const;
 
 private:
   /*!
@@ -252,11 +305,16 @@ private:
   const axom::sidre::View* checkExistenceAndType(const axom::sidre::DataTypeId expected) const;
 
   // This Field's sidre group
-  axom::sidre::Group* m_sidreGroup = nullptr;
-  axom::sidre::Group* m_sidreRootGroup = nullptr;
-  axom::sidre::DataTypeId m_type = axom::sidre::DataTypeId::NO_TYPE_ID;
+  axom::sidre::Group* m_sidreGroup {nullptr};
+  axom::sidre::Group* m_sidreRootGroup {nullptr};
+  axom::sidre::DataTypeId m_type {axom::sidre::DataTypeId::NO_TYPE_ID};
   bool m_docEnabled;
   Verifier m_verifier;
+  // Used by orFunction() to read a function alternative
+  Reader* m_reader {nullptr};
+  std::string m_lookupPath;
+  // The function supplied in place of a value, if any
+  std::unique_ptr<Function> m_function;
 };
 
 // Prototypes for template specializations
@@ -321,6 +379,8 @@ public:
   AggregateField& validValues(const std::initializer_list<int>& set) override;
 
   AggregateField& validValues(const std::initializer_list<double>& set) override;
+
+  AggregateField& orFunction(const std::vector<FunctionTag>& arg_types = {}) override;
 
   using VerifiableScalar::registerVerifier;
 

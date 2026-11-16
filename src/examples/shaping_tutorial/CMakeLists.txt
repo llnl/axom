@@ -109,10 +109,22 @@ if(ENABLE_TESTS)
                    COMMAND lesson_03_klee_operators_and_validation ../lesson_03/ice_cream.lua)
     endif()
 
-    if(AXOM_USE_LUA AND AXOM_USE_MFEM)
-      blt_add_test(NAME    lesson_04_quest_sampling_shaper
-                   COMMAND lesson_04_quest_sampling_shaper -m ../lesson_04/circle_input.lua 
-                                                           -k ../lesson_04/circles.yaml -v)                   
+    if(AXOM_USE_MFEM)
+      file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/lesson_04_yaml_test)
+      blt_add_test(NAME    lesson_04_quest_sampling_shaper_yaml
+                   COMMAND lesson_04_quest_sampling_shaper
+                           -m ${CMAKE_CURRENT_SOURCE_DIR}/lesson_04/circle_input.yaml
+                           -k ${CMAKE_CURRENT_SOURCE_DIR}/lesson_04/circles.yaml -v
+                   WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/lesson_04_yaml_test)
+
+      if(AXOM_USE_LUA)
+        file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/lesson_04_lua_test)
+        blt_add_test(NAME    lesson_04_quest_sampling_shaper_lua
+                     COMMAND lesson_04_quest_sampling_shaper
+                             -m ${CMAKE_CURRENT_SOURCE_DIR}/lesson_04/circle_input.lua
+                             -k ${CMAKE_CURRENT_SOURCE_DIR}/lesson_04/circles.yaml -v
+                     WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/lesson_04_lua_test)
+      endif()
     endif()
 
 endif()
@@ -123,4 +135,3 @@ endif()
 if(EXAMPLE_VERBOSE_OUTPUT)
     blt_print_target_properties(TARGET axom CHILDREN TRUE)  
 endif()
-

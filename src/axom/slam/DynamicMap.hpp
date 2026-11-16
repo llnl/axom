@@ -132,7 +132,7 @@ public:
 
 private:
   /** \brief Debug check that the index is not out of range    */
-  inline void verifyPosition(SetPosition AXOM_DEBUG_PARAM(setIndex)) const
+  inline void verifyPosition(AXOM_MAYBE_UNUSED SetPosition setIndex) const
   {
     SLIC_ASSERT_MSG(
       setIndex >= 0 && setIndex < (int)m_data.size(),

@@ -76,6 +76,19 @@ def parse_args():
     return opts
 
 
+def normalized_hostconfig_build_name(hostconfig):
+    "Normalizes a host-config path into a string safe for build directory names"
+    hostconfig_build_name = hostconfig.replace(".cmake", "").replace("@", "_")
+    hostconfig_build_name = hostconfig_build_name.replace("\\", "/")
+
+    # Drop the common host-configs path component before flattening separators.
+    hostconfig_build_name = hostconfig_build_name.replace("/host-configs/", "/")
+    if hostconfig_build_name.startswith("host-configs/"):
+        hostconfig_build_name = hostconfig_build_name[len("host-configs/"):]
+
+    return hostconfig_build_name.replace("/", "_")
+
+
 def main():
     opts = parse_args()
 
@@ -158,7 +171,8 @@ def main():
             print(binfo_str)
 
             test_root = get_build_and_test_root(repo_dir, timestamp)
-            test_root = "{0}_{1}".format(test_root, hostconfig.replace(".cmake", "").replace("@","_"))
+            test_root = "{0}_{1}".format(test_root,
+                                          normalized_hostconfig_build_name(hostconfig))
             os.mkdir(test_root)
             res = build_and_test_host_config(test_root, hostconfig_path,
                                              report_to_stdout = opts["verbose"],

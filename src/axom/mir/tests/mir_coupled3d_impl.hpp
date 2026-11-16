@@ -137,6 +137,11 @@ inline void make_mesh(conduit::Node& n_mesh,
  * \param ballRadius The radius of the ball.
  * \param wallX The X value above which zones are filled with CU.
  */
+// Keep this sampler on the non-contracted FP path so the coarse matset
+// matches the baseline even when AVX2/FMA is enabled.
+#if defined(__clang__)
+  #pragma clang fp contract(off)
+#endif
 inline void make_matset(conduit::Node& n_mesh,
                         const std::string& topologyName,
                         const std::string& matsetName,

@@ -550,14 +550,14 @@ private:
   void verifyPosition(SetPosition s1, SetPosition s2) const { set()->verifyPosition(s1, s2); }
 
   /** \brief Check the given ElementFlatIndex is valid.  */
-  void verifyPosition(SetPosition AXOM_DEBUG_PARAM(pos)) const
+  void verifyPosition(AXOM_MAYBE_UNUSED SetPosition pos) const
   {
     SLIC_ASSERT_MSG(pos >= 0 && pos < SetPosition(m_map.size()),
                     "Attempted to access element " << pos << " but BivariateMap's data has size "
                                                    << m_map.size());
   }
 
-  void verifyFirstSetIndex(SetPosition AXOM_DEBUG_PARAM(firstIdx)) const
+  void verifyFirstSetIndex(AXOM_MAYBE_UNUSED SetPosition firstIdx) const
   {
     SLIC_ASSERT_MSG(firstIdx >= 0 && firstIdx < firstSetSize(),
                     "Attempted to access elements with first set index "

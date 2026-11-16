@@ -299,7 +299,7 @@ namespace slamLulesh {
         << " actual energy at origin was " << locDom.e(ElemId)
         << ". Difference was " << std::fabs(resultCheckMap[gEdge].second - locDom.e(ElemId) ) );
 
-#ifdef AXOM_DEBUG
+#if AXOM_SLIC_DEBUG_MACROS_ENABLED
       const double diff = std::fabs(resultCheckMap[gEdge].second - locDom.e(ElemId));
       const double maxFabs =
         std::max(std::fabs(resultCheckMap[gEdge].second), std::fabs(locDom.e(ElemId)));

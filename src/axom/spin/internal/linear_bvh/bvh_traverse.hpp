@@ -27,7 +27,7 @@ namespace internal
  * 
  * This is necessary because typical usage of a BVH traverser requires no access to the internal
  *  node layout as implemented in LinearBVH, requiring a two-argument InBin predicate.
- * However, `LinearBVHTraverser::reduce_tree` returns an array of values that are associated with 
+ * However, `LinearBVHTraverser::reduce_leaves` returns an array of values that are associated with
  *  each node, and a three-argument InBin predicate allows indexing into this array in the check.
  * 
  * \sa quest::fast_approximate_winding_number
@@ -287,7 +287,7 @@ AXOM_HOST_DEVICE inline void bvh_traverse(axom::ArrayView<const BVH2Node<FloatTy
       BBoxType left_bin = curr_node.left;
       BBoxType right_bin = curr_node.right;
       // The optional node index supplied to InBinCheck refers to the
-      // flattened child-slot layout exposed by LinearBVHTraverser::reduce_tree.
+      // flattened child-slot layout exposed by LinearBVHTraverser::reduce_leaves.
       const std::int32_t child_slot = 2 * current_node;
       const bool in_left =
         left_bin.isValid() ? invoke_InBinCheck(B, p, left_bin, child_slot + 0) : false;

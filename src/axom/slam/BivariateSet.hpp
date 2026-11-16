@@ -440,8 +440,8 @@ public:
   }
 
 private:
-  void verifyPosition(PositionType AXOM_DEBUG_PARAM(pos1),
-                      PositionType AXOM_DEBUG_PARAM(pos2)) const override
+  void verifyPosition(AXOM_MAYBE_UNUSED PositionType pos1,
+                      AXOM_MAYBE_UNUSED PositionType pos2) const override
   {
     SLIC_ASSERT_MSG(false,
                     "Subscripting on NullSet is never valid."

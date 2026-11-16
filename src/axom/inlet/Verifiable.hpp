@@ -15,13 +15,18 @@
  */
 
 #include <functional>
+#include <vector>
 
 #include "axom/inlet/inlet_utils.hpp"
+#include "axom/slic/interface/slic.hpp"
 
 namespace axom
 {
 namespace inlet
 {
+// Forward declarations
+enum class FunctionTag;
+
 /*!
  *******************************************************************************
  * \class Verifiable
@@ -115,6 +120,25 @@ public:
    *****************************************************************************
   */
   virtual bool verify(std::vector<VerificationError>* errors = nullptr) const = 0;
+
+  /*!
+   *****************************************************************************
+   * \brief Allows an object to accept a function.
+   *
+   * \note Only arrays of doubles support functions
+   *       The default implementation reports an error.
+   *
+   * \param [in] arg_types The argument types of the function
+   *
+   * \return Reference to calling object, for chaining
+   *****************************************************************************
+   */
+  virtual Verifiable<BaseType>& orFunction(const std::vector<FunctionTag>& arg_types = {})
+  {
+    AXOM_UNUSED_VAR(arg_types);
+    SLIC_ERROR("[Inlet] orFunction() supports double fields, string fields, and arrays of doubles");
+    return *this;
+  }
 };
 
 /*!
@@ -162,6 +186,15 @@ public:
     for(auto& verifiable : m_verifiables)
     {
       verifiable.get().registerVerifier(lambda);
+    }
+    return *this;
+  }
+
+  AggregateVerifiable& orFunction(const std::vector<FunctionTag>& arg_types = {}) override
+  {
+    for(auto& verifiable : m_verifiables)
+    {
+      verifiable.get().orFunction(arg_types);
     }
     return *this;
   }
