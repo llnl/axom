@@ -309,6 +309,9 @@ void check_volume()
   axom::Array<PointType> centroid_device(1, 1, kernel_allocator);
   auto centroid_view = centroid_device.view();
 
+  axom::Array<int> vertex_count_device(1, 1, kernel_allocator);
+  auto vertex_count_view = vertex_count_device.view();
+
   axom::for_all<ExecSpace>(1, [=] AXOM_HOST_DEVICE(int i) {
     PolyhedronType poly;
     poly.addVertex({0, 0, 0});
@@ -332,17 +335,27 @@ void check_volume()
     volume_view[i] = poly.volume();
 
     centroid_view[i] = poly.centroid();
+
+    // Verify that all MAX_VERTS slots are usable. Add the disconnected test
+    // vertices after the geometric calculations so they do not affect them.
+    for(int vertex = poly.numVertices(); vertex < PolyhedronType::MAX_VERTS; ++vertex)
+    {
+      poly.addVertex({static_cast<double>(vertex), 0., 0.});
+    }
+    vertex_count_view[i] = poly.numVertices();
   });
 
   // Copy volume and centroid back to host
   axom::Array<double> volume_host = axom::Array<double>(volume_device, host_allocator);
   axom::Array<PointType> centroid_host = axom::Array<PointType>(centroid_device, host_allocator);
+  axom::Array<int> vertex_count_host = axom::Array<int>(vertex_count_device, host_allocator);
 
   EXPECT_EQ(volume_host[0], 1);
 
   EXPECT_NEAR(0.5, centroid_host[0][0], EPS);
   EXPECT_NEAR(0.5, centroid_host[0][1], EPS);
   EXPECT_NEAR(0.5, centroid_host[0][2], EPS);
+  EXPECT_EQ(PolyhedronType::MAX_VERTS, vertex_count_host[0]);
 }
 
 TEST(primal_polyhedron, check_volume_sequential) { check_volume<axom::SEQ_EXEC>(); }

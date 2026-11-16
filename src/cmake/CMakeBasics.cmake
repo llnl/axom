@@ -50,6 +50,29 @@ set(AXOM_DEBUG_DEFINE_STRING "${AXOM_DEBUG_DEFINE_STRING}" CACHE STRING "" FORCE
 mark_as_advanced(AXOM_DEBUG_DEFINE_STRING)
 
 #------------------------------------------------------------------------------
+# Set up the AXOM_ENABLE_SLIC_DEBUG_MACROS compiler definition. DEFAULT leaves
+# it undefined, which enables the Slic debug macros when AXOM_DEBUG is defined
+# and disables them otherwise.
+#------------------------------------------------------------------------------
+set(AXOM_SLIC_DEBUG_MACROS_DEFINE_STRING "")
+
+string(TOUPPER "${AXOM_ENABLE_SLIC_DEBUG_MACROS}" _axom_slic_debug_macros_upper)
+if("${_axom_slic_debug_macros_upper}" MATCHES "ON|TRUE")
+  set(AXOM_SLIC_DEBUG_MACROS_DEFINE_STRING "AXOM_ENABLE_SLIC_DEBUG_MACROS=1")
+elseif("${_axom_slic_debug_macros_upper}" MATCHES "OFF|FALSE")
+  set(AXOM_SLIC_DEBUG_MACROS_DEFINE_STRING "AXOM_ENABLE_SLIC_DEBUG_MACROS=0")
+elseif("${_axom_slic_debug_macros_upper}" MATCHES "DEFAULT")
+  # no-op
+else()
+  message(FATAL_ERROR
+    "Invalid value for AXOM_ENABLE_SLIC_DEBUG_MACROS. Must be 'DEFAULT', 'ON' or 'OFF'; was '${AXOM_ENABLE_SLIC_DEBUG_MACROS}'")
+endif()
+
+set(AXOM_SLIC_DEBUG_MACROS_DEFINE_STRING
+    "${AXOM_SLIC_DEBUG_MACROS_DEFINE_STRING}" CACHE STRING "" FORCE)
+mark_as_advanced(AXOM_SLIC_DEBUG_MACROS_DEFINE_STRING)
+
+#------------------------------------------------------------------------------
 # Fortran Configuration
 #------------------------------------------------------------------------------
 if(ENABLE_FORTRAN)
@@ -235,7 +258,7 @@ endif()
 set(AXOM_EXECUTION_POLICIES "seq")
 if(RAJA_FOUND)
     blt_list_append(TO AXOM_EXECUTION_POLICIES ELEMENTS "omp" IF AXOM_ENABLE_OPENMP)
-    if(AXOM_USE_UMPIRE)
+    if(UMPIRE_FOUND)
         blt_list_append(TO AXOM_EXECUTION_POLICIES ELEMENTS "cuda" IF AXOM_ENABLE_CUDA)
         blt_list_append(TO AXOM_EXECUTION_POLICIES ELEMENTS "hip" IF AXOM_ENABLE_HIP)
     endif()
@@ -277,5 +300,3 @@ endif()
 configure_file("cmake/Dashboard.cmake.in" 
                "${PROJECT_BINARY_DIR}/Dashboard.cmake"
                @ONLY)
-
-

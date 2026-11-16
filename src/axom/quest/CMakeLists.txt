@@ -136,19 +136,41 @@ if(CONDUIT_FOUND AND AXOM_ENABLE_MPI)
                                  conduit::conduit_mpi)
 endif()
 
-blt_list_append(
-    TO       quest_headers
-    ELEMENTS MarchingCubes.hpp detail/MarchingCubesSingleDomain.hpp detail/MarchingCubesImpl.hpp
-    IF       CONDUIT_FOUND
-               )
+if(CONDUIT_FOUND)
+    set(quest_marching_cubes_sources)
 
-blt_list_append(
-    TO       quest_sources
-    ELEMENTS MarchingCubes.cpp detail/MarchingCubesSingleDomain.cpp
-    IF       CONDUIT_FOUND
-               )
+    blt_list_append(
+        TO       quest_headers
+        ELEMENTS MarchingCubes.hpp
+                 detail/MarchingCubesSingleDomain.hpp
+                 detail/MarchingCubesImpl.hpp)
 
-blt_list_append( TO quest_depends_on ELEMENTS conduit::conduit IF CONDUIT_FOUND )
+    # To keep device compile times manageable, we instantiate each MC impl in its own translation unit
+    blt_list_append(
+        TO       quest_sources
+        ELEMENTS MarchingCubes.cpp
+                 detail/MarchingCubesSingleDomain.cpp)
+
+    blt_list_append(
+        TO       quest_marching_cubes_sources
+        ELEMENTS detail/MarchingCubesSingleDomainSeq2D.cpp
+                 detail/MarchingCubesSingleDomainSeq3D.cpp)
+
+    if(RAJA_FOUND AND AXOM_ENABLE_OPENMP)
+        list(APPEND quest_marching_cubes_sources detail/MarchingCubesSingleDomainOpenMP2D.cpp
+                                                 detail/MarchingCubesSingleDomainOpenMP3D.cpp)
+    endif()
+    if(RAJA_FOUND AND UMPIRE_FOUND AND AXOM_ENABLE_CUDA)
+        list(APPEND quest_marching_cubes_sources detail/MarchingCubesSingleDomainCuda2D.cpp
+                                                 detail/MarchingCubesSingleDomainCuda3D.cpp)
+    endif()
+    if(RAJA_FOUND AND UMPIRE_FOUND AND AXOM_ENABLE_HIP)
+        list(APPEND quest_marching_cubes_sources detail/MarchingCubesSingleDomainHip2D.cpp
+                                                 detail/MarchingCubesSingleDomainHip3D.cpp)
+    endif()
+
+    blt_list_append( TO quest_depends_on ELEMENTS conduit::conduit)
+endif()
 
 if(AXOM_ENABLE_KLEE AND AXOM_ENABLE_SIDRE)
     if(MFEM_FOUND OR CONDUIT_FOUND)
@@ -264,6 +286,24 @@ endif()
 #------------------------------------------------------------------------------
 # Make and install the library
 #------------------------------------------------------------------------------
+if(WIN32 AND BUILD_SHARED_LIBS AND quest_marching_cubes_sources)
+    # Windows auto-export scans the DLL's object files. Keep policy instantiations
+    # in a private static archive to avoid MSVC's 65535-member import-library limit
+    # as more implementations are added. The public API remains in quest_sources.
+    blt_add_library(
+        NAME        quest_marching_cubes_impl
+        SHARED      FALSE
+        SOURCES     ${quest_marching_cubes_sources}
+        DEPENDS_ON  ${quest_depends_on} ${axom_device_depends}
+        FOLDER      axom/quest
+        )
+    if(AXOM_ENABLE_OPENMP)
+        target_link_libraries(quest_marching_cubes_impl PRIVATE openmp)
+    endif()
+elseif(quest_marching_cubes_sources)
+    blt_list_append(TO quest_sources ELEMENTS ${quest_marching_cubes_sources})
+endif()
+
 axom_add_library(
     NAME        quest
     SOURCES     ${quest_sources}
@@ -271,6 +311,10 @@ axom_add_library(
     DEPENDS_ON  ${quest_depends_on}
     FOLDER      axom/quest
     )
+
+if(TARGET quest_marching_cubes_impl)
+    target_link_libraries(quest PRIVATE quest_marching_cubes_impl)
+endif()
 
 axom_write_unified_header(NAME    quest
                           HEADERS ${quest_headers}

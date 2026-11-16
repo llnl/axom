@@ -1587,6 +1587,51 @@ TEST(inlet_Inlet_array_lua, inletArraysInSidre)
   EXPECT_EQ(doubleVal, 2.4);
 }
 
+// Regressions against cases that previously terminated the process with an uncaught sol::error
+TEST(inlet_Inlet_verify_lua, wrongTypeInputsFailVerificationWithoutTerminating)
+{
+  const std::string input = "number = 3.0; callback = function() return {1.0} end";
+
+  for(const std::string name : {"number", "callback"})
+  {
+    Inlet inlet = createBasicInlet<axom::inlet::LuaReader>(input);
+    inlet.addDoubleArray(name);
+    EXPECT_FALSE(inlet.verify()) << name;
+    EXPECT_FALSE(inlet.contains(name)) << name;
+  }
+
+  for(const std::string name : {"number", "callback"})
+  {
+    Inlet inlet = createBasicInlet<axom::inlet::LuaReader>(input);
+    inlet.addDoubleDictionary(name);
+    EXPECT_FALSE(inlet.verify()) << name;
+    EXPECT_FALSE(inlet.contains(name)) << name;
+  }
+}
+
+TEST(inlet_Inlet_verify_lua, nonFunctionInputIsNotAFunction)
+{
+  // Can't read a function from a non-function
+  for(const std::string name : {"number", "group/number"})
+  {
+    Inlet inlet = createBasicInlet<axom::inlet::LuaReader>("number = 3.0; group = {number = 3.0}");
+    inlet.addFunction(name, axom::inlet::FunctionTag::Double, {});
+    EXPECT_TRUE(inlet.verify()) << name;
+    EXPECT_FALSE(inlet.contains(name)) << name;
+  }
+
+  // A Container's required entries are checked only if the Container exists,
+  // so give the nested group a present Field
+  for(const std::string name : {"number", "group/number"})
+  {
+    Inlet inlet =
+      createBasicInlet<axom::inlet::LuaReader>("number = 3.0; group = {number = 3.0, other = 1.0}");
+    inlet.addDouble("group/other");
+    inlet.addFunction(name, axom::inlet::FunctionTag::Double, {}).required();
+    EXPECT_FALSE(inlet.verify()) << name;
+  }
+}
+
 #endif
 
 //------------------------------------------------------------------------------

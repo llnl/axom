@@ -88,6 +88,23 @@ if(CONDUIT_FOUND AND AXOM_DATA_DIR)
 
 endif()
 
+if(CONDUIT_FOUND AND AXOM_ENABLE_SIDRE)
+    axom_add_executable(
+        NAME        quest_marching_cubes_test
+        HEADERS     quest_marching_cubes_testing_helpers.hpp
+        SOURCES     quest_marching_cubes.cpp
+        OUTPUT_DIR  ${TEST_OUTPUT_DIRECTORY}
+        DEPENDS_ON  ${quest_tests_depends} conduit::conduit
+        FOLDER      axom/quest/tests
+        )
+
+    axom_add_test(
+        NAME    quest_marching_cubes
+        COMMAND quest_marching_cubes_test
+        NUM_OMP_THREADS ${AXOM_TEST_NUM_OMP_THREADS}
+        )
+endif()
+
 #------------------------------------------------------------------------------
 # Tests that use MFEM when available
 #------------------------------------------------------------------------------

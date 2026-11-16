@@ -65,14 +65,7 @@ std::string broadcastString(const std::string& str, MPI_Comm comm, int rank)
 }
 
 #ifdef AXOM_USE_HDF5
-inline void checkHDF5Status(herr_t status)
-{
-  #ifdef AXOM_DEBUG
-  SLIC_ASSERT(status >= 0);
-  #else
-  AXOM_UNUSED_VAR(status);
-  #endif
-}
+inline void checkHDF5Status(AXOM_MAYBE_UNUSED herr_t status) { SLIC_ASSERT(status >= 0); }
 
 inline void closeHDF5Group(hid_t group_id) { checkHDF5Status(H5Gclose(group_id)); }
 
@@ -604,11 +597,11 @@ std::string IOManager::createRootFile(const std::string& root_base,
   conduit::Node n;
 
   std::string file_base(utilities::string::removeSuffix(root_base, ".root"));
+  const std::string local_file_base = axom::Path(file_base).baseName();
 
   if(m_my_rank == 0)
   {
     std::string root_file_name;
-    std::string local_file_base;
 
     std::string relay_protocol = correspondingRelayProtocol(protocol);
 
@@ -620,14 +613,12 @@ std::string IOManager::createRootFile(const std::string& root_base,
       {
         std::string next;
         std::string delimiter = "/";
-        axom::Path axom_file_path(file_base);
-        local_file_base = axom_file_path.baseName();
 
         n["file_pattern"] = local_file_base + delimiter + local_file_base + "_" + "%07d.hdf5";
       }
       else
       {
-        n["file_pattern"] = file_base + "_" + "%07d.conduit_hdf5";
+        n["file_pattern"] = local_file_base + "_" + "%07d.conduit_hdf5";
       }
       n["number_of_trees"] = m_comm_size;
 
@@ -644,7 +635,7 @@ std::string IOManager::createRootFile(const std::string& root_base,
     else
     {
       n["number_of_files"] = num_files;
-      n["file_pattern"] = file_base + "_" + "%07d." + protocol;
+      n["file_pattern"] = local_file_base + "_" + "%07d." + protocol;
       n["number_of_trees"] = m_comm_size;
 
       n["tree_pattern"] = tree_pattern;
@@ -956,6 +947,8 @@ void IOManager::getRankToFileMap(View* rank_to_file_map, int num_files)
  */
 int IOManager::getNumFilesFromRoot(const std::string& root_file)
 {
+  const std::string protocol = getProtocol(root_file);
+
   /*
    * Read num_files from rootfile on rank 0.
    */
@@ -965,7 +958,7 @@ int IOManager::getNumFilesFromRoot(const std::string& root_file)
     std::string root_path = getSCRPath(root_file);
 
     conduit::Node n;
-    conduit::relay::io::load(root_path + ":number_of_files", "hdf5", n);
+    conduit::relay::io::load(root_path + ":number_of_files", correspondingRelayProtocol(protocol), n);
     read_num_files = n.to_int();
     SLIC_ASSERT(read_num_files > 0);
   }
@@ -982,6 +975,8 @@ int IOManager::getNumFilesFromRoot(const std::string& root_file)
 
 int IOManager::getNumGroupsFromRoot(const std::string& root_file)
 {
+  const std::string protocol = getProtocol(root_file);
+
   /*
    * Read number_of_trees from rootfile on rank 0.
    */
@@ -991,7 +986,7 @@ int IOManager::getNumGroupsFromRoot(const std::string& root_file)
     std::string root_path = getSCRPath(root_file);
 
     conduit::Node n;
-    conduit::relay::io::load(root_path + ":number_of_trees", "hdf5", n);
+    conduit::relay::io::load(root_path + ":number_of_trees", correspondingRelayProtocol(protocol), n);
     read_num_trees = n.to_int();
     SLIC_ASSERT(read_num_trees > 0);
   }

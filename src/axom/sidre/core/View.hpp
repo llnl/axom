@@ -610,7 +610,7 @@ public:
   {
     // If this view already contains a tuple, issue a warning if the user is
     // changing the underlying type ( ie: integer -> float ).
-#if defined(AXOM_DEBUG)
+#if AXOM_SLIC_DEBUG_MACROS_ENABLED
     if(m_state == TUPLE)
     {
       [[maybe_unused]] DataTypeId arg_id = detail::SidreTT<ScalarType>::id;
@@ -654,7 +654,7 @@ public:
   {
     // If this view already contains a scalar, issue a warning if the user is
     // changing the underlying type ( ie: integer -> float ).
-#if defined(AXOM_DEBUG)
+#if AXOM_SLIC_DEBUG_MACROS_ENABLED
     if(m_state == TUPLE)
     {
       [[maybe_unused]] DataTypeId arg_id = detail::SidreTT<ScalarType>::id;
@@ -696,7 +696,7 @@ public:
   {
     // If this view already contains a scalar, issue a warning if the user is
     // changing the underlying type ( ie: integer -> float ).
-#if defined(AXOM_DEBUG)
+#if AXOM_SLIC_DEBUG_MACROS_ENABLED
     if(m_state == TUPLE)
     {
       SLIC_CHECK_MSG(value.dtype().id() == m_node.dtype().id(),

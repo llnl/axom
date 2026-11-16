@@ -257,7 +257,7 @@ public:
     }
     else
     {
-      ptsHostPtr = pts;
+      ptsHostPtr = ConstHostPointView(pts.data(), pts.size());
       candidatesHostPtr = candidates;
       offsetsHostPtr = offsets;
       countsHostPtr = counts;

@@ -52,12 +52,20 @@ endif()
 if (UMPIRE_DIR)
     axom_assert_is_directory(DIR_VARIABLE UMPIRE_DIR)
     find_dependency(umpire REQUIRED PATHS "${UMPIRE_DIR}" NO_SYSTEM_ENVIRONMENT_PATH)
-    axom_assert_find_succeeded(PROJECT_NAME Umpire
-                               TARGET       umpire::umpire
-                               DIR_VARIABLE UMPIRE_DIR)
+    if(TARGET umpire::umpire)
+        axom_assert_find_succeeded(PROJECT_NAME Umpire
+                                   TARGET       umpire::umpire
+                                   DIR_VARIABLE UMPIRE_DIR)
+        blt_convert_to_system_includes(TARGET umpire::umpire)
+    elseif(TARGET umpire)
+        # Backwards compatibility for pre v2026.07.0
+        axom_assert_find_succeeded(PROJECT_NAME Umpire
+                                   TARGET       umpire
+                                   DIR_VARIABLE UMPIRE_DIR)
+        blt_convert_to_system_includes(TARGET umpire)
+        add_library(umpire::umpire ALIAS umpire)
+    endif()
     set(UMPIRE_FOUND TRUE)
-
-    blt_convert_to_system_includes(TARGET umpire::umpire)
 
     # Check whether the Umpire defines symbols for shared memory
     blt_check_code_compiles(CODE_COMPILES UMPIRE_SHARED_MEMORY
@@ -172,34 +180,17 @@ endif()
 #------------------------------------------------------------------------------
 if (TARGET mfem)
     # Case: Axom included in project that also creates an mfem target, no need to recreate mfem
-    # Note - white238: I can't seem to get this to pass install testing due to mfem being included
-    # in multiple export sets
     message(STATUS "MFEM support is ON, using existing mfem target")
-
-    # Add it to this export set but don't prefix it with axom::
-    # NOTE: imported targets cannot be part of an export set
-    get_target_property(_is_imported mfem IMPORTED)
-    if(NOT "${_is_imported}")
-        install(TARGETS              mfem
-                EXPORT               axom-targets
-                DESTINATION          lib)
-    endif()
-
     set(MFEM_FOUND TRUE)
 elseif (MFEM_DIR)
     axom_assert_is_directory(DIR_VARIABLE MFEM_DIR)
     include(cmake/thirdparty/FindMFEM.cmake)
     # If the CMake build system was used, a CMake target for mfem already exists
     if (NOT TARGET mfem)
-        # Mark mfem (and subsequent dependencies without a CMake config file) as
-        # EXPORTABLE so they can be exported into axom-targets, allowing for a
-        # "shrinkwrapped" CMake config
         blt_import_library( NAME       mfem
                             INCLUDES   ${MFEM_INCLUDE_DIRS}
                             LIBRARIES  ${MFEM_LIBRARIES}
-                            TREAT_INCLUDES_AS_SYSTEM ON
-                            EXPORTABLE ON)
-        blt_list_append(TO TPL_DEPS ELEMENTS mfem)
+                            TREAT_INCLUDES_AS_SYSTEM ON)
     endif()
     blt_convert_to_system_includes(TARGET mfem)
 else()
@@ -209,6 +200,16 @@ endif()
 # MFEM's exported target does not always propagate its MPI dependency.
 if(TARGET mfem AND MFEM_USE_MPI)
     blt_patch_target(NAME mfem DEPENDS_ON mpi)
+endif()
+
+# MFEM installations built with GNU Make list their static CAMP dependency
+# before Umpire in MFEM_EXT_LIBS.  Umpire references CAMP symbols, so append
+# the CAMP target to preserve the required static-library link order.
+if(TARGET mfem AND TARGET camp)
+    get_target_property(_mfem_libs mfem INTERFACE_LINK_LIBRARIES)
+    if("${_mfem_libs}" MATCHES "camp")
+        blt_patch_target(NAME mfem DEPENDS_ON camp)
+    endif()
 endif()
 
 # caliper-enabled mfem in device configs have extra dependencies which are not properly exported
@@ -481,8 +482,7 @@ if (SCR_DIR)
     blt_import_library( NAME       scr
                         INCLUDES   ${SCR_INCLUDE_DIRS}
                         LIBRARIES  ${SCR_LIBRARIES} ZLIB::ZLIB
-                        TREAT_INCLUDES_AS_SYSTEM ON
-                        EXPORTABLE ON)
+                        TREAT_INCLUDES_AS_SYSTEM ON)
     blt_list_append(TO TPL_DEPS ELEMENTS scr)
     set(SCR_FOUND TRUE)
 else()
@@ -499,8 +499,7 @@ if (LUA_DIR)
     if(NOT TARGET lua)
         blt_import_library( NAME        lua
                             LIBRARIES   ${LUA_LIBRARIES}
-                            INCLUDES    ${LUA_INCLUDE_DIR}
-                            EXPORTABLE  ON)
+                            INCLUDES    ${LUA_INCLUDE_DIR})
     endif()
 
     blt_convert_to_system_includes(TARGET lua)
@@ -521,8 +520,7 @@ if (C2C_DIR)
         NAME          c2c
         INCLUDES      ${C2C_INCLUDE_DIR}
         LIBRARIES     ${C2C_LIBRARY}
-        TREAT_INCLUDES_AS_SYSTEM ON
-        EXPORTABLE    ON)
+        TREAT_INCLUDES_AS_SYSTEM ON)
     blt_list_append(TO TPL_DEPS ELEMENTS c2c)
 else()
     message(STATUS "c2c support is OFF")
@@ -539,8 +537,7 @@ if (OPENCASCADE_DIR)
         NAME          opencascade
         INCLUDES      ${OpenCASCADE_INCLUDE_DIR}
         LIBRARIES     ${OpenCASCADE_LIBRARIES}
-        TREAT_INCLUDES_AS_SYSTEM ON
-        EXPORTABLE    ON)
+        TREAT_INCLUDES_AS_SYSTEM ON)
     blt_list_append(TO TPL_DEPS ELEMENTS opencascade)
 else()
     message(STATUS "Open Cascade support is OFF")
@@ -552,16 +549,3 @@ endif()
 #------------------------------------------------------------------------------
 set(ENABLE_JSONSCHEMA ON) # required by blt_find_executable
 blt_find_executable(NAME jsonschema)
-
-#------------------------------------------------------------------------------
-# Targets that need to be exported but don't have a CMake config file
-#------------------------------------------------------------------------------
-foreach(dep ${TPL_DEPS})
-    # If the target is EXPORTABLE, add it to the export set
-    get_target_property(_is_imported ${dep} IMPORTED)
-    if(NOT ${_is_imported})
-        install(TARGETS              ${dep}
-                EXPORT               axom-targets
-                DESTINATION          lib)
-    endif()
-endforeach()

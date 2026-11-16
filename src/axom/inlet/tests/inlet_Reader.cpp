@@ -11,6 +11,7 @@
 
 #include "gtest/gtest.h"
 
+#include <algorithm>
 #include <string>
 #include <vector>
 #include <memory>
@@ -289,6 +290,23 @@ TYPED_TEST(inlet_Reader, simple_name_retrieval_arrays)
   EXPECT_EQ(found_names, expected_names);
 }
 
+TYPED_TEST(inlet_Reader, intReadsTruncateTowardZero)
+{
+  // Every reader narrows a non-integral number to an int the same way
+  TypeParam reader;
+  reader.parseString(fromLuaTo<TypeParam>("up = 2.7; down = -2.7; half = 2.5; whole = 7"));
+
+  int value = 0;
+  EXPECT_EQ(ReaderResult::Success, reader.getInt("up", value));
+  EXPECT_EQ(2, value);
+  EXPECT_EQ(ReaderResult::Success, reader.getInt("down", value));
+  EXPECT_EQ(-2, value);
+  EXPECT_EQ(ReaderResult::Success, reader.getInt("half", value));
+  EXPECT_EQ(2, value);
+  EXPECT_EQ(ReaderResult::Success, reader.getInt("whole", value));
+  EXPECT_EQ(7, value);
+}
+
 TEST(inlet_Reader_YAML, getInsideBools)
 {
   axom::inlet::YAMLReader reader;
@@ -467,6 +485,228 @@ TEST(inlet_Reader_lua, getDiscontiguousMap)
   EXPECT_EQ(retValue, ReaderResult::NotHomogeneous);
   std::unordered_map<int, std::string> expectedStrs {{33, "hello"}, {200, "bye"}};
   EXPECT_EQ(expectedStrs, strs);
+}
+
+TEST(inlet_Reader_lua, objectLookupReportsConsistentReaderResults)
+{
+  axom::inlet::LuaReader reader;
+  reader.parseString(R"(
+    callback = function() return {1, 2} end
+    nested = {[7] = {values = {[2] = 42, [5] = "five"}}}
+  )");
+
+  double scalar = 0.0;
+  EXPECT_EQ(ReaderResult::WrongType, reader.getDouble("callback", scalar));
+  EXPECT_EQ(ReaderResult::NotFound, reader.getDouble("callback/value", scalar));
+
+  std::unordered_map<int, double> typedValues {{99, 99.0}};
+  EXPECT_EQ(ReaderResult::WrongType, reader.getDoubleMap("callback", typedValues));
+  EXPECT_TRUE(typedValues.empty());
+
+  std::unordered_map<int, axom::inlet::VariantValue> values {{99, axom::inlet::VariantValue {99}}};
+  EXPECT_EQ(ReaderResult::WrongType, reader.getVariantMap("callback", values));
+  EXPECT_TRUE(values.empty());
+  EXPECT_EQ(ReaderResult::NotFound, reader.getVariantMap("missing", values));
+  EXPECT_TRUE(values.empty());
+
+  EXPECT_EQ(ReaderResult::Success, reader.getVariantMap("nested/7/values", values));
+  const std::unordered_map<int, axom::inlet::VariantValue> expectedValues {
+    {2, axom::inlet::VariantValue {42}},
+    {5, axom::inlet::VariantValue {std::string {"five"}}}};
+  EXPECT_EQ(expectedValues, values);
+
+  std::vector<int> indices {99};
+  EXPECT_EQ(ReaderResult::WrongType, reader.getIndices("callback", indices));
+  EXPECT_TRUE(indices.empty());
+  EXPECT_EQ(ReaderResult::Success, reader.getIndices("nested/7/values", indices));
+  std::sort(indices.begin(), indices.end());
+  EXPECT_EQ((std::vector<int> {2, 5}), indices);
+}
+
+TEST(inlet_Reader_lua, nonTableValuesAreWrongTypeForCollections)
+{
+  // Regression test against read that terminated the process with an uncaught sol::error
+  axom::inlet::LuaReader reader;
+  reader.parseString("scalar = 3.0; label = 'text'; callback = function() return 1 end");
+
+  for(const std::string name : {"scalar", "label", "callback"})
+  {
+    std::unordered_map<int, double> doubles {{99, 99.0}};
+    EXPECT_EQ(ReaderResult::WrongType, reader.getDoubleMap(name, doubles)) << name;
+    EXPECT_TRUE(doubles.empty()) << name;
+
+    std::unordered_map<axom::inlet::VariantKey, std::string> strings {{99, "stale"}};
+    EXPECT_EQ(ReaderResult::WrongType, reader.getStringMap(name, strings)) << name;
+    EXPECT_TRUE(strings.empty()) << name;
+
+    std::unordered_map<axom::inlet::VariantKey, axom::inlet::VariantValue> variants {
+      {99, axom::inlet::VariantValue {99}}};
+    EXPECT_EQ(ReaderResult::WrongType, reader.getVariantMap(name, variants)) << name;
+    EXPECT_TRUE(variants.empty()) << name;
+
+    std::vector<axom::inlet::VariantKey> indices {99};
+    EXPECT_EQ(ReaderResult::WrongType, reader.getIndices(name, indices)) << name;
+    EXPECT_TRUE(indices.empty()) << name;
+  }
+}
+
+TEST(inlet_Reader_lua, pathsThroughNonTablesAreNotFound)
+{
+  // Check that indexing through a non-table doesn't terminate the process with an uncaught sol::error
+  axom::inlet::LuaReader reader;
+  reader.parseString("scalar = 3.0; label = 'text'; callback = function() return 1 end");
+
+  for(const std::string parent : {"scalar", "label", "callback"})
+  {
+    const std::string name = parent + "/child";
+    double value = -1.0;
+    EXPECT_EQ(ReaderResult::NotFound, reader.getDouble(name, value)) << name;
+    EXPECT_DOUBLE_EQ(-1.0, value) << name;
+
+    std::unordered_map<int, double> doubles {{99, 99.0}};
+    EXPECT_EQ(ReaderResult::NotFound, reader.getDoubleMap(name, doubles)) << name;
+    EXPECT_TRUE(doubles.empty()) << name;
+
+    std::vector<int> indices {99};
+    EXPECT_EQ(ReaderResult::NotFound, reader.getIndices(name, indices)) << name;
+    EXPECT_TRUE(indices.empty()) << name;
+
+    EXPECT_FALSE(reader.getFunction(name, axom::inlet::FunctionTag::Double, {})) << name;
+  }
+}
+
+TEST(inlet_Reader_lua, nonFunctionValuesAreNotFunctions)
+{
+  // Check that a top-level non-function doesn't terminate the process with an uncaught sol::error
+  axom::inlet::LuaReader reader;
+  reader.parseString("scalar = 3.0; label = 'text'; group = {scalar = 3.0}");
+
+  for(const std::string name : {"scalar", "label", "group", "group/scalar", "missing"})
+  {
+    EXPECT_FALSE(reader.getFunction(name, axom::inlet::FunctionTag::Double, {})) << name;
+  }
+}
+
+TEST(inlet_Reader_lua, numericPathComponentsPreferIntegerKeys)
+{
+  // Every component of a path, including the last, is looked up as an integer key
+  // when it is numeric, and as a string key otherwise or if no integer key exists
+  axom::inlet::LuaReader reader;
+  reader.parseString(R"(
+    values = {5.0, 6.0}
+    both = {[1] = 1.0, ["1"] = 2.0}
+    stringKeyed = {["1"] = 7.0}
+    callbacks = {function() return 9.0 end}
+    nested = {[3] = {[4] = 8.0}}
+  )");
+
+  double value = -1.0;
+  EXPECT_EQ(ReaderResult::Success, reader.getDouble("values/2", value));
+  EXPECT_DOUBLE_EQ(6.0, value);
+  EXPECT_EQ(ReaderResult::Success, reader.getDouble("both/1", value));
+  EXPECT_DOUBLE_EQ(1.0, value);
+  EXPECT_EQ(ReaderResult::Success, reader.getDouble("stringKeyed/1", value));
+  EXPECT_DOUBLE_EQ(7.0, value);
+  EXPECT_EQ(ReaderResult::Success, reader.getDouble("nested/3/4", value));
+  EXPECT_DOUBLE_EQ(8.0, value);
+  EXPECT_EQ(ReaderResult::NotFound, reader.getDouble("values/3", value));
+
+  auto callback = reader.getFunction("callbacks/1", axom::inlet::FunctionTag::Double, {});
+  ASSERT_TRUE(callback);
+  EXPECT_DOUBLE_EQ(9.0, callback.call<double>());
+}
+
+TEST(inlet_Reader_lua, scalarReadsCheckTheLuaType)
+{
+  // Lua coerces numeric strings to numbers, but Inlet reads do not
+  axom::inlet::LuaReader reader;
+  reader.parseString("numeric = '3'; flag = true; number = 3; text = 'text'");
+
+  int intValue = -1;
+  double doubleValue = -1.0;
+  bool boolValue = false;
+  std::string stringValue = "unset";
+
+  EXPECT_EQ(ReaderResult::WrongType, reader.getInt("numeric", intValue));
+  EXPECT_EQ(ReaderResult::WrongType, reader.getDouble("numeric", doubleValue));
+  EXPECT_EQ(ReaderResult::WrongType, reader.getInt("flag", intValue));
+  EXPECT_EQ(ReaderResult::WrongType, reader.getDouble("flag", doubleValue));
+  EXPECT_EQ(ReaderResult::WrongType, reader.getBool("number", boolValue));
+  EXPECT_EQ(ReaderResult::WrongType, reader.getString("number", stringValue));
+  EXPECT_EQ(ReaderResult::WrongType, reader.getBool("text", boolValue));
+  EXPECT_EQ(-1, intValue);
+  EXPECT_DOUBLE_EQ(-1.0, doubleValue);
+  EXPECT_EQ("unset", stringValue);
+
+  EXPECT_EQ(ReaderResult::Success, reader.getString("numeric", stringValue));
+  EXPECT_EQ("3", stringValue);
+  EXPECT_EQ(ReaderResult::Success, reader.getBool("flag", boolValue));
+  EXPECT_TRUE(boolValue);
+}
+
+TEST(inlet_Reader_lua, getIndicesClearsOutputWhenNotFound)
+{
+  axom::inlet::LuaReader reader;
+  reader.parseString("values = {1, 2}");
+
+  std::vector<int> indices {99};
+  EXPECT_EQ(ReaderResult::NotFound, reader.getIndices("missing", indices));
+  EXPECT_TRUE(indices.empty());
+}
+
+TEST(inlet_Reader_lua, getAllNamesTerminatesOnCycles)
+{
+  axom::inlet::LuaReader reader;
+  ASSERT_TRUE(reader.parseString(R"(
+    self = {}
+    self.loop = self
+    left = {}
+    right = {parent = left}
+    left.child = right
+  )"));
+
+  auto names = reader.getAllNames();
+  std::sort(names.begin(), names.end());
+  const std::vector<std::string> expected {"left",
+                                           "left/child",
+                                           "left/child/parent",
+                                           "right",
+                                           "right/parent",
+                                           "right/parent/child",
+                                           "self",
+                                           "self/loop"};
+  EXPECT_EQ(expected, names);
+}
+
+TEST(inlet_Reader_lua, getAllNamesTerminatesOnGlobalTableAlias)
+{
+  // The global table is the root of the traversal, so an alias to it is a cycle
+  axom::inlet::LuaReader reader;
+  ASSERT_TRUE(reader.parseString("value = 1; env = _G"));
+
+  auto names = reader.getAllNames();
+  std::sort(names.begin(), names.end());
+  EXPECT_EQ((std::vector<std::string> {"env", "value"}), names);
+}
+
+TEST(inlet_Reader_lua, getAllNamesVisitsSharedTablesUnderEachPath)
+{
+  axom::inlet::LuaReader reader;
+  ASSERT_TRUE(reader.parseString(R"(
+    local shared = {nested = {value = 42}}
+    first = shared
+    second = shared
+  )"));
+
+  auto names = reader.getAllNames();
+  std::sort(names.begin(), names.end());
+  const std::vector<std::string> expected {"first",
+                                           "first/nested",
+                                           "first/nested/value",
+                                           "second",
+                                           "second/nested",
+                                           "second/nested/value"};
+  EXPECT_EQ(expected, names);
 }
 #endif
 

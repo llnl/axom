@@ -27,7 +27,7 @@ namespace detail
 {
 /**
  * \brief Determines whether a container is trivial (contains no fields/functions in its subtree)
- * 
+ *
  * \param [in] container The container to evaluate
  */
 bool isTrivial(const Container& container)
@@ -289,6 +289,18 @@ void SphinxWriter::extractFieldMetadata(const axom::sidre::Group* sidreGroup,
   if(sidreGroup->hasView("description"))
   {
     fieldAttributes[1] = std::string(sidreGroup->getView("description")->getString());
+  }
+
+  // A Field declared with orFunction() also accepts a function
+  if(sidreGroup->hasView("return_type"))
+  {
+    std::string& description = fieldAttributes[1];
+    if(!description.empty())
+    {
+      description += axom::utilities::string::endsWith(description, '.') ? " " : ". ";
+    }
+    description +=
+      fmt::format("Accepts a function with signature {0}.", getSignatureAsString(sidreGroup));
   }
 
   if(sidreGroup->hasView("defaultValue"))

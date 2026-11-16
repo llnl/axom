@@ -100,6 +100,13 @@ public:
                               const FunctionTag ret_type,
                               const std::vector<FunctionTag>& arg_types) override;
 
+  /*!
+   *****************************************************************************
+   * \brief Conduit YAML and JSON cannot supply functions
+   *****************************************************************************
+   */
+  bool supportsFunctions() const override { return false; }
+
   std::vector<std::string> getAllNames() override;
 
   /*!

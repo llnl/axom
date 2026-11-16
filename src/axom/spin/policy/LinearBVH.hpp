@@ -17,6 +17,7 @@
 #include "axom/primal/geometry/Vector.hpp"
 
 // linear bvh includes
+#include "axom/spin/SpaceFillingCurve.hpp"
 #include "axom/spin/internal/linear_bvh/BVHNode.hpp"
 #include "axom/spin/internal/linear_bvh/RadixTree.hpp"
 #include "axom/spin/internal/linear_bvh/build_radix_tree.hpp"
@@ -30,11 +31,7 @@
 #include <string>
 #include <vector>
 
-namespace axom
-{
-namespace spin
-{
-namespace policy
+namespace axom::spin::policy
 {
 namespace lbvh = internal::linear_bvh;
 
@@ -51,7 +48,7 @@ using BVH2Node = lbvh::BVH2Node<FloatType, NDIMS>;
  * user-provided predicate.
  * 
  * To initiate traversals, use \a traverse_tree. It requires
- * -# an action functor to call at the leaves,
+ * -# an action functor to call at the leaves
  * -# a predicate functor to decide whether to descend a branch and
  * -# some data to pass to the functors
  * 
@@ -59,8 +56,8 @@ using BVH2Node = lbvh::BVH2Node<FloatType, NDIMS>;
  * each leaf node, then iterating up the tree so the value at each node
  * is a sum of the value for its children.
  *
- * To initiate reductions, use \a reduce_tree. It requires
- * -# an action functor to call at the leaves,
+ * To initiate reductions, use \a reduce_leaves. It requires
+ * -# an action functor to call at the leaves
  *
  * All functors should only access memory that's available to the
  * execution space.  For example, GPU execution should access only
@@ -123,28 +120,51 @@ public:
   }
 
   /*!
+   * \brief Traverse the tree and invoke an action with the primitive ID in each visited leaf.
+   *
+   * \param[in] p The primitive to use for traversal.
+   * \param[in] leaf_action Action invoked as
+   *   `leaf_action(std::int32_t primitive_id)` for each visited leaf.
+   * \param[in] predicate Predicate that determines whether to descend a branch.
+   *
+   * \note Leaf traversal and functors require host-accessible memory.
+   */
+  template <typename Primitive, typename LeafAction, typename Predicate>
+  void traverse_leaves(const Primitive& p, LeafAction&& leaf_action, Predicate&& predicate) const
+  {
+    auto&& action = std::forward<LeafAction>(leaf_action);
+    auto leaf_action_wrapper = [=](std::int32_t leaf_slot, const std::int32_t* leaf_nodes) mutable {
+      action(leaf_nodes[leaf_slot]);
+    };
+
+    traverse_tree(p, leaf_action_wrapper, std::forward<Predicate>(predicate));
+  }
+
+  /*!
    * \brief Iterate over the tree, invoking the leaf action at each leaf node to
    *        produce a value and then iterate back up the tree, combining nodes
    *        using a "+" reduction. Return the Array that contains values for
    *        all tree nodes.
    *
-   * \param leaf_action The function to invoke on a leaf node to make its data.
+   * \param leaf_action The function to invoke with a leaf primitive ID to make its data.
    * \param allocatorID The allocator to use to allocate array data.
    *
    * \return An Array that contains the reduced data for all nodes in the BVH.
    */
   template <typename ExecSpace, typename ValueType, typename LeafAction>
-  axom::Array<ValueType> reduce_tree(LeafAction&& leaf_action,
-                                     int allocatorID = axom::getDefaultAllocatorID()) const
+  axom::Array<ValueType> reduce_leaves(LeafAction&& leaf_action,
+                                       int allocatorID = axom::getDefaultAllocatorID()) const
   {
+    auto&& action = std::forward<LeafAction>(leaf_action);
+
     // Make a field over all of the nodes (the return field).
     const auto num_node_slots = 2 * m_inner_nodes.size();
     axom::Array<ValueType> reducedField(num_node_slots, num_node_slots, allocatorID);
 
     if constexpr(std::is_same_v<ExecSpace, axom::SEQ_EXEC>)
     {
-      reduce_recursion(std::forward<LeafAction>(leaf_action), reducedField.view(), 0);
-      reduce_recursion(std::forward<LeafAction>(leaf_action), reducedField.view(), 1);
+      reduce_recursion(action, reducedField.view(), 0);
+      reduce_recursion(action, reducedField.view(), 1);
     }
     else
     {
@@ -156,18 +176,15 @@ public:
       const std::int32_t* leaf_nodes_data = m_leaf_nodes.data();
       axom::for_all<ExecSpace>(m_leaf_nodes.size(), [&](axom::IndexType currentNode) {
         const auto idx = leaf_nodes_data[currentNode];
-        leafFieldView[idx] = leaf_action(static_cast<std::int32_t>(currentNode), leaf_nodes_data);
+        leafFieldView[idx] = action(idx);
       });
 
       // Return the precomputed values in the reduction.
-      auto returnLeafValue = [&](std::int32_t currentNode, const std::int32_t* leafNodes) {
-        const auto idx = leafNodes[currentNode];
-        return leafFieldView[idx];
-      };
+      auto return_leaf_value = [&](std::int32_t primitive_id) { return leafFieldView[primitive_id]; };
 
       // TODO: Replace this with GPU-compatible code.
-      reduce_recursion(returnLeafValue, reducedField.view(), 0);
-      reduce_recursion(returnLeafValue, reducedField.view(), 1);
+      reduce_recursion(return_leaf_value, reducedField.view(), 0);
+      reduce_recursion(return_leaf_value, reducedField.view(), 1);
     }
 
     return reducedField;
@@ -195,9 +212,9 @@ private:
   }
 
   /*!
-   * \brief This is a helper method used in reduce_tree.
+   * \brief This is a helper method used in reduce_leaves.
    *
-   * \param leaf_action The function to invoke on a leaf node to make its data.
+   * \param leaf_action The function to invoke with a leaf primitive ID to make its data.
    * \param node_data The view that contains the traversal order for leaf nodes.
    * \param current_node The current node.
    */
@@ -217,14 +234,14 @@ private:
     // Check if node is a leaf
     if(child_index < 0)
     {
-      node_data[current_node] = leaf_action(-child_index - 1, m_leaf_nodes.data());
+      node_data[current_node] = leaf_action(m_leaf_nodes[-child_index - 1]);
 
       return;
     }
 
     // Populate children
-    reduce_recursion(std::forward<LeafAction>(leaf_action), node_data, child_index + 0);
-    reduce_recursion(std::forward<LeafAction>(leaf_action), node_data, child_index + 1);
+    reduce_recursion(leaf_action, node_data, child_index + 0);
+    reduce_recursion(leaf_action, node_data, child_index + 1);
 
     // Sum to get value for current node
     node_data[current_node] = node_data[child_index + 0] + node_data[child_index + 1];
@@ -260,9 +277,15 @@ public:
    * \param [in] boxes the bounding boxes for each leaf node
    * \param [in] numBoxes the number of bounding boxes
    * \param [in] scaleFactor scale factor applied to each bounding box before insertion into the BVH
+   * \param [in] allocatorID allocator used to store the BVH
+   * \param [in] ordering curve used to order box centroids. Defaults to Morton.
    */
   template <typename BoxIndexable>
-  void buildImpl(const BoxIndexable boxes, IndexType numBoxes, FloatType scaleFactor, int allocatorID);
+  void buildImpl(const BoxIndexable boxes,
+                 IndexType numBoxes,
+                 FloatType scaleFactor,
+                 int allocatorID,
+                 SpaceFillingCurve ordering = SpaceFillingCurve::Morton);
 
   /*!
    * \brief Performs a traversal to find the candidates for each query primitive.
@@ -316,12 +339,12 @@ template <typename BoxIndexable>
 void LinearBVH<FloatType, NDIMS, ExecSpace>::buildImpl(const BoxIndexable boxes,
                                                        IndexType numBoxes,
                                                        FloatType scaleFactor,
-                                                       int allocatorID)
+                                                       int allocatorID,
+                                                       SpaceFillingCurve ordering)
 {
   AXOM_ANNOTATE_SCOPE("LinearBVH::buildImpl");
 
-  // STEP 1: Build a RadixTree consisting of the bounding boxes, sorted
-  // by their corresponding morton code.
+  // STEP 1: Sort the boxes by spatial key and build a RadixTree.
   SLIC_ASSERT(numBoxes <= std::numeric_limits<std::int32_t>::max());
   const auto numBoxesInt = static_cast<std::int32_t>(numBoxes);
 
@@ -332,7 +355,8 @@ void LinearBVH<FloatType, NDIMS, ExecSpace>::buildImpl(const BoxIndexable boxes,
                                     global_bounds,
                                     radix_tree,
                                     scaleFactor,
-                                    allocatorID);
+                                    allocatorID,
+                                    ordering);
 
   // STEP 2: emit the BVH data-structure from the radix tree
   m_bounds = global_bounds;
@@ -542,6 +566,4 @@ void LinearBVH<FloatType, NDIMS, ExecSpace>::writeVtkFileImpl(const std::string&
   ofs.close();
 }
 
-}  // namespace policy
-}  // namespace spin
-}  // namespace axom
+}  // namespace axom::spin::policy

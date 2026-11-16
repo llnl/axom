@@ -60,6 +60,18 @@ The following example shows usage of the ``MarchingCubes`` class.
 (A complete example is provided in
 ``src/axom/quest/examples/quest_marching_cubes_example.cpp``.)
 
+To run the example, first list the scalar fields in a Blueprint mesh.
+Then choose a vertex-associated ``float64`` field to contour:
+
+.. code-block:: bash
+
+   ./examples/quest_marching_cubes_ex -m mdmesh.2x2x1.root --list-fields
+   ./examples/quest_marching_cubes_ex -m mdmesh.2x2x1.root -f gyroid_fcn --contourVal 1.25
+
+If the topology is not named ``mesh``, set ``--topology`` to its name.
+Use ``src/tools/gen-cartesian-blueprint-mesh.py --field all`` to generate
+an input mesh with scalar fields.
+
 Relevant header files:
 
 .. sourcecode:: C++
@@ -70,12 +82,9 @@ Relevant header files:
 
 Set up the user's blueprint mesh and the ``MarchingCubes`` object:
 
-The blueprint mesh must be a structured mesh in multi-domain format.
-A domain is a part of a global mesh that has been subdivided for
-reasons including parallel partitioning, geometric constraints and
-size constraints.  Any number of domains is allowed, including zero.
-(For single-domain format, see the similar
-``MarchingCubesSingleDomain`` class in the ``axom::quest`` namespace.)
+The blueprint mesh must be a structured mesh defined by a single- or multi-domain Blueprint mesh,
+where a domain is a part of a global mesh that has been subdivided for parallel partitioning.
+A multi-domain mesh may contain any number of domains, including zero.
 
 Blueprint convention allows for named coordinate sets and scalar
 fields.  Here, we tell the ``MarchingCubes`` constructor that the

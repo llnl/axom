@@ -44,15 +44,14 @@ TEST(slam_set_nullset, subscript_fails)
 
   EXPECT_EQ(n.size(), SetPosition()) << "size of null set is defined to be zero";
 
-#ifdef AXOM_DEBUG
-  // NOTE: AXOM_DEBUG is disabled in release mode,
-  // so this test will only fail in debug mode
+#if AXOM_SLIC_DEBUG_MACROS_ENABLED
+  // This check is only active when Slic debug macros are enabled.
 
   // add this line to avoid a warning in the output about thread safety
   ::testing::FLAGS_gtest_death_test_style = "threadsafe";
   EXPECT_DEATH_IF_SUPPORTED(n[0], "") << "subscript operator on null set asserts";
 #else
-  SLIC_INFO("Skipped assertion failure check in release mode.");
+  SLIC_INFO("Skipped assertion failure check because Slic debug macros are disabled.");
 #endif
 }
 

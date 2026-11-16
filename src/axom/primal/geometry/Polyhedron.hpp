@@ -287,9 +287,15 @@ public:
    *
    * \return The index where the vertex was inserted into.
    */
-  AXOM_HOST_DEVICE int addVertex(const PointType& pt)
+#if defined(__HIP_DEVICE_COMPILE__) && defined(__gfx90a__) && __clang_major__ == 19
+  // ROCm 6.4 miscompiles this function for gfx90a when it is inlined.
+  __attribute__((noinline))
+#endif
+  AXOM_HOST_DEVICE int
+  addVertex(const PointType& pt)
   {
-    SLIC_ASSERT(m_num_vertices + 1 < MAX_VERTS);
+    SLIC_ASSERT(m_num_vertices < MAX_VERTS);
+
     m_vertices[m_num_vertices] = pt;
     m_num_vertices++;
     return m_num_vertices - 1;
@@ -440,7 +446,7 @@ public:
     std::int8_t checkedEdges[MAX_VERTS * 2 * 2] = {0};
 
     // Check each vertex
-    for(int i = 0; i < numVertices(); ++i)
+    for(int i = 0; i < numVertices() && i < MAX_VERTS; ++i)
     {
       // Check each neighbor index (edge) of the vertex
       for(int j = 0; j < m_neighbors.getNumNeighbors(i); j++)

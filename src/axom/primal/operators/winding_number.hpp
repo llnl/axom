@@ -29,6 +29,7 @@
 #include "axom/primal/geometry/CurvedPolygon.hpp"
 #include "axom/primal/geometry/BoundingBox.hpp"
 #include "axom/primal/geometry/OrientedBoundingBox.hpp"
+#include "axom/primal/geometry/Dipole.hpp"
 
 #include "axom/primal/operators/detail/winding_number_2d_impl.hpp"
 #include "axom/primal/operators/detail/winding_number_2d_memoization.hpp"
@@ -54,6 +55,52 @@ struct WindingTolerances
   double EPS {1e-8};
 };
 
+///@{
+//! @name Winding number operations between 2D points and primitives
+
+/*!
+ * \brief Computes the GWN for a 2D point wrt a dipole.
+ *
+ * \param [in] q The query point to test
+ * \param [in] d The dipole generating the scalar field
+ *
+ * \return The GWN
+ */
+template <typename T>
+double winding_number(const Point<T, 2>& q, const Dipole<T, 2>& d)
+{
+  return 0.5 * M_1_PI * d.evaluate(q);
+}
+
+//! \brief Overload with a struct of tolerance options (none of which are used by dipoles).
+template <typename T>
+double winding_number(const Point<T, 2>& q, const Dipole<T, 2>& d, const WindingTolerances&)
+{
+  return winding_number(q, d);
+}
+
+/*!
+ * \brief Computes the GWN for a 2D point wrt a collection of dipoles.
+ *
+ * \param [in] q The query point to test
+ * \param [in] darray The array of Dipoles
+ *
+ * Sums the GWN at \a q for each dipole.
+ *
+ * \return The GWN.
+ */
+template <typename T>
+double winding_number(const Point<T, 2>& q, const axom::Array<Dipole<T, 2>>& darray)
+{
+  double ret_val = 0.0;
+  for(const auto& dipole : darray)
+  {
+    ret_val += dipole.evaluate(q);
+  }
+
+  return 0.5 * M_1_PI * ret_val;
+}
+
 /*!
  * \brief Compute the GWN for a 2D point wrt a 2D line segment
  *
@@ -68,6 +115,13 @@ double winding_number(const Point<T, 2>& q, const Segment<T, 2>& s, double edge_
 {
   bool dummy_isOnEdge = false;
   return detail::linear_winding_number(q, s[0], s[1], dummy_isOnEdge, edge_tol);
+}
+
+//! \brief Overload with a struct of tolerance options
+template <typename T>
+double winding_number(const Point<T, 2>& q, const Segment<T, 2>& s, const WindingTolerances& tolerances)
+{
+  return winding_number(q, s, tolerances.edge_tol);
 }
 
 /*!
@@ -156,6 +210,15 @@ double winding_number(const Point<T, 2>& q,
 {
   bool dummy_isOnCurve = false;
   return detail::nurbs_winding_number(q, n, dummy_isOnCurve, edge_tol, EPS);
+}
+
+//! \brief Overload with a struct of tolerance options
+template <typename T>
+double winding_number(const Point<T, 2>& q,
+                      const NURBSCurve<T, 2>& n,
+                      const WindingTolerances& tolerances)
+{
+  return winding_number(q, n, tolerances.edge_tol, tolerances.EPS);
 }
 
 /*!
@@ -314,6 +377,15 @@ double winding_number(const Point<T, 2>& q,
 {
   bool dummy_isOnCurve;
   return winding_number(q, nurbs_cache, dummy_isOnCurve, edge_tol, EPS);
+}
+
+//! \brief Overload with a struct of tolerance options
+template <typename T>
+double winding_number(const Point<T, 2>& q,
+                      const detail::NURBSCurveGWNCache<T>& nurbs_cache,
+                      const WindingTolerances& tolerances)
+{
+  return winding_number(q, nurbs_cache, tolerances.edge_tol, tolerances.EPS);
 }
 
 /*!
@@ -515,9 +587,53 @@ axom::Array<double> winding_number(const axom::Array<Point<T, 2>>& q_arr,
 
   return ret_val;
 }
+///@}
 
 ///@{
 //! @name Winding number operations between 3D points and primitives
+
+/*!
+ * \brief Computes the GWN for a 3D point wrt a dipole.
+ *
+ * \param [in] q The query point to test
+ * \param [in] d The dipole generating the scalar field
+ *
+ * \return The GWN
+ */
+template <typename T>
+double winding_number(const Point<T, 3>& q, const Dipole<T, 3>& d)
+{
+  return 0.25 * M_1_PI * d.evaluate(q);
+}
+
+//! \brief Overload with a struct of tolerance options (none of which are used by dipoles).
+template <typename T>
+double winding_number(const Point<T, 3>& q, const Dipole<T, 3>& d, const WindingTolerances&)
+{
+  return winding_number(q, d);
+}
+
+/*!
+ * \brief Computes the GWN for a 3D point wrt a collection of dipoles.
+ *
+ * \param [in] q The query point to test
+ * \param [in] darray The array of Dipoles
+ *
+ * Sums the GWN at \a q for each dipole.
+ *
+ * \return The GWN.
+ */
+template <typename T>
+double winding_number(const Point<T, 3>& q, const axom::Array<Dipole<T, 3>>& darray)
+{
+  double ret_val = 0.0;
+  for(const auto& dipole : darray)
+  {
+    ret_val += dipole.evaluate(q);
+  }
+
+  return 0.25 * M_1_PI * ret_val;
+}
 
 /*!
  * \brief Computes the GWN for a 3D point wrt a 3D triangle
@@ -626,6 +742,15 @@ double winding_number(const Point<T, 3>& q,
 {
   bool isOnFace = false;
   return winding_number(q, tri, isOnFace, edge_tol, EPS);
+}
+
+//! \brief Overload with a struct of tolerance options
+template <typename T>
+double winding_number(const Point<T, 3>& q,
+                      const Triangle<T, 3>& tri,
+                      const WindingTolerances& tolerances)
+{
+  return winding_number(q, tri, tolerances.edge_tol, tolerances.EPS);
 }
 
 /*!
@@ -782,6 +907,21 @@ double winding_number(const Point<T, 3>& query,
                                       EPS);
 }
 
+//! \brief Overload with a struct of tolerance options
+template <typename T>
+double winding_number(const Point<T, 3>& query,
+                      const detail::NURBSPatchGWNCache<T>& nurbs,
+                      const WindingTolerances& tolerances)
+{
+  return winding_number(query,
+                        nurbs,
+                        tolerances.edge_tol,
+                        tolerances.ls_tol,
+                        tolerances.quad_tol,
+                        tolerances.disk_size,
+                        tolerances.EPS);
+}
+
 /// \brief Overload for a single query and an ArrayView
 template <typename T>
 double winding_number(const Point<T, 3>& query,
@@ -842,6 +982,21 @@ double winding_number(const Point<T, 3>& query,
                         quad_tol,
                         disk_size,
                         EPS);
+}
+
+//! \brief Overload with a struct of tolerance options
+template <typename T, typename SurfaceType>
+double winding_number(const Point<T, 3>& query,
+                      const SurfaceType& surf,
+                      const WindingTolerances& tolerances)
+{
+  return winding_number(query,
+                        surf,
+                        tolerances.edge_tol,
+                        tolerances.ls_tol,
+                        tolerances.quad_tol,
+                        tolerances.disk_size,
+                        tolerances.EPS);
 }
 
 /*!

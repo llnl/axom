@@ -8,6 +8,7 @@
 
 #include "axom/core/Macros.hpp"  // for Axom macros
 #include "axom/slic.hpp"
+#include "axom/primal/geometry/BoundingBox.hpp"
 #include "axom/primal/geometry/Point.hpp"
 #include "axom/primal/geometry/Vector.hpp"
 
@@ -60,6 +61,7 @@ class Segment
 public:
   using PointType = Point<T, NDIMS>;
   using VectorType = Vector<T, NDIMS>;
+  using BoundingBoxType = BoundingBox<T, NDIMS>;
 
   enum
   {
@@ -133,6 +135,12 @@ public:
    * \brief Returns the length of the segment
    */
   AXOM_HOST_DEVICE double length() const { return VectorType(m_source, m_target).norm(); }
+
+  /// \brief Returns an axis-aligned bounding box containing the segment.
+  AXOM_HOST_DEVICE BoundingBoxType boundingBox() const
+  {
+    return BoundingBoxType(m_source, m_target, true);
+  }
 
   /*!
    * \brief Returns a vector normal to the segment

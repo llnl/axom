@@ -473,6 +473,65 @@ struct Mortonizer<CoordType, MortonIndexType, 3>
   static int maxBitsPerCoord() { return MAX_UNIQUE_BITS; }
 };
 
+/*!
+ * \brief Converts 4D integer points to and from Morton indices.
+ *
+ * Interleaves the (x,z) and (y,w) pairs, then interleaves those two indices.
+ * Each bit plane has x in its least significant bit, followed by y, z, and w.
+ * Only the lowest MORTON_BITS / 4 bits of each coordinate contribute to the key.
+ * \see Mortonizer
+ */
+template <typename CoordType, typename MortonIndexType>
+struct Mortonizer<CoordType, MortonIndexType, 4>
+{
+private:
+  using Morton2D = Mortonizer<CoordType, MortonIndexType, 2>;
+  using MortonPairs = Mortonizer<MortonIndexType, MortonIndexType, 2>;
+
+public:
+  static constexpr int NDIM = 4;
+  static constexpr int COORD_BITS = Morton2D::COORD_BITS;
+  static constexpr int MORTON_BITS = Morton2D::MORTON_BITS;
+  static constexpr int MB_PER_DIM = MORTON_BITS / NDIM;
+  /// Maximum number of bits per coordinate that can be recovered from the key.
+  static constexpr int MAX_UNIQUE_BITS = (MB_PER_DIM < COORD_BITS) ? MB_PER_DIM : COORD_BITS;
+
+  /// Interleaves the low bits of four coordinates into a Morton index.
+  AXOM_HOST_DEVICE static MortonIndexType mortonize(CoordType x, CoordType y, CoordType z, CoordType w)
+  {
+    return MortonPairs::mortonize(Morton2D::mortonize(x, z), Morton2D::mortonize(y, w));
+  }
+
+  /// Converts a 4D integer point to a Morton index.
+  AXOM_HOST_DEVICE static MortonIndexType mortonize(const primal::Point<CoordType, NDIM>& pt)
+  {
+    return mortonize(pt[0], pt[1], pt[2], pt[3]);
+  }
+
+  /// Recovers the four coordinates from a Morton index.
+  AXOM_HOST_DEVICE static void demortonize(MortonIndexType morton,
+                                           CoordType& x,
+                                           CoordType& y,
+                                           CoordType& z,
+                                           CoordType& w)
+  {
+    const auto pairs = MortonPairs::demortonize(morton);
+    Morton2D::demortonize(pairs[0], x, z);
+    Morton2D::demortonize(pairs[1], y, w);
+  }
+
+  /// Converts a Morton index to a 4D integer point.
+  AXOM_HOST_DEVICE static primal::Point<CoordType, NDIM> demortonize(MortonIndexType morton)
+  {
+    primal::Point<CoordType, NDIM> pt;
+    demortonize(morton, pt[0], pt[1], pt[2], pt[3]);
+    return pt;
+  }
+
+  /// Returns the maximum reversible number of bits per coordinate.
+  AXOM_HOST_DEVICE static constexpr int maxBitsPerCoord() { return MAX_UNIQUE_BITS; }
+};
+
 template <typename CoordType, typename MortonIndexType, typename Derived>
 const CoordType MortonBase<CoordType, MortonIndexType, Derived>::MaxBit_B[] = {
   static_cast<CoordType>(0x2),
@@ -573,14 +632,7 @@ struct PointHash
    */
   AXOM_HOST_DEVICE std::size_t operator()(primal::Point<CoordType, 4> const& pt) const
   {
-    // Mortonize two morton indices for a 4D morton index
-
-    using Pt2M = primal::Point<MortonIndex, 2>;
-
-    Pt2M pMorton = Pt2M::make_point(Mortonizer<CoordType, MortonIndex, 2>::mortonize(pt[0], pt[2]),
-                                    Mortonizer<CoordType, MortonIndex, 2>::mortonize(pt[1], pt[3]));
-
-    return Mortonizer<MortonIndex, MortonIndex, 2>::mortonize(pMorton);
+    return Mortonizer<CoordType, MortonIndex, 4>::mortonize(pt);
   }
 };
 
