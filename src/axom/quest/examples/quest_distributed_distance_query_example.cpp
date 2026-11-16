@@ -528,8 +528,9 @@ public:
       ->capture_default_str();
 
     app.add_option("--max-replication-factor", maxReplicationFactor)
-      ->description("Maximum extra copies per object-owning rank; "
-                    "0 makes no extra copies, negative values remove the limit")
+      ->description(
+        "Maximum extra copies per object-owning rank; "
+        "0 makes no extra copies, negative values remove the limit")
       ->capture_default_str();
 
     app.add_option("-p, --policy", policy)

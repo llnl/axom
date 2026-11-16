@@ -139,10 +139,7 @@ void DistributedClosestPoint::setDynamicDistanceFiltering(bool on)
   }
 }
 
-void DistributedClosestPoint::setMaxReplicationFactor(int count)
-{
-  m_maxReplicationFactor = count;
-}
+void DistributedClosestPoint::setMaxReplicationFactor(int count) { m_maxReplicationFactor = count; }
 
 void DistributedClosestPoint::setOutput(const std::string& field, bool on)
 {
