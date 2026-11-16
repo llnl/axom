@@ -70,6 +70,11 @@ You can also use a designated initializer:
    axom::spin::BVH<3> bvh;
    bvh.initialize(boxes, numBoxes, {.ordering = axom::spin::SpaceFillingCurve::Hilbert});
 
+``BVHBuildParameters`` exposes only the options supported by the selected
+policy. Bucketed linear BVHs additionally use ``maxBucketSize`` and a grouping
+policy. ``SharedPrefix`` preserves shared spatial-key-prefix ranges, while
+``Sequential`` forms fixed-size consecutive ranges.
+
 Both Morton and Hilbert normalize and clamp centroids in the same way.
 They use 16 bits per axis in 2D and 10 bits per axis in 3D.
 Degenerate axes map to coordinate zero.

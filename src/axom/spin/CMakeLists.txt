@@ -19,6 +19,7 @@ axom_component_requires(NAME       SPIN
 set( spin_headers
 
      BVH.hpp
+     BucketedBVHGrouping.hpp
      Brood.hpp
      DenseOctreeLevel.hpp
      HilbertIndex.hpp
@@ -71,6 +72,13 @@ axom_write_unified_header(NAME    spin
 axom_install_component(NAME    spin
                        HEADERS ${spin_headers}
                        )
+
+#------------------------------------------------------------------------------
+# add benchmarks
+#------------------------------------------------------------------------------
+if (ENABLE_BENCHMARKS)
+  add_subdirectory(benchmarks)
+endif()
 
 #------------------------------------------------------------------------------
 # add examples
