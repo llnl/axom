@@ -306,6 +306,9 @@ public:
   */
   void setDynamicDistanceFiltering(bool on) { m_dynamicDistanceFiltering = on; }
 
+  //! @brief Sets the number of extra copies allowed per object-owning rank.
+  void setMaxReplicationFactor(int count) { m_maxReplicationFactor = count; }
+
   /*!
     @brief Set which output data fields to generate.
   */
@@ -535,6 +538,8 @@ protected:
   double m_sqDistanceThreshold;
 
   bool m_dynamicDistanceFiltering = true;
+  bool m_replicateObjectDomains = true;
+  int m_maxReplicationFactor = -1;
 
   bool m_outputRank = true;
   bool m_outputIndex = true;
@@ -578,6 +583,8 @@ public:
   using PointArray = axom::Array<PointType>;
   using BoxArray = axom::Array<BoxType>;
   using BVHTreeType = spin::BVH<DIM, ExecSpace>;
+
+  struct ReplicationGroup;
 
   /*!
     @brief Constructor
@@ -716,6 +723,192 @@ public:
     }
   }
 
+  void buildReplicationMap()
+  {
+    // Gather number of points from all ranks.
+    const int npts = m_objectPtCoords.size();
+    axom::Array<int> npts_all(m_nranks);
+    npts_all.fill(0);
+    npts_all[m_rank] = npts;
+
+    int mpi_err =
+      MPI_Allgather(MPI_IN_PLACE, 0, MPI_DATATYPE_NULL, npts_all.data(), 1, MPI_INT, m_mpiComm);
+    SLIC_ASSERT(mpi_err == MPI_SUCCESS);
+    AXOM_UNUSED_VAR(mpi_err);
+
+    // Loop through ranks with points, and create replication groups.
+    m_objRanks.clear();
+    for(int irank = 0; irank < m_nranks; irank++)
+    {
+      if(npts_all[irank] > 0)
+      {
+        m_objRanks.push_back(irank);
+        m_replicationMap[irank].npts = npts_all[irank];
+      }
+    }
+
+    if(m_objRanks.empty())
+    {
+      // Exit out early, no ranks have objects.
+      return;
+    }
+
+    // Assign empty ranks round-robin to replication groups.
+    const int objRankCount = m_objRanks.size();
+    int emptyRankCount = 0;
+    for(int irank = 0; irank < m_nranks; irank++)
+    {
+      if(npts_all[irank] == 0)
+      {
+        if(m_maxReplicationFactor >= 0 && emptyRankCount / objRankCount >= m_maxReplicationFactor)
+        {
+          continue;
+        }
+        int objIndex = emptyRankCount % objRankCount;
+        int replicatedRank = m_objRanks[objIndex];
+        m_replicationMap[replicatedRank].replicas.push_back(irank);
+
+        if(m_rank == irank)
+        {
+          m_replicatedObjRank = replicatedRank;
+        }
+        emptyRankCount++;
+      }
+      else
+      {
+        // Not-empty, but we still need to include it in the replica list
+        m_replicationMap[irank].replicas.push_back(irank);
+      }
+    }
+  }
+
+  void replicateObjectPoints()
+  {
+    if(m_replicationMap.empty())
+    {
+      // Nothing to replicate.
+      return;
+    }
+
+    axom::Array<PointType> tmpPoints;
+    axom::Array<IndexType> tmpDomainIds;
+    MPI_Request recvRequests[2] = {MPI_REQUEST_NULL, MPI_REQUEST_NULL};
+    if(m_replicatedObjRank != -1)
+    {
+      int recvPts = m_replicationMap[m_replicatedObjRank].npts;
+
+      // Set up point-to-point buffers for communication.
+      {
+        // Allocate receive space for incoming points.
+        tmpPoints = axom::Array<PointType>(recvPts);
+        int data_size = recvPts * sizeof(PointType);
+        const int mpi_err = MPI_Irecv(tmpPoints.data(),
+                                      data_size,
+                                      MPI_BYTE,
+                                      m_replicatedObjRank,
+                                      0,
+                                      m_mpiComm,
+                                      &recvRequests[0]);
+        SLIC_ASSERT(mpi_err == MPI_SUCCESS);
+        AXOM_UNUSED_VAR(mpi_err);
+      }
+
+      {
+        // Also allocate domain ID space
+        tmpDomainIds = axom::Array<IndexType>(recvPts);
+        int int_data_size = recvPts * sizeof(IndexType);
+        const int mpi_err = MPI_Irecv(tmpDomainIds.data(),
+                                      int_data_size,
+                                      MPI_BYTE,
+                                      m_replicatedObjRank,
+                                      1,
+                                      m_mpiComm,
+                                      &recvRequests[1]);
+        SLIC_ASSERT(mpi_err == MPI_SUCCESS);
+        AXOM_UNUSED_VAR(mpi_err);
+      }
+
+      // Receiving processors wait here for incoming sends.
+      const int mpi_err = MPI_Waitall(2, &recvRequests[0], MPI_STATUSES_IGNORE);
+      SLIC_ASSERT(mpi_err == MPI_SUCCESS);
+      AXOM_UNUSED_VAR(mpi_err);
+
+      m_objectPtCoords = axom::Array<PointType>(tmpPoints, m_allocatorID);
+      m_objectPtDomainIds = axom::Array<IndexType>(tmpDomainIds, m_allocatorID);
+    }
+
+    // Sending processors: copy potentially device-side points to host and setup sends.
+    if(m_replicatedObjRank == -1 && m_objectPtCoords.size() > 0)
+    {
+      int hostAllocID = axom::detail::getDefaultHostAllocatorID();
+
+      // Points may have been allocated in GPU memory.
+      tmpPoints = axom::Array<PointType>(m_objectPtCoords, hostAllocID);
+      int data_size = tmpPoints.size() * sizeof(PointType);
+
+      tmpDomainIds = axom::Array<IndexType>(m_objectPtDomainIds, hostAllocID);
+      int int_data_size = tmpDomainIds.size() * sizeof(IndexType);
+
+      axom::Array<MPI_Request> sendRequests;
+      sendRequests.resize(2 * m_replicationMap[m_rank].replicas.size(), MPI_REQUEST_NULL);
+
+      int sendidx = 0;
+      for(int sendRank : m_replicationMap[m_rank].replicas)
+      {
+        if(sendRank == m_rank)
+        {
+          continue;
+        }
+        {
+          const int mpi_err = MPI_Isend(tmpPoints.data(),
+                                        data_size,
+                                        MPI_BYTE,
+                                        sendRank,
+                                        0,
+                                        m_mpiComm,
+                                        &sendRequests[sendidx++]);
+          SLIC_ASSERT(mpi_err == MPI_SUCCESS);
+          AXOM_UNUSED_VAR(mpi_err);
+        }
+        {
+          const int mpi_err = MPI_Isend(tmpDomainIds.data(),
+                                        int_data_size,
+                                        MPI_BYTE,
+                                        sendRank,
+                                        1,
+                                        m_mpiComm,
+                                        &sendRequests[sendidx++]);
+          SLIC_ASSERT(mpi_err == MPI_SUCCESS);
+          AXOM_UNUSED_VAR(mpi_err);
+        }
+      }
+
+      // Wait for all sends to complete.
+      const int mpi_err = MPI_Waitall(sendRequests.size(), sendRequests.data(), MPI_STATUSES_IGNORE);
+      SLIC_ASSERT(mpi_err == MPI_SUCCESS);
+      AXOM_UNUSED_VAR(mpi_err);
+    }
+  }
+
+  int selectReplica(const ReplicationGroup& group, int homeRank) const
+  {
+    const auto& replica_ranks = group.replicas;
+    SLIC_ASSERT(!replica_ranks.empty());
+
+    const bool homeRankInGroup =
+      std::find(replica_ranks.begin(), replica_ranks.end(), homeRank) != replica_ranks.end();
+    if(homeRankInGroup)
+    {
+      // Home rank in replica set: just send this node home.
+      return homeRank;
+    }
+    else
+    {
+      // Select a round-robin replica rank.
+      return replica_ranks[homeRank % replica_ranks.size()];
+    }
+  }
+
   /// Compute bounding box for local part of a mesh.
   BoxType computeMeshBoundingBox(conduit::Node& xferNode) const
   {
@@ -772,18 +965,68 @@ public:
 
       double currentMaxSqDistance = computeLocalClosestPoints(xferNode);
 
+      std::vector<int> route;
       const auto& myObjectBb = m_objectPartitionBbs[m_rank];
-      for(int r = 0; r < m_nranks; ++r)
+      if(m_replicateObjectDomains && !m_replicationMap.empty())
       {
-        if(r != m_rank)
+        const int origRank = (m_replicatedObjRank == -1) ? m_rank : m_replicatedObjRank;
+        const auto groupIt = m_replicationMap.find(origRank);
+        auto routeGroupIt = groupIt;
+        const bool hasLocalObjects = groupIt != m_replicationMap.end();
+        if(hasLocalObjects)
+        {
+          for(int r = 0; r < m_nranks; ++r)
+          {
+            if(r != m_rank && selectReplica(groupIt->second, r) == m_rank)
+            {
+              const auto& otherQueryBb = allQueryBbs[r];
+              if(is_statically_eligible(otherQueryBb, myObjectBb))
+              {
+                ++remainingRecvs;
+              }
+            }
+          }
+          // The local group has already processed this rank's query.
+          if(++routeGroupIt == m_replicationMap.end())
+          {
+            routeGroupIt = m_replicationMap.begin();
+          }
+        }
+        else
+        {
+          // This rank was not replicated. Select a group to start on round-robin.
+          SLIC_ASSERT(m_replicatedObjRank == -1);
+          routeGroupIt = m_replicationMap.find(m_objRanks[m_rank % m_objRanks.size()]);
+        }
+
+        const std::size_t routeSize = m_replicationMap.size() - (hasLocalObjects ? 1 : 0);
+        for(std::size_t i = 0; i < routeSize; ++i)
+        {
+          route.push_back(selectReplica(routeGroupIt->second, m_rank));
+          if(++routeGroupIt == m_replicationMap.end())
+          {
+            routeGroupIt = m_replicationMap.begin();
+          }
+        }
+      }
+      else
+      {
+        for(int r = 0; r < m_nranks; ++r)
         {
           const auto& otherQueryBb = allQueryBbs[r];
-          if(is_statically_eligible(otherQueryBb, myObjectBb))
+          if(r != m_rank && is_statically_eligible(otherQueryBb, myObjectBb))
           {
             ++remainingRecvs;
           }
         }
+
+        for(int i = 1; i < m_nranks; ++i)
+        {
+          route.push_back((m_rank + i) % m_nranks);
+        }
       }
+      xferNode["route_list"].set(route);
+      xferNode["route_index"] = 0;
 
       /*
         Send local query mesh to next rank with close-enough object
@@ -914,37 +1157,42 @@ private:
    * Sends skip tokens to statically eligible ranks that dynamic distance
    * filtering can prove will not improve the current closest point results.
    */
-  int next_recipient(const conduit::Node& xferNode,
+  int next_recipient(conduit::Node& xferNode,
                      double currentMaxSqDistance,
                      int tag,
                      std::list<conduit::relay::mpi::Request>& isendRequests) const
   {
-    int homeRank = xferNode.fetch_existing("homeRank").value();
+    const int homeRank = xferNode.fetch_existing("homeRank").as_int();
     BoxType bb;
     get_bounding_box_from_conduit_node(bb, xferNode.fetch_existing("aabb"));
 
-    for(int i = 1; i < m_nranks; ++i)
+    const conduit::Node& routeNode = xferNode.fetch_existing("route_list");
+    const int routeSize = routeNode.dtype().number_of_elements();
+    const int* route = routeSize > 0 ? routeNode.as_int_ptr() : nullptr;
+    int& routeIndex = *xferNode.fetch_existing("route_index").as_int_ptr();
+
+    for(int i = routeIndex; i < routeSize; ++i)
     {
-      int maybeNextRecip = (m_rank + i) % m_nranks;
-      if(maybeNextRecip == homeRank)
+      const int maybeNextRecip = route[i];
+      routeIndex = i + 1;
+
+      double sqDistance = 0.0;
+      if(!is_statically_eligible(bb, m_objectPartitionBbs[maybeNextRecip], sqDistance))
+      {
+        continue;
+      }
+
+      /// Use the next recipient if that rank may be able to update one of the
+      /// points in the query, otherwise skip that rank. An update is possible
+      /// if the minimum distance between the bounding boxes is less than
+      /// the current distance of any of the query points.
+      if(sqDistance <= currentMaxSqDistance)
       {
         return maybeNextRecip;
       }
-      if(double sqDistance = 0.0;
-         is_statically_eligible(bb, m_objectPartitionBbs[maybeNextRecip], sqDistance))
-      {
-        /// Use the next recipient if that rank may be able to update one of the
-        /// points in the query, otherwise skip that rank. An update is possible
-        /// if the minimum distance between the bounding boxes is less than
-        /// the current distance of any of the query points.
-        if(sqDistance <= currentMaxSqDistance)
-        {
-          return maybeNextRecip;
-        }
-        send_skip_token(maybeNextRecip, tag, isendRequests);
-      }
+      send_skip_token(maybeNextRecip, tag, isendRequests);
     }
-    return -1;
+    return m_rank == homeRank ? -1 : homeRank;
   }
 
   // Note: following should be private, but nvcc complains about lambdas in private scope
@@ -953,6 +1201,13 @@ public:
   bool generateBVHTreeImpl(BVHTreeType* bvh)
   {
     SLIC_ASSERT(bvh != nullptr);
+
+    if(m_replicateObjectDomains)
+    {
+      // Before constructing BVH, replicate points across any ranks without object points.
+      buildReplicationMap();
+      replicateObjectPoints();
+    }
 
     const int npts = m_objectPtCoords.size();
     axom::Array<BoxType> boxesArray(npts, npts, m_allocatorID);
@@ -1060,7 +1315,7 @@ public:
         auto query_order_view = query_order.view();
         const double sqDistThreshold = m_sqDistanceThreshold;
         auto it = m_bvh->getTraverser();
-        const int rank = m_rank;
+        const int rank = (m_replicatedObjRank == -1) ? m_rank : m_replicatedObjRank;
         auto ptCoordsView = m_objectPtCoords.view();
         auto ptDomainIdsView = m_objectPtDomainIds.view();
 
@@ -1272,6 +1527,22 @@ public:
   BoxArray m_objectPartitionBbs;
 
   std::unique_ptr<BVHTreeType> m_bvh;
+
+  /*!
+   * \brief Helper data structure for object domain replication.
+   */
+  struct ReplicationGroup
+  {
+    int npts;
+    BoxType bounds;
+    axom::Array<int> replicas;
+  };
+
+  axom::Array<int> m_objRanks;
+  // maps home rank -> replication group
+  std::map<int, ReplicationGroup> m_replicationMap;
+  // if not -1, object points on this rank are replicated from another rank
+  int m_replicatedObjRank {-1};
 };  // DistributedClosestPointExec
 
 }  // namespace internal
