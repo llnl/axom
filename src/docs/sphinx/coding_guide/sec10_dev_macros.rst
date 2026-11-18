@@ -25,22 +25,23 @@ system that we use in day-to-day code development.
 Unused variables
 ------------------------------------
 
-10.2 To silence compiler warnings and express variable usage intent more 
-clearly, macros in the `AxomMacros.hpp` header file in the source include 
-directory **must** be used when appropriate. For example,::
+10.2 To silence compiler warnings and express variable usage intent more
+clearly, macros in the ``axom/core/Macros.hpp`` header file **must** be used
+when appropriate. For example,::
 
-    void my_function(int x, int AXOM_DEBUG_PARAM(y))
+    void my_function(AXOM_MAYBE_UNUSED int y)
     {
-      // use variable y only for debug compilation
+      SLIC_ASSERT(y > 0);
     }
 
-Here, the `AXOM_DEBUG_PARAM` macro indicates that the variable 'y' is only
-used when the code is compiled in debug mode. It also removes the variable
-name in the argument list in non-debug compilation to prevent unwanted
-compiler warnings.
+Here, ``AXOM_MAYBE_UNUSED`` indicates that the parameter ``y`` might be unused
+in configurations where ``SLIC_ASSERT`` is disabled. The parameter remains
+named in every configuration, while the annotation prevents unwanted compiler
+warnings. Prefer this macro for variables and parameters whose use depends on
+debug or SLIC macros.
 
-Please see the `AxomMacros.hpp` header file for other available macros and 
-usage examples.
+Please see the ``axom/core/Macros.hpp`` header file for other available macros
+and usage examples.
 
 
 ------------------------------------
@@ -78,6 +79,16 @@ for a debug build **must** be guarded using the `AXOM_DEBUG` macro::
 
       // rest of method implementation
    }
+
+The ``AXOM_DEBUG_DEFINE`` CMake setting controls when ``AXOM_DEBUG`` is
+defined. Its supported values are:
+
+* ``DEFAULT``: define it for ``Debug`` and ``RelWithDebInfo`` configurations.
+* ``ON``: define it for every configuration.
+* ``OFF``: do not define it in any configuration.
+
+Thus, ``AXOM_DEBUG`` normally follows the build configuration, but
+``AXOM_DEBUG_DEFINE`` can explicitly override that behavior.
 
 Axom provides various other macro constants for conditionally-compiled code 
 which reflect which built-in and third-party libraries are being used and 
@@ -131,29 +142,63 @@ problematic usage. Here's an example of common *SLIC* macro usage in AXOM::
      return bar;
    }
 
-This example uses slic macros that are only active when the code is compiled
-in debug mode. When compiled in release mode, for example, the macros are 
-empty and so do nothing. Also, when a condition is encountered that is 
-problematic, such as 'in_val < 0' or 'in_foo == nullptr', the code will
+This example uses Slic macros controlled by the
+``AXOM_ENABLE_SLIC_DEBUG_MACROS`` CMake setting. ``DEFAULT`` follows
+``AXOM_DEBUG``: the macros are active when the ``AXOM_DEBUG`` compiler
+definition is visible and are empty otherwise. With
+``AXOM_DEBUG_DEFINE=DEFAULT``, Axom defines
+``AXOM_DEBUG`` in ``Debug`` and ``RelWithDebInfo`` configurations and does not
+define it in ``Release`` or ``MinSizeRel``. An installed Axom can export that
+definition to downstream targets, independently of the downstream build type.
+``ON`` or ``OFF`` explicitly enables or disables the Slic macros without
+changing other code guarded by ``AXOM_DEBUG``. A downstream CMake project can
+set this variable before calling ``find_package(axom)`` to override the setting
+exported by Axom.
+
+Choose a preprocessor guard according to the behavior it controls:
+
+* Use ``AXOM_DEBUG`` for general debug-only behavior that is independent of
+  whether Slic debug macros are active.
+* Use ``AXOM_SLIC_DEBUG_MACROS_ENABLED`` for work performed exclusively to
+  support ``SLIC_ASSERT``, ``SLIC_CHECK``, or ``SLIC_DEBUG``. Enabling Slic
+  debug macros must not enable unrelated ``AXOM_DEBUG`` behavior.
+
+For example, guard supporting work used only by Slic debug macros as follows::
+
+   #if AXOM_SLIC_DEBUG_MACROS_ENABLED
+     // Compute values or perform validation used only by Slic debug macros.
+   #endif
+
+This read-only macro evaluates to ``0`` or ``1`` and reflects the effective
+state after applying ``AXOM_ENABLE_SLIC_DEBUG_MACROS`` and its default
+``AXOM_DEBUG`` behavior. Do not define it directly. In particular, do not use
+``AXOM_ENABLE_SLIC_DEBUG_MACROS`` as a source-code condition because it is
+undefined in ``DEFAULT`` mode.
+
+When disabled, the Slic debug macros are empty and do nothing. When a
+condition is encountered that is problematic, such as 'in_val < 0' or
+'in_foo == nullptr', the code will
 emit the condition and an optional message and not halt. This allows calling
 code to catch the issue (in this case a null return value) and react. There
 are other macros (e.g., SLIC_ASSERT) that will halt the code if that is 
 desired.
 
-Slic macros operate in one of two compilation-defined modes. Some macros are 
-active only in for a debug compile. Others are active for any build type.
+Slic macros operate in one of two compilation-defined modes. Some macros are
+controlled by the debug-macro settings described above. Others are active for
+any build type.
 Macros provided for each of these modes can be used to halt the code or not 
 after describing the condition that triggered them. The following table
 summarizes the SLIC macros.
 
-============== ================ ====================
-  Macro type     When active?     Halts code?
-============== ================ ====================
-  ERROR          Always           Yes
-  WARNING        Always           No
-  ASSERT         Debug only       Yes
-  CHECK          Debug only       No
-============== ================ ====================
+============== ========================================== ====================
+  Macro type     When active?                               Halts code?
+============== ========================================== ====================
+  ERROR          Always                                     Yes
+  WARNING        Always                                     No
+  ASSERT         When Slic debug macros are enabled         Yes
+  CHECK          When Slic debug macros are enabled         No
+  DEBUG          When Slic debug macros are enabled         No
+============== ========================================== ====================
 
 Typically, we use macros ERROR/WARNING macros rarely. They are used primarily
 to catch cases that are obvious programming errors or would put an application 
@@ -161,7 +206,7 @@ in a state where continuing is seriously in doubt. CHECK macros are used most
 often, since they provide useful debugging information and do not halt the 
 code -- they allow users to catch cases from which they can recover. ASSERT
 macros are used in cases where halting the code is desired, but only in 
-debug mode.
+builds where Slic debug macros are enabled.
 
 Please see the `slic.hpp` header file to see which macros are available and 
 how to use them. 
@@ -170,4 +215,3 @@ how to use them.
                benefit users and other developers. We want to help folks use 
                our software correctly and not "spam" them with too much 
                information.
-

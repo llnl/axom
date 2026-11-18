@@ -1620,7 +1620,7 @@ void MFEMSidreDataCollection::addVectorBasedField(const std::string& field_name,
     }
   }
 
-  #ifdef AXOM_DEBUG
+  #if AXOM_SLIC_DEBUG_MACROS_ENABLED
   for(int d = 0; d < vdim; d++)
   {
     std::snprintf(fidxName, FLD_SZ, "x%d", d);

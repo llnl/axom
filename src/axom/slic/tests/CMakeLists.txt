@@ -12,6 +12,8 @@
 #
 set(serial_slic_tests
     slic_asserts.cpp
+    slic_disable_debug_macros.cpp
+    slic_enable_debug_macros.cpp
     slic_fmt.cpp
     slic_interface.cpp
     slic_macros.cpp

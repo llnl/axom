@@ -311,14 +311,12 @@ if(TARGET hdf5::hdf5-shared AND BUILD_SHARED_LIBS)
     blt_import_library(NAME      hdf5
                        LIBRARIES hdf5::hdf5-shared
                        INCLUDES  ${HDF5_INCLUDE_DIRS}
-                       TREAT_INCLUDES_AS_SYSTEM ON
-                       EXPORTABLE ON)
+                       TREAT_INCLUDES_AS_SYSTEM ON)
 elseif(WIN32 AND TARGET hdf5::hdf5-static )
     # reg static ver of imported lib target
     message(STATUS "HDF5 using hdf5::hdf5-static target")
     blt_import_library(NAME      hdf5
-                       LIBRARIES hdf5::hdf5-static
-                       EXPORTABLE ON)
+                       LIBRARIES hdf5::hdf5-static)
 elseif(TARGET hdf5)
     # legacy hdf5 CMake build system support creates an hdf5 target we use directly
     message(STATUS "HDF5 using hdf5 target")
@@ -336,6 +334,5 @@ else()
                        DEFINES   ${HDF5_DEFINITIONS}
                        INCLUDES  ${HDF5_INCLUDE_DIRS}
                        LIBRARIES ${HDF5_LIBRARIES}
-                       TREAT_INCLUDES_AS_SYSTEM ON
-                       EXPORTABLE ON )
+                       TREAT_INCLUDES_AS_SYSTEM ON)
 endif()

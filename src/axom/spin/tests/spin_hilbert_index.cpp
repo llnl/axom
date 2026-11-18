@@ -230,7 +230,7 @@ void checkWideCoordinates()
   }
 }
 
-#if defined(AXOM_DEBUG)
+#if AXOM_SLIC_DEBUG_MACROS_ENABLED
 template <int DIM>
 void checkInvalidPreconditions()
 {
@@ -493,7 +493,7 @@ TEST(Hilbertizer4DTest, wide_coordinates_are_validated_before_narrowing)
   checkWideCoordinates<4>();
 }
 
-#if defined(AXOM_DEBUG)
+#if AXOM_SLIC_DEBUG_MACROS_ENABLED
 TEST(Hilbertizer2DTest, invalid_preconditions) { checkInvalidPreconditions<2>(); }
 
 TEST(Hilbertizer3DTest, invalid_preconditions) { checkInvalidPreconditions<3>(); }

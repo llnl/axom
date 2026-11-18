@@ -312,14 +312,14 @@ private:
     return s1 >= 0 && s1 < m_relation->fromSet()->size() && s2 >= 0 && s2 < m_relation->size(s1);
   }
 
-  void verifyPosition(PositionType AXOM_DEBUG_PARAM(sPos)) const
+  void verifyPosition(AXOM_MAYBE_UNUSED PositionType sPos) const
   {
     SLIC_ASSERT_MSG(sPos >= 0 && sPos < size(),
                     "SLAM::RelationSet -- requested out-of-range element at position "
                       << sPos << ", but set only has " << size() << " elements.");
   }
 
-  void verifyPosition(PositionType AXOM_DEBUG_PARAM(s1), PositionType AXOM_DEBUG_PARAM(s2)) const
+  void verifyPosition(AXOM_MAYBE_UNUSED PositionType s1, AXOM_MAYBE_UNUSED PositionType s2) const
   {
     SLIC_ASSERT_MSG(isValidIndex(s1, s2),
                     "SLAM::RelationSet -- requested out-of-range element at position ("

@@ -247,8 +247,8 @@ TEST(slam_FieldRegistry, field_storage_modes_share_keyspace)
 TEST(slam_FieldRegistry, get_wrong_storage_mode_is_a_precondition_violation)
 {
   // getField()/getFieldView() fetch a specific std::variant alternative. Asking for the
-  // wrong alternative for an existing key is a precondition violation: it asserts in debug
-  // builds (via the verify*Key helpers) and throws std::bad_variant_access in release builds.
+  // wrong alternative for an existing key is a precondition violation: it asserts when Slic
+  // debug macros are enabled and throws std::bad_variant_access otherwise.
   SetType s(3);
   ScalarRegistry reg;
 
@@ -256,8 +256,7 @@ TEST(slam_FieldRegistry, get_wrong_storage_mode_is_a_precondition_violation)
   reg.addFieldView("density", &s, data);  // view-backed
   reg.addField("temperature", &s);        // owning
 
-#ifdef AXOM_DEBUG
-  // NOTE: AXOM_DEBUG is disabled in release mode, so these checks are skipped there.
+#if AXOM_SLIC_DEBUG_MACROS_ENABLED
   EXPECT_DEATH_IF_SUPPORTED(reg.getField("density"), "");
   EXPECT_DEATH_IF_SUPPORTED(reg.getFieldView("temperature"), "");
 
@@ -265,8 +264,8 @@ TEST(slam_FieldRegistry, get_wrong_storage_mode_is_a_precondition_violation)
   EXPECT_DEATH_IF_SUPPORTED(creg.getField("density"), "");
   EXPECT_DEATH_IF_SUPPORTED(creg.getFieldView("temperature"), "");
 #else
-  SLIC_INFO("Skipped assertion failure check in release mode.");
-  // In release builds the underlying std::get throws on the wrong alternative.
+  SLIC_INFO("Skipped assertion failure check because Slic debug macros are disabled.");
+  // Without Slic assertions, the underlying std::get throws on the wrong alternative.
   EXPECT_THROW(reg.getField("density"), std::bad_variant_access);
   EXPECT_THROW(reg.getFieldView("temperature"), std::bad_variant_access);
 #endif

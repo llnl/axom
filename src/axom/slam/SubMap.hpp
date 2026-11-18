@@ -209,7 +209,7 @@ private:  //helper functions
   void verifyPosition(SetPosition idx, SetPosition comp) const { verifyPositionImpl(idx, comp); }
 
   /** Checks the ComponentFlatIndex is valid */
-  void verifyPositionImpl(SetPosition AXOM_DEBUG_PARAM(idx)) const
+  void verifyPositionImpl(AXOM_MAYBE_UNUSED SetPosition idx) const
   {
     SLIC_ASSERT_MSG(idx >= 0 && idx < m_subsetIdx.size() * numComp(),
                     "Attempted to access element " << idx << " but Submap's data has size "
@@ -218,7 +218,7 @@ private:  //helper functions
 
   /** Checks the ElementFlatIndex and the component index is valid */
   template <typename ComponentIndex>
-  void verifyPositionImpl(SetPosition AXOM_DEBUG_PARAM(idx), ComponentIndex AXOM_DEBUG_PARAM(comp)) const
+  void verifyPositionImpl(AXOM_MAYBE_UNUSED SetPosition idx, AXOM_MAYBE_UNUSED ComponentIndex comp) const
   {
     SLIC_ASSERT_MSG(idx >= 0 && idx < m_subsetIdx.size() && comp >= 0 && comp < numComp(),
                     "Attempted to access element "
@@ -228,10 +228,10 @@ private:  //helper functions
 
   /** Checks the ElementFlatIndex and the component index is valid */
   template <typename... ComponentIndex>
-  void verifyPositionImpl(SetPosition AXOM_DEBUG_PARAM(idx),
-                          ComponentIndex... AXOM_DEBUG_PARAM(comp)) const
+  void verifyPositionImpl(AXOM_MAYBE_UNUSED SetPosition idx,
+                          AXOM_MAYBE_UNUSED ComponentIndex... comp) const
   {
-#ifdef AXOM_DEBUG
+#if AXOM_SLIC_DEBUG_MACROS_ENABLED
     ElementShape indexArray {{comp...}};
     bool validIndexes = true;
     for(int dim = 0; dim < StridePolicyType::NumDims; dim++)
