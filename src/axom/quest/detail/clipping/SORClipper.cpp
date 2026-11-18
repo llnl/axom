@@ -28,6 +28,7 @@ SORClipper::SORClipper(const klee::Geometry& kGeom, const std::string& name)
   , m_minRadius(std::numeric_limits<double>::max())
 {
   extractClipperInfo();
+  const auto bodyVertexCache = std::make_shared<MonotonicZSORClipper::BodyVertexCache>();
 
   for(auto& pt : m_sorCurve)
   {
@@ -55,7 +56,8 @@ SORClipper::SORClipper(const klee::Geometry& kGeom, const std::string& name)
                                                                  section,
                                                                  m_sorOrigin,
                                                                  m_sorDirection,
-                                                                 m_levelOfRefinement));
+                                                                 m_levelOfRefinement,
+                                                                 bodyVertexCache));
   }
 }
 
@@ -79,16 +81,22 @@ bool SORClipper::specializedClipCells(quest::experimental::ShapeMesh& shapeMesh,
   axom::Array<double> tmpOvlap(cellCount, cellCount, ovlap.getAllocatorID());
   for(auto& fsorImpl : m_fsorImpls)
   {
+    AXOM_ANNOTATE_BEGIN("SORClipper::reset_segment_overlap");
     tmpOvlap.fill(0.0);
+    AXOM_ANNOTATE_END("SORClipper::reset_segment_overlap");
     MeshClipper clipper(shapeMesh, fsorImpl);
     clipper.setScreenLevel(m_screenLevel);
     clipper.setVerbose(false);
+    AXOM_ANNOTATE_BEGIN("SORClipper::clip_segment");
     clipper.clip(tmpOvlap);
+    AXOM_ANNOTATE_END("SORClipper::clip_segment");
     auto sorCurve = fsorImpl->getSorCurve();
     const auto firstZ = sorCurve[0][0];
     const auto lastZ = sorCurve[sorCurve.size() - 1][0];
     int sign = axom::utilities::sign_of(lastZ - firstZ, 0.0);
+    AXOM_ANNOTATE_BEGIN("SORClipper::accumulate_segment");
     accumulateData(ovlap, tmpOvlap.view(), double(sign), shapeMesh.getRuntimePolicy());
+    AXOM_ANNOTATE_END("SORClipper::accumulate_segment");
     MeshClipper::accumulateClippingStats(statistics, clipper.getClippingStats());
   }
   return true;

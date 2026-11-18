@@ -45,6 +45,7 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
 - Spin: Adds a host-only `LinearBVHTraverser::traverse_leaves()` for actions that receive the original primitive ID directly.
 - Quest: Adds support for replicating object ranks across empty processors to spread out communication.
   This is controlled via a `DistributedClosestPoint::setMaxReplicationFactor()` method.
+- Primal: Adds analytic `intersection_volume()` overloads for a sphere and tetrahedron, available on host and device.
 
 ### Removed
 
@@ -64,6 +65,9 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
 - Bump: Supports Blueprint `offsets` and `strides` on structured and strided-structured topologies and fields,
   including layouts that specify only one of those keys.
 - Spin: Replaces `LinearBVHTraverser::reduce_tree()` with `reduce_leaves()` and passes the original primitive ID to its leaf action.
+- Quest: `MeshClipper` uses analytic sphere-tetrahedron overlap when tetrahedron screening is enabled,
+  making that path independent of sphere refinement. Lower screening levels retain discretized clipping.
+  CPU clipping also reduces traversal overhead and accelerates cone/cylinder screening.
 
 ### Fixed
 - Sidre: Fixed `MFEMSidreDataCollection` parallel reload for workflows that save copied `ParMesh` and `ParGridFunction` objects backed by external strided coord/vector views.
