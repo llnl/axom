@@ -518,6 +518,40 @@ if(AXOM_ENABLE_MPI AND AXOM_ENABLE_SIDRE AND HDF5_FOUND)
                 PASS_REGULAR_EXPRESSION "Analytic verification for 'circle' found 0 errors")
         endforeach()
 
+        # One object rank, one replica, and one rank without object points.
+        if("seq" IN_LIST AXOM_EXECUTION_POLICIES)
+            set(_test "quest_distributed_closest_point_partial_replication")
+            axom_add_test(
+                NAME    ${_test}
+                COMMAND quest_distributed_distance_query_ex
+                            --mesh-file ${quest_data_dir}/mdmesh.2x1.root
+                            --object-mesh-file ${quest_data_dir}/dcp_object_circle_single_domain.root
+                            --dist-threshold .3
+                            --max-replication-factor 1
+                            --policy seq
+                            --distance-file dcp_closest_point_2d_seq_partial_replication
+                NUM_MPI_TASKS ${_nranks})
+            set_tests_properties(${_test}
+                PROPERTIES
+                PASS_REGULAR_EXPRESSION "Analytic verification for 'circle' found 0 errors")
+
+            # Six object domains on eight ranks: only two domains get replicas.
+            set(_test "quest_distributed_closest_point_multidomain_partial_replication")
+            axom_add_test(
+                NAME    ${_test}
+                COMMAND quest_distributed_distance_query_ex
+                            --mesh-file ${quest_data_dir}/mdmesh.2x1.root
+                            --object-mesh-file ${quest_data_dir}/dcp_object_circle.root
+                            --dist-threshold .3
+                            --max-replication-factor 2
+                            --policy seq
+                            --distance-file dcp_closest_point_2d_seq_multidomain_partial_replication
+                NUM_MPI_TASKS 8)
+            set_tests_properties(${_test}
+                PROPERTIES
+                PASS_REGULAR_EXPRESSION "Analytic verification for 'circle' found 0 errors")
+        endif()
+
         if("seq" IN_LIST AXOM_EXECUTION_POLICIES)
             set(_test "quest_distributed_closest_point_memory_instrumentation")
             axom_add_test(

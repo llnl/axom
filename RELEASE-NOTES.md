@@ -43,6 +43,8 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
   The linear BVH's `ordering` option selects `SpaceFillingCurve::Morton`
   or `SpaceFillingCurve::Hilbert` in 2D and 3D; Morton remains the default.
 - Spin: Adds a host-only `LinearBVHTraverser::traverse_leaves()` for actions that receive the original primitive ID directly.
+- Quest: Adds support for replicating object ranks across empty processors to spread out communication.
+  This is controlled via a `DistributedClosestPoint::setMaxReplicationFactor()` method.
 
 ### Removed
 
