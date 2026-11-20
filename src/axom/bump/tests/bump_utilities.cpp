@@ -29,8 +29,9 @@ struct test_conduit_allocate
 {
   static void test()
   {
+    const int allocatorID = axom::execution_space<ExecSpace>::allocatorID();
     const auto conduitAllocatorId = axom::sidre::ConduitMemory::axomAllocIdToConduit(
-      axom::execution_space<ExecSpace>::allocatorID());
+      allocatorID);
 
     EXPECT_TRUE(conduitAllocatorId > 0);
 
@@ -61,6 +62,37 @@ struct test_conduit_allocate
     n.set_allocator(conduitAllocatorId);
     n.set(conduit::DataType::int32(0));
     EXPECT_EQ(n.dtype().number_of_elements(), 0);
+
+    // Test that nested Nodes inherit their parent's allocator.
+    conduit::Node tree;
+    tree.set_allocator(conduitAllocatorId);
+
+    auto expectAllocator = [allocatorID](const conduit::Node& node) {
+      EXPECT_EQ(axom::sidre::ConduitMemory::conduitAllocIdToAxom(node.allocator()),
+                allocatorID);
+    };
+
+    conduit::Node& nested = tree["nested"];
+    conduit::Node& childValues = tree["nested/values"];
+
+    expectAllocator(tree);
+    expectAllocator(nested);
+    expectAllocator(childValues);
+
+    childValues.set(conduit::DataType::int32(nValues));
+    EXPECT_EQ(axom::getAllocatorIDFromPointer(childValues.data_ptr()), allocatorID);
+
+    auto childView = utils::make_array_view<int>(childValues);
+    axom::for_all<ExecSpace>(nValues, [=] AXOM_HOST_DEVICE(axom::IndexType index) {
+      childView[index] = 2 * index;
+    });
+
+    std::vector<int> hostChildValues(nValues);
+    axom::copy(hostChildValues.data(), childValues.data_ptr(), sizeof(int) * nValues);
+    for(int i = 0; i < nValues; i++)
+    {
+      EXPECT_EQ(hostChildValues[i], 2 * i);
+    }
   }
 };
 
