@@ -944,15 +944,86 @@ struct test_braid2d_mat
   }
 };
 
+//------------------------------------------------------------------------------
+template <typename ExecSpace>
+struct test_single_zone_unibuffer_mat
+{
+  static void test(bool clean_mats)
+  {
+    conduit::Node hostMesh, deviceMesh;
+    const axom::StackArray<axom::IndexType, 2> zoneDims {1, 1};
+    axom::blueprint::testing::data::make_matset("unibuffer",
+                                                "mesh",
+                                                zoneDims,
+                                                clean_mats,
+                                                false,
+                                                hostMesh);
+    utils::copy<ExecSpace>(deviceMesh, hostMesh);
+
+    auto matsetView = views::make_unibuffer_matset<int, float, 3>::view(deviceMesh["matsets/mat"]);
+    const int allocatorID = axom::execution_space<ExecSpace>::allocatorID();
+
+    axom::Array<int> results(6, 6, allocatorID);
+    auto resultsView = results.view();
+    axom::for_all<ExecSpace>(1, [=] AXOM_HOST_DEVICE(axom::IndexType) {
+      int ids_storage[3] {-1, -1, -1};
+      float vfs_storage[3] {0.f, 0.f, 0.f};
+      axom::ArrayView<int> ids(ids_storage, 3);
+      axom::ArrayView<float> vfs(vfs_storage, 3);
+
+      resultsView[0] = static_cast<int>(matsetView.numberOfZones());
+      resultsView[1] = static_cast<int>(matsetView.numberOfMaterials(0));
+      resultsView[2] = matsetView.zoneContainsMaterial(0, 22) ? 1 : 0;
+      resultsView[3] = matsetView.zoneContainsMaterial(0, 66) ? 1 : 0;
+      resultsView[4] = matsetView.zoneContainsMaterial(0, 33) ? 1 : 0;
+      resultsView[5] = static_cast<int>(matsetView.zoneMaterials(0, ids, vfs));
+    });
+
+    int resultsHost[6] = {};
+    axom::copy(resultsHost, results.data(), sizeof(resultsHost));
+
+    EXPECT_EQ(resultsHost[0], 1);
+    EXPECT_EQ(resultsHost[1], resultsHost[5]);
+    EXPECT_EQ(resultsHost[2] + resultsHost[3] + resultsHost[4], resultsHost[1]);
+    if(clean_mats)
+    {
+      EXPECT_EQ(resultsHost[1], 1);
+    }
+    else
+    {
+      EXPECT_EQ(resultsHost[1], 3);
+      EXPECT_EQ(resultsHost[2], 1);
+      EXPECT_EQ(resultsHost[3], 1);
+      EXPECT_EQ(resultsHost[4], 1);
+    }
+  }
+};
+
 // Unibuffer
 TEST(bump_views, matset_unibuffer_seq)
 {
   test_braid2d_mat<seq_exec>::test("uniform", "unibuffer", "uniform2d_unibuffer");
 }
+TEST(bump_views, matset_unibuffer_single_zone_mixed_seq)
+{
+  test_single_zone_unibuffer_mat<seq_exec>::test(false);
+}
+TEST(bump_views, matset_unibuffer_single_zone_clean_seq)
+{
+  test_single_zone_unibuffer_mat<seq_exec>::test(true);
+}
 #if defined(AXOM_USE_OPENMP)
 TEST(bump_views, matset_unibuffer_omp)
 {
   test_braid2d_mat<omp_exec>::test("uniform", "unibuffer", "uniform2d_unibuffer");
+}
+TEST(bump_views, matset_unibuffer_single_zone_mixed_omp)
+{
+  test_single_zone_unibuffer_mat<omp_exec>::test(false);
+}
+TEST(bump_views, matset_unibuffer_single_zone_clean_omp)
+{
+  test_single_zone_unibuffer_mat<omp_exec>::test(true);
 }
 #endif
 #if defined(AXOM_USE_CUDA)
@@ -960,11 +1031,27 @@ TEST(bump_views, matset_unibuffer_cuda)
 {
   test_braid2d_mat<cuda_exec>::test("uniform", "unibuffer", "uniform2d_unibuffer");
 }
+TEST(bump_views, matset_unibuffer_single_zone_mixed_cuda)
+{
+  test_single_zone_unibuffer_mat<cuda_exec>::test(false);
+}
+TEST(bump_views, matset_unibuffer_single_zone_clean_cuda)
+{
+  test_single_zone_unibuffer_mat<cuda_exec>::test(true);
+}
 #endif
 #if defined(AXOM_USE_HIP)
 TEST(bump_views, matset_unibuffer_hip)
 {
   test_braid2d_mat<hip_exec>::test("uniform", "unibuffer", "uniform2d_unibuffer");
+}
+TEST(bump_views, matset_unibuffer_single_zone_mixed_hip)
+{
+  test_single_zone_unibuffer_mat<hip_exec>::test(false);
+}
+TEST(bump_views, matset_unibuffer_single_zone_clean_hip)
+{
+  test_single_zone_unibuffer_mat<hip_exec>::test(true);
 }
 #endif
 
