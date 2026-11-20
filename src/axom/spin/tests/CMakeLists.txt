@@ -10,7 +10,9 @@
 set(spin_tests
     spin_bvh_ordering.cpp
     spin_bvh_stack.cpp
+    spin_hilbert_fsm.cpp
     spin_hilbert_index.cpp
+    spin_hilbert_tables.cpp
     spin_implicit_grid.cpp
     spin_morton.cpp
     spin_octree.cpp
@@ -38,6 +40,7 @@ foreach ( test ${spin_tests} )
     axom_add_executable(
       NAME       ${test_name}_test
       SOURCES    ${test}
+      HEADERS    hilbert_reference.hpp
       OUTPUT_DIR ${TEST_OUTPUT_DIRECTORY}
       DEPENDS_ON ${spin_tests_depends}
       FOLDER     axom/spin/tests

@@ -1,0 +1,758 @@
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
+//
+// SPDX-License-Identifier: (BSD-3-Clause)
+
+/*!
+ * \file spin_sfc_codec.cpp
+ * \brief Compares Hilbert and Morton space filling curve conversions
+ * in 2D, 3D, and 4D.
+ *
+ * Use --benchmark_filter and --benchmark_repetitions for timing in Release.
+ * Run --verify-only to check each codec against its reference.
+ * Hilbert/Public calls the library's table codec.
+ * Hilbert/Scalar uses the scalar Skilling test reference, which is not installed.
+ * Hilbert/FSM1, FSM2, and FSM3 select the number of bit planes per table lookup in supported dimensions.
+ *
+ * Each timed iteration processes a batch. Divide its time by
+ * `batch * operations_per_item` to get the average time per conversion.
+ * Mixed cases encode a point and decode an independent key for each item.
+ * Each codec in an execution space receives the same inputs.
+ * Morton has no depth argument, so Variable changes its input ranges while
+ * Hilbert also receives each item's depth.
+ * CUDA/HIP cases include host launch and synchronization. CUDAKernel/HIPKernel
+ * cases use GPU event time. Inputs and outputs stay on the device.
+ */
+
+#include "axom/config.hpp"
+
+#include "axom/CLI11.hpp"
+#include "axom/core/Array.hpp"
+#include "axom/core/execution/for_all.hpp"
+#include "axom/core/execution/synchronize.hpp"
+#include "axom/fmt.hpp"
+#include "axom/primal/geometry/Point.hpp"
+#include "axom/slic.hpp"
+#include "axom/spin/HilbertIndex.hpp"
+#include "axom/spin/MortonIndex.hpp"
+#include "axom/spin/SpaceFillingCurve.hpp"
+#include "axom/spin/internal/HilbertCodec.hpp"
+#include "axom/spin/tests/hilbert_reference.hpp"
+
+#include "benchmark/benchmark.h"
+
+#if defined(AXOM_USE_CUDA)
+  #include <cuda_runtime.h>
+#elif defined(AXOM_USE_HIP)
+  #include <hip/hip_runtime.h>
+#endif
+
+#include <algorithm>
+#include <cstddef>
+#include <cstdint>
+#include <limits>
+#include <random>
+#include <string>
+#include <vector>
+
+namespace
+{
+
+// Fixed base seeds keep verification and benchmark inputs reproducible.
+constexpr std::uint64_t VERIFICATION_SEED = 42;
+// Retain the original benchmark's seed to preserve its input sequences.
+constexpr std::uint64_t BENCHMARK_SEED = 0x7281268;
+
+constexpr int SMALL_BATCH_SIZE = 256;
+constexpr int LARGE_BATCH_SIZE = 65536;
+constexpr int CLUSTER_COUNT = 8;
+
+// Offsets are 0..63 per coordinate and 0..4095 per key, giving clusters of
+// 64 grid positions per axis or 4096 consecutive key values. The depth masks
+// wrap the resulting coordinates and keys into the valid domain.
+constexpr std::uint32_t CLUSTER_COORD_OFFSET_MASK = 63;
+constexpr std::uint64_t CLUSTER_KEY_OFFSET_MASK = 4095;
+
+constexpr std::size_t CACHE_PRESSURE_BUFFER_BYTES = 8 * 1024 * 1024;
+constexpr std::size_t CACHE_PRESSURE_STRIDE_BYTES = 64;
+constexpr int CACHE_PRESSURE_ITERATIONS = 32;
+
+using Curve = axom::spin::SpaceFillingCurve;
+
+// Public calls the library API. Scalar uses the Skilling test reference.
+// FSM1/FSM2/FSM3 use library tables with one/two/three bit planes per lookup.
+// All adapters allow normal inlining.
+enum Implementation
+{
+  Public,
+  Scalar,
+  FSM1,
+  FSM2,
+  FSM3
+};
+
+const char* curveName(Curve curve) { return curve == Curve::Hilbert ? "Hilbert" : "Morton"; }
+
+const char* implementationName(Implementation impl)
+{
+  constexpr const char* names[] = {"Public", "Scalar", "FSM1", "FSM2", "FSM3"};
+  return names[impl];
+}
+
+// Setup bounds inputs to the requested depth, so Morton can ignore bits and
+// call its native API without adding masking work to the timed conversions.
+template <int DIM, typename U, Curve CURVE, Implementation IMPL>
+struct Codec
+{
+  static_assert(CURVE == Curve::Hilbert || IMPL == Public,
+                "Morton has only a public benchmark adapter");
+  using Point = axom::primal::Point<std::uint32_t, DIM>;
+  static constexpr int MAX_BITS =
+    std::min(std::numeric_limits<std::uint32_t>::digits, std::numeric_limits<U>::digits / DIM);
+
+  using HilbertPublicTransform = axom::spin::Hilbertizer<std::uint32_t, U, DIM>;
+  using HilbertScalarTransform = axom::spin::testing::HilbertReference<std::uint32_t, U, DIM>;
+  using MortonPublicTransform = axom::spin::Mortonizer<std::uint32_t, U, DIM>;
+  static constexpr int LEVELS = IMPL == FSM3 ? 3 : IMPL == FSM2 ? 2 : 1;
+  using HilbertFSMTransform =
+    axom::spin::internal::hilbert::HilbertFSMTransform<std::uint32_t, U, DIM, LEVELS>;
+
+  static_assert(MAX_BITS == HilbertPublicTransform::MAX_UNIQUE_BITS &&
+                  MAX_BITS == MortonPublicTransform::MAX_UNIQUE_BITS,
+                "Codec depths must match the shared input domain");
+
+  AXOM_HOST_DEVICE static U encode(const Point& point, int bits)
+  {
+    if constexpr(CURVE == Curve::Morton)
+    {
+      AXOM_UNUSED_VAR(bits);
+      return MortonPublicTransform::mortonize(point);
+    }
+    else if constexpr(IMPL == Public)
+    {
+      return HilbertPublicTransform::toIndex(point, bits);
+    }
+    else if constexpr(IMPL == Scalar)
+    {
+      return HilbertScalarTransform::toIndex(point, bits);
+    }
+    else
+    {
+      return HilbertFSMTransform::toIndex(point, bits);
+    }
+  }
+
+  AXOM_HOST_DEVICE static Point decode(U key, int bits)
+  {
+    if constexpr(CURVE == Curve::Morton)
+    {
+      AXOM_UNUSED_VAR(bits);
+      return MortonPublicTransform::demortonize(key);
+    }
+    else if constexpr(IMPL == Public)
+    {
+      return HilbertPublicTransform::toPoint(key, bits);
+    }
+    else if constexpr(IMPL == Scalar)
+    {
+      return HilbertScalarTransform::toPoint(key, bits);
+    }
+    else
+    {
+      return HilbertFSMTransform::toPoint(key, bits);
+    }
+  }
+};
+
+enum Direction
+{
+  Encode,
+  Decode,
+  Mixed
+};
+enum Workload
+{
+  Warm,
+  Small,
+  Pressure,
+  Variable
+};
+enum Dataset
+{
+  Uniform,
+  Sequential,
+  Clustered
+};
+
+// Check Hilbert against the scalar transform and Morton against bit interleaving.
+template <int DIM, typename U, Curve CURVE, Implementation IMPL>
+bool verifyCodec()
+{
+  using CodecType = Codec<DIM, U, CURVE, IMPL>;
+  constexpr int max_bits = CodecType::MAX_BITS;
+  std::mt19937_64 random(VERIFICATION_SEED + DIM);
+  for(int bits = 1; bits <= max_bits; ++bits)
+  {
+    // Start with all bits set to avoid shifting 1 by the full key width.
+    const U key_mask = std::numeric_limits<U>::max() >> (sizeof(U) * 8 - bits * DIM);
+    const auto coord_mask = static_cast<std::uint32_t>((std::uint64_t {1} << bits) - 1);
+    const bool exhaustive = bits * DIM <= 12;
+    const unsigned count = exhaustive ? (1u << (bits * DIM)) : 2048;
+    for(unsigned i = 0; i < count; ++i)
+    {
+      // Enumerate coordinates independently of the decoder in small domains.
+      // At larger depths, cover corners and then deterministic random points.
+      typename CodecType::Point point;
+      for(int axis = 0; axis < DIM; ++axis)
+      {
+        point[axis] = exhaustive
+          ? static_cast<std::uint32_t>((std::uint64_t {i} >> (axis * bits)) & coord_mask)
+          : (i < (1u << DIM) ? (((i >> axis) & 1) ? coord_mask : 0)
+                             : static_cast<std::uint32_t>(random()) & coord_mask);
+      }
+      // Independent keys include zero, the maximum, and every single-bit key.
+      const U key = exhaustive
+        ? static_cast<U>(i)
+        : (i == 0                                         ? U {0}
+             : i == 1                                     ? key_mask
+             : i <= static_cast<unsigned>(bits * DIM + 1) ? U {1} << (i - 2)
+                                                          : static_cast<U>(random()) & key_mask);
+      const U encoded = CodecType::encode(point, bits);
+      const auto decoded = CodecType::decode(key, bits);
+      U expected_key = 0;
+      typename CodecType::Point expected_point;
+      if constexpr(CURVE == Curve::Morton)
+      {
+        // Interleave each bit plane explicitly, with x in its lowest bit.
+        // This reference is independent of Mortonizer's expand/contract helpers.
+        for(int bit = 0; bit < bits; ++bit)
+        {
+          for(int axis = 0; axis < DIM; ++axis)
+          {
+            const int key_bit = bit * DIM + axis;
+            expected_key |= static_cast<U>((point[axis] >> bit) & 1) << key_bit;
+            expected_point[axis] |= static_cast<std::uint32_t>((key >> key_bit) & U {1}) << bit;
+          }
+        }
+      }
+      else
+      {
+        using HilbertScalarTransform = axom::spin::testing::HilbertReference<std::uint32_t, U, DIM>;
+        expected_key = HilbertScalarTransform::toIndex(point, bits);
+        expected_point = HilbertScalarTransform::toPoint(key, bits);
+      }
+      bool valid_point = true;
+      for(int axis = 0; axis < DIM; ++axis)
+      {
+        valid_point = valid_point && decoded[axis] <= coord_mask;
+      }
+      if(encoded > key_mask || !valid_point || encoded != expected_key || decoded != expected_point ||
+         CodecType::encode(decoded, bits) != key || CodecType::decode(encoded, bits) != point)
+      {
+        SLIC_WARNING(
+          axom::fmt::format("Verification failed: {}/{} D={} key bits={} depth={} sample={}",
+                            curveName(CURVE),
+                            implementationName(IMPL),
+                            DIM,
+                            sizeof(U) * 8,
+                            bits,
+                            i));
+        return false;
+      }
+    }
+  }
+  SLIC_INFO(axom::fmt::format("Verified {}/{}/{}D/u{} at every depth",
+                              curveName(CURVE),
+                              implementationName(IMPL),
+                              DIM,
+                              sizeof(U) * 8));
+  return true;
+}
+
+template <int DIM, typename U>
+bool verifyCodecsForShape()
+{
+  bool valid = verifyCodec<DIM, U, Curve::Hilbert, Public>() &&
+    verifyCodec<DIM, U, Curve::Hilbert, Scalar>() && verifyCodec<DIM, U, Curve::Morton, Public>() &&
+    verifyCodec<DIM, U, Curve::Hilbert, FSM1>();
+  if constexpr(DIM <= 3)
+  {
+    valid = verifyCodec<DIM, U, Curve::Hilbert, FSM2>() && valid;
+  }
+  if constexpr(DIM == 2)
+  {
+    valid = verifyCodec<DIM, U, Curve::Hilbert, FSM3>() && valid;
+  }
+  return valid;
+}
+
+template <int DIM, typename U, Curve CURVE, Implementation IMPL, Direction DIR, Workload WORK, Dataset DATA>
+void benchmarkCodec(benchmark::State& state)
+{
+  using CodecType = Codec<DIM, U, CURVE, IMPL>;
+  using Point = typename CodecType::Point;
+  constexpr int max_bits = CodecType::MAX_BITS;
+  const int count = WORK == Small || WORK == Pressure ? SMALL_BATCH_SIZE : LARGE_BATCH_SIZE;
+  // Allocation and input generation precede the state loop, so neither is timed.
+  std::vector<Point> points(count), decoded(count);
+  std::vector<U> keys(count), encoded(count);
+  std::vector<int> depths(count);
+  // Vary the sequence by dimension. All codecs use the same seed and inputs.
+  std::mt19937_64 random(BENCHMARK_SEED + DIM);
+  Point centers[CLUSTER_COUNT];
+  U key_centers[CLUSTER_COUNT];
+  for(int c = 0; c < CLUSTER_COUNT; ++c)
+  {
+    for(int a = 0; a < DIM; ++a)
+    {
+      centers[c][a] = static_cast<std::uint32_t>(random());
+    }
+    key_centers[c] = static_cast<U>(random());
+  }
+  for(int i = 0; i < count; ++i)
+  {
+    const int bits = WORK == Variable ? 1 + static_cast<int>(random() % max_bits) : max_bits;
+    depths[i] = bits;
+    const auto cmask = static_cast<std::uint32_t>((std::uint64_t {1} << bits) - 1);
+    const U kmask = std::numeric_limits<U>::max() >> (sizeof(U) * 8 - bits * DIM);
+    for(int a = 0; a < DIM; ++a)
+    {
+      if constexpr(DATA == Sequential)
+      {
+        points[i][a] =
+          static_cast<std::uint32_t>((static_cast<std::uint64_t>(i) >> (a * bits)) & cmask);
+      }
+      else if constexpr(DATA == Clustered)
+      {
+        points[i][a] = (centers[i % CLUSTER_COUNT][a] +
+                        static_cast<std::uint32_t>(random() & CLUSTER_COORD_OFFSET_MASK)) &
+          cmask;
+      }
+      else
+      {
+        points[i][a] = static_cast<std::uint32_t>(random()) & cmask;
+      }
+    }
+    if constexpr(DATA == Sequential)
+    {
+      keys[i] = static_cast<U>(i) & kmask;
+    }
+    else if constexpr(DATA == Clustered)
+    {
+      keys[i] =
+        (key_centers[i % CLUSTER_COUNT] + static_cast<U>(random() & CLUSTER_KEY_OFFSET_MASK)) & kmask;
+    }
+    else
+    {
+      keys[i] = static_cast<U>(random()) & kmask;
+    }
+  }
+  std::vector<std::uint64_t> pressure(
+    WORK == Pressure ? CACHE_PRESSURE_BUFFER_BYTES / sizeof(std::uint64_t) : 0);
+  constexpr auto pressure_stride = CACHE_PRESSURE_STRIDE_BYTES / sizeof(std::uint64_t);
+  // Expose the buffers to the compiler barriers. ClobberMemory below keeps the
+  // output stores in each batch without adding a barrier to every conversion.
+  benchmark::DoNotOptimize(points.data());
+  benchmark::DoNotOptimize(keys.data());
+  benchmark::DoNotOptimize(encoded.data());
+  benchmark::DoNotOptimize(decoded.data());
+  benchmark::DoNotOptimize(pressure.data());
+  for(auto _ : state)
+  {
+    if constexpr(WORK == Pressure)
+    {
+      // Touch the pressure buffer at a fixed byte stride between timed batches.
+      // This adds cache pressure; the amount of eviction depends on the machine.
+      state.PauseTiming();
+      for(std::size_t i = 0; i < pressure.size(); i += pressure_stride)
+      {
+        pressure[i] += i + 1;
+      }
+      benchmark::ClobberMemory();
+      state.ResumeTiming();
+    }
+    for(int i = 0; i < count; ++i)
+    {
+      // Fixed-depth cases let the compiler specialize Hilbert. Variable supplies
+      // a runtime depth per item; Morton uses the same inputs without this argument.
+      const int bits = WORK == Variable ? depths[i] : max_bits;
+      if constexpr(DIR == Encode || DIR == Mixed)
+      {
+        encoded[i] = CodecType::encode(points[i], bits);
+      }
+      // Independent keys prevent an encode/decode round trip from being optimized away.
+      if constexpr(DIR == Decode || DIR == Mixed)
+      {
+        decoded[i] = CodecType::decode(keys[i], bits);
+      }
+    }
+    benchmark::ClobberMemory();
+  }
+  state.SetItemsProcessed(state.iterations() * count * (DIR == Mixed ? 2 : 1));
+  state.counters["batch"] = count;
+  state.counters["operations_per_item"] = DIR == Mixed ? 2 : 1;
+}
+
+template <int DIM, typename U, Curve CURVE, Implementation IMPL, Direction DIR, Workload WORK, Dataset DATA>
+void registerBenchmark()
+{
+  const char* directions[] = {"Encode", "Decode", "Mixed"};
+  const char* workloads[] = {"Warm", "Small", "Pressure", "Variable"};
+  const char* datasets[] = {"Uniform", "Sequential", "Clustered"};
+  const auto label = axom::fmt::format("{}/{}/{}D/u{}/{}/{}/{}",
+                                       curveName(CURVE),
+                                       implementationName(IMPL),
+                                       DIM,
+                                       sizeof(U) * 8,
+                                       directions[DIR],
+                                       workloads[WORK],
+                                       datasets[DATA]);
+  auto* b = benchmark::RegisterBenchmark(label.c_str(),
+                                         &benchmarkCodec<DIM, U, CURVE, IMPL, DIR, WORK, DATA>);
+  b->UseRealTime()->Unit(benchmark::kNanosecond);
+  // Limit the untimed buffer walks per repetition.
+  if constexpr(WORK == Pressure)
+  {
+    b->Iterations(CACHE_PRESSURE_ITERATIONS);
+  }
+}
+
+template <int DIM, typename U, Curve CURVE, Implementation IMPL, Direction DIR>
+void registerWorkloads()
+{
+  registerBenchmark<DIM, U, CURVE, IMPL, DIR, Warm, Uniform>();
+  registerBenchmark<DIM, U, CURVE, IMPL, DIR, Small, Uniform>();
+  registerBenchmark<DIM, U, CURVE, IMPL, DIR, Pressure, Uniform>();
+  registerBenchmark<DIM, U, CURVE, IMPL, DIR, Variable, Uniform>();
+  registerBenchmark<DIM, U, CURVE, IMPL, DIR, Warm, Sequential>();
+  registerBenchmark<DIM, U, CURVE, IMPL, DIR, Warm, Clustered>();
+}
+
+template <int DIM, typename U, Curve CURVE, Implementation IMPL>
+void registerCodecBenchmarks()
+{
+  registerWorkloads<DIM, U, CURVE, IMPL, Encode>();
+  registerWorkloads<DIM, U, CURVE, IMPL, Decode>();
+  registerWorkloads<DIM, U, CURVE, IMPL, Mixed>();
+}
+
+template <int DIM, typename U>
+void registerBenchmarksForShape()
+{
+  registerCodecBenchmarks<DIM, U, Curve::Hilbert, Public>();
+  registerCodecBenchmarks<DIM, U, Curve::Hilbert, Scalar>();
+  registerCodecBenchmarks<DIM, U, Curve::Morton, Public>();
+  registerCodecBenchmarks<DIM, U, Curve::Hilbert, FSM1>();
+  if constexpr(DIM <= 3)
+  {
+    registerCodecBenchmarks<DIM, U, Curve::Hilbert, FSM2>();
+  }
+  if constexpr(DIM == 2)
+  {
+    registerCodecBenchmarks<DIM, U, Curve::Hilbert, FSM3>();
+  }
+}
+
+#if defined(AXOM_USE_GPU) && defined(AXOM_USE_RAJA) && defined(AXOM_USE_UMPIRE)
+struct GpuRuntime
+{
+  #if defined(AXOM_USE_CUDA)
+  using ExecSpace = axom::CUDA_EXEC<256, axom::ASYNC>;
+  using Resource = RAJA::resources::Cuda;
+  using Error = cudaError_t;
+  using Event = cudaEvent_t;
+  static constexpr auto success = cudaSuccess;
+  static constexpr auto errorString = cudaGetErrorString;
+  static constexpr Error (*eventCreate)(Event*) = cudaEventCreate;
+  static constexpr auto eventDestroy = cudaEventDestroy;
+  static constexpr auto eventRecord = cudaEventRecord;
+  static constexpr auto eventSynchronize = cudaEventSynchronize;
+  static constexpr auto eventElapsedTime = cudaEventElapsedTime;
+  static constexpr const char* batch_label = "CUDA";
+  static constexpr const char* kernel_label = "CUDAKernel";
+  #else
+  using ExecSpace = axom::HIP_EXEC<256, axom::ASYNC>;
+  using Resource = RAJA::resources::Hip;
+  using Error = hipError_t;
+  using Event = hipEvent_t;
+  static constexpr auto success = hipSuccess;
+  static constexpr auto errorString = hipGetErrorString;
+  static constexpr Error (*eventCreate)(Event*) = hipEventCreate;
+  static constexpr auto eventDestroy = hipEventDestroy;
+  static constexpr auto eventRecord = hipEventRecord;
+  static constexpr auto eventSynchronize = hipEventSynchronize;
+  static constexpr auto eventElapsedTime = hipEventElapsedTime;
+  static constexpr const char* batch_label = "HIP";
+  static constexpr const char* kernel_label = "HIPKernel";
+  #endif
+};
+
+bool checkGpu(benchmark::State& state, GpuRuntime::Error error)
+{
+  if(error != GpuRuntime::success)
+  {
+    state.SkipWithError(GpuRuntime::errorString(error));
+    return false;
+  }
+  return true;
+}
+
+template <int DIM, typename U, Curve CURVE, Implementation IMPL, Direction DIR>
+void benchmarkGpuCodec(benchmark::State& state, int count, bool variable, bool kernel_only)
+{
+  using CodecType = Codec<DIM, U, CURVE, IMPL>;
+  using Point = typename CodecType::Point;
+  constexpr int max_bits = CodecType::MAX_BITS;
+  const int host_allocator = axom::execution_space<axom::SEQ_EXEC>::allocatorID();
+  const int device_allocator = axom::execution_space<GpuRuntime::ExecSpace>::allocatorID();
+  axom::Array<Point> points(count, count, host_allocator);
+  axom::Array<U> keys(count, count, host_allocator);
+  axom::Array<int> depths(count, count, host_allocator);
+  std::mt19937_64 random(BENCHMARK_SEED + DIM);
+  for(int i = 0; i < count; ++i)
+  {
+    const int bits = variable ? 1 + static_cast<int>(random() % max_bits) : max_bits;
+    depths[i] = bits;
+    const auto coord_mask = static_cast<std::uint32_t>((std::uint64_t {1} << bits) - 1);
+    const U key_mask = std::numeric_limits<U>::max() >> (sizeof(U) * 8 - bits * DIM);
+    for(int axis = 0; axis < DIM; ++axis)
+    {
+      points[i][axis] = static_cast<std::uint32_t>(random()) & coord_mask;
+    }
+    keys[i] = static_cast<U>(random()) & key_mask;
+  }
+
+  const axom::Array<Point> device_points(points, device_allocator);
+  const axom::Array<U> device_keys(keys, device_allocator);
+  const axom::Array<int> device_depths(depths, device_allocator);
+  axom::Array<U> encoded(count, count, device_allocator);
+  axom::Array<Point> decoded(count, count, device_allocator);
+  const auto points_view = device_points.view();
+  const auto keys_view = device_keys.view();
+  const auto depths_view = device_depths.view();
+  const auto encoded_view = encoded.view();
+  const auto decoded_view = decoded.view();
+  const auto codec_kernel =
+    [points_view, keys_view, depths_view, encoded_view, decoded_view, variable] AXOM_HOST_DEVICE(
+      axom::IndexType i) {
+      const int bits = variable ? depths_view[i] : max_bits;
+      if constexpr(DIR == Encode)
+      {
+        encoded_view[i] = CodecType::encode(points_view[i], bits);
+      }
+      else
+      {
+        decoded_view[i] = CodecType::decode(keys_view[i], bits);
+      }
+    };
+  const auto launch_kernel = [=]() { axom::for_all<GpuRuntime::ExecSpace>(count, codec_kernel); };
+  const auto run_batch = [=]() {
+    launch_kernel();
+    axom::synchronize<GpuRuntime::ExecSpace>();
+  };
+
+  run_batch();
+  GpuRuntime::Event start_event {};
+  GpuRuntime::Event stop_event {};
+  if(kernel_only)
+  {
+    if(!checkGpu(state, GpuRuntime::eventCreate(&start_event)))
+    {
+      return;
+    }
+    if(!checkGpu(state, GpuRuntime::eventCreate(&stop_event)))
+    {
+      checkGpu(state, GpuRuntime::eventDestroy(start_event));
+      return;
+    }
+  }
+  const auto stream = GpuRuntime::Resource::get_default().get_stream();
+  double total_kernel_ns = 0.0;
+  bool valid = true;
+  for(auto _ : state)
+  {
+    if(kernel_only)
+    {
+      if(!checkGpu(state, GpuRuntime::eventRecord(start_event, stream)))
+      {
+        valid = false;
+        break;
+      }
+      launch_kernel();
+      if(!checkGpu(state, GpuRuntime::eventRecord(stop_event, stream)) ||
+         !checkGpu(state, GpuRuntime::eventSynchronize(stop_event)))
+      {
+        valid = false;
+        break;
+      }
+      float elapsed_ms = 0.f;
+      if(!checkGpu(state, GpuRuntime::eventElapsedTime(&elapsed_ms, start_event, stop_event)))
+      {
+        valid = false;
+        break;
+      }
+      const double elapsed_seconds = static_cast<double>(elapsed_ms) * 1e-3;
+      state.SetIterationTime(elapsed_seconds);
+      total_kernel_ns += elapsed_seconds * 1e9;
+    }
+    else
+    {
+      run_batch();
+    }
+  }
+  if(kernel_only)
+  {
+    const bool start_destroyed = checkGpu(state, GpuRuntime::eventDestroy(start_event));
+    const bool stop_destroyed = checkGpu(state, GpuRuntime::eventDestroy(stop_event));
+    valid = valid && start_destroyed && stop_destroyed;
+  }
+  if(!valid)
+  {
+    return;
+  }
+  state.SetItemsProcessed(state.iterations() * count);
+  state.counters["batch"] = count;
+  if(kernel_only)
+  {
+    state.counters["ns_per_query"] = total_kernel_ns / (state.iterations() * count);
+  }
+
+  // A small output sample catches bad device dispatch without timing transfers.
+  constexpr int check_count = 128;
+  if constexpr(DIR == Encode)
+  {
+    const axom::Array<U> host_encoded(encoded, host_allocator);
+    for(int i = 0; i < std::min(count, check_count); ++i)
+    {
+      using Reference = Codec<DIM, U, CURVE, CURVE == Curve::Morton ? Public : Scalar>;
+      if(host_encoded[i] != Reference::encode(points[i], depths[i]))
+      {
+        state.SkipWithError("GPU encoding disagrees with scalar reference");
+        break;
+      }
+    }
+  }
+  else
+  {
+    const axom::Array<Point> host_decoded(decoded, host_allocator);
+    for(int i = 0; i < std::min(count, check_count); ++i)
+    {
+      using Reference = Codec<DIM, U, CURVE, CURVE == Curve::Morton ? Public : Scalar>;
+      if(host_decoded[i] != Reference::decode(keys[i], depths[i]))
+      {
+        state.SkipWithError("GPU decoding disagrees with scalar reference");
+        break;
+      }
+    }
+  }
+}
+
+template <int DIM, typename U, Curve CURVE, Implementation IMPL, Direction DIR>
+void registerGpuCodecBenchmarks()
+{
+  for(const int count : {SMALL_BATCH_SIZE, LARGE_BATCH_SIZE, 1048576})
+  {
+    for(const bool variable : {false, true})
+    {
+      for(const bool kernel_only : {false, true})
+      {
+        const auto label =
+          axom::fmt::format("{}/{}/{}/{}D/u{}/{}/{}/{}",
+                            kernel_only ? GpuRuntime::kernel_label : GpuRuntime::batch_label,
+                            curveName(CURVE),
+                            implementationName(IMPL),
+                            DIM,
+                            sizeof(U) * 8,
+                            DIR == Encode ? "Encode" : "Decode",
+                            variable ? "Variable" : "Fixed",
+                            count);
+        auto* entry = benchmark::RegisterBenchmark(label.c_str(),
+                                                   &benchmarkGpuCodec<DIM, U, CURVE, IMPL, DIR>,
+                                                   count,
+                                                   variable,
+                                                   kernel_only);
+        if(kernel_only)
+        {
+          entry->UseManualTime();
+        }
+        else
+        {
+          entry->UseRealTime();
+        }
+        entry->Unit(benchmark::kNanosecond);
+      }
+    }
+  }
+}
+
+template <int DIM, typename U>
+void registerGpuBenchmarksForShape()
+{
+  constexpr Implementation production = DIM == 2 ? FSM3 : DIM == 3 ? FSM2 : FSM1;
+  registerGpuCodecBenchmarks<DIM, U, Curve::Morton, Public, Encode>();
+  registerGpuCodecBenchmarks<DIM, U, Curve::Morton, Public, Decode>();
+  registerGpuCodecBenchmarks<DIM, U, Curve::Hilbert, Scalar, Encode>();
+  registerGpuCodecBenchmarks<DIM, U, Curve::Hilbert, Scalar, Decode>();
+  registerGpuCodecBenchmarks<DIM, U, Curve::Hilbert, production, Encode>();
+  registerGpuCodecBenchmarks<DIM, U, Curve::Hilbert, production, Decode>();
+  registerGpuCodecBenchmarks<DIM, U, Curve::Hilbert, Public, Encode>();
+  registerGpuCodecBenchmarks<DIM, U, Curve::Hilbert, Public, Decode>();
+}
+#endif
+}  // namespace
+
+int main(int argc, char** argv)
+{
+  axom::slic::SimpleLogger logger;
+  bool verify_only = false;
+  axom::CLI::App app {"Axom space-filling curve codec benchmarks"};
+  app.add_flag("--verify-only", verify_only, "Check all codecs at every valid depth without timing");
+  app.allow_extras();
+  CLI11_PARSE(app, argc, argv);
+
+  // Forward unconsumed arguments to Google Benchmark in their original order.
+  auto benchmark_args = app.remaining();
+  benchmark_args.insert(benchmark_args.begin(), argv[0]);
+  std::vector<char*> benchmark_argv;
+  for(auto& arg : benchmark_args)
+  {
+    benchmark_argv.push_back(arg.data());
+  }
+  int benchmark_argc = static_cast<int>(benchmark_argv.size());
+  benchmark_argv.push_back(nullptr);
+  benchmark::Initialize(&benchmark_argc, benchmark_argv.data());
+  if(benchmark::ReportUnrecognizedArguments(benchmark_argc, benchmark_argv.data()))
+  {
+    benchmark::Shutdown();
+    return 1;
+  }
+
+  if(verify_only)
+  {
+    const bool valid = verifyCodecsForShape<2, std::uint32_t>() &&
+      verifyCodecsForShape<2, std::uint64_t>() && verifyCodecsForShape<3, std::uint32_t>() &&
+      verifyCodecsForShape<3, std::uint64_t>() && verifyCodecsForShape<4, std::uint32_t>() &&
+      verifyCodecsForShape<4, std::uint64_t>();
+    benchmark::Shutdown();
+    return valid ? 0 : 1;
+  }
+
+  registerBenchmarksForShape<2, std::uint32_t>();
+  registerBenchmarksForShape<2, std::uint64_t>();
+  registerBenchmarksForShape<3, std::uint32_t>();
+  registerBenchmarksForShape<3, std::uint64_t>();
+  registerBenchmarksForShape<4, std::uint32_t>();
+  registerBenchmarksForShape<4, std::uint64_t>();
+#if defined(AXOM_USE_GPU) && defined(AXOM_USE_RAJA) && defined(AXOM_USE_UMPIRE)
+  registerGpuBenchmarksForShape<2, std::uint32_t>();
+  registerGpuBenchmarksForShape<2, std::uint64_t>();
+  registerGpuBenchmarksForShape<3, std::uint32_t>();
+  registerGpuBenchmarksForShape<3, std::uint64_t>();
+  registerGpuBenchmarksForShape<4, std::uint32_t>();
+  registerGpuBenchmarksForShape<4, std::uint64_t>();
+#endif
+  benchmark::RunSpecifiedBenchmarks();
+  benchmark::Shutdown();
+  return 0;
+}

@@ -146,8 +146,20 @@ Quantize floating-point positions before encoding, for example with
 cell coordinate is nonnegative and fits the selected depth before encoding.
 Decoding returns the integer cell coordinates.
 
+.. rubric:: Implementation
+
+``Hilbertizer`` uses one table codec for encoding and decoding on the host,
+CUDA, and HIP. The tables follow Skilling's Hilbert convention [#f2]_.
+Host tables are ``constexpr``. GPU tables use read-only global device memory.
+There is no scalar fallback or codec-selection option.
+
+The scalar Skilling codec remains in ``tests/hilbert_reference.hpp`` for
+correctness checks and benchmarks. Axom does not install this helper.
+
 
 .. rubric:: Footnotes
 
-.. [#f1] The Morton index is also known, among other things, as the Z-order curve: 
+.. [#f1] Morton ordering is also called Z-order.
+.. [#f2] J. Skilling, "Programming the Hilbert curve", AIP Conference Proceedings
+         707, 381, 2004. https://doi.org/10.1063/1.1751381
          see its `Wikipedia page <https://wikipedia.org/wiki/Z-order_curve>`_.

@@ -7,8 +7,8 @@
 #pragma once
 
 /*! 
- * \file HilbertIndexImpl.hpp
- * \brief Implements Hilbert index encoding and decoding.
+ * \file hilbert_reference.hpp
+ * \brief Scalar Skilling codec for Hilbert tests and benchmarks.
  */
 
 #include "axom/core/Macros.hpp"
@@ -19,18 +19,16 @@
 #include <cstdint>
 #include <type_traits>
 
-namespace axom::spin::internal::hilbert
+namespace axom::spin::testing
 {
 /*!
- * \brief Converts between integer grid points and Hilbert indices.
+ * \brief Encodes and decodes Hilbert indices with the scalar Skilling algorithm.
  *
- * A Hilbert index gives a point's position on a path through every grid point.
- * Successive indices visit points one grid step apart. Skilling's algorithm
- * computes this order with XORs and with flips and exchanges of lower coordinate bits.
- * These operations account for the path's orientation within each region.
- * Encoding applies the orientation operations before the inverse Gray-code transform.
- * Decoding applies the Gray-code transform first, then restores the coordinates.
- * A Gray code orders bit patterns so that successive patterns differ in one bit.
+ * Tests and benchmarks use this reference to check the table codec.
+ * This header is not installed. Both codecs use Mortonizer for bit packing.
+ * Encoding flips and exchanges lower coordinate bits, then applies the inverse
+ * Gray-code transform. Decoding applies the Gray-code transform first, then
+ * restores the coordinates.
  *
  * \note Skilling's AxestoTranspose and TransposetoAxes store the index bits in
  * DIM unsigned integers, one per axis. This layout is called the transpose.
@@ -39,7 +37,7 @@ namespace axom::spin::internal::hilbert
  * This class also packs and unpacks that single integer using Morton interleaving.
  */
 template <typename CoordType, typename IndexType, int DIM>
-struct HilbertTransform
+struct HilbertReference
 {
   using PointType = primal::Point<CoordType, DIM>;
   // Use unsigned words of at least 32 bits to avoid integer promotion in shifts.
@@ -189,4 +187,4 @@ private:
     }
   }
 };
-}  // namespace axom::spin::internal::hilbert
+}  // namespace axom::spin::testing
