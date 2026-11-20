@@ -14,8 +14,6 @@
 
 #include <conduit/conduit_blueprint_mesh_examples.hpp>
 
-#include <cstdint>
-
 #include <iostream>
 #include <algorithm>
 #include <vector>
@@ -105,6 +103,112 @@ TEST(bump_utilities, allocate_cuda) { test_conduit_allocate<cuda_exec>::test(); 
 #endif
 #if defined(AXOM_RUNTIME_POLICY_USE_HIP)
 TEST(bump_utilities, allocate_hip) { test_conduit_allocate<hip_exec>::test(); }
+#endif
+
+//------------------------------------------------------------------------------
+template <typename ExecSpace>
+struct test_conduit_compact_to
+{
+  static void test()
+  {
+    constexpr conduit::index_t n = 4;
+    axom::Array<double> interleaved {{-1., 1.25, -2., 2.5, -3., 3.75, -4., 5., -5.}};
+
+    // Build a host Node that contains different types of data.
+    conduit::Node host;
+    // Select 1.25, 2.5, 3.75, 5. from the interleaved array.
+    host["array"].set_external(conduit::DataType(conduit::DataType::FLOAT64_ID,
+                                                  n,
+                                                  sizeof(double),
+                                                  2 * sizeof(double),
+                                                  sizeof(double),
+                                                  conduit::Endianness::DEFAULT_ID),
+                               interleaved.data());
+    host["scalar"] = 42;
+    host["label"] = "compact_to";
+    host["nested/ids"].set(std::vector<int> {7, 9});
+
+    EXPECT_FALSE(host.is_compact());
+
+    // Copy the host Node to the device Node.
+    const int allocatorID = axom::execution_space<ExecSpace>::allocatorID();
+    const auto conduitAllocatorId = axom::sidre::ConduitMemory::axomAllocIdToConduit(allocatorID);
+    conduit::Node device;
+    device.set_allocator(conduitAllocatorId);
+    host.compact_to(device);
+
+    // Make sure the device node's data has the right metadata.
+    EXPECT_TRUE(device.is_compact());
+    EXPECT_TRUE(device.is_contiguous());
+    EXPECT_EQ(device.total_bytes_allocated(), device.total_bytes_compact());
+    EXPECT_EQ(device.total_bytes_compact(), host.total_bytes_compact());
+    EXPECT_EQ(axom::sidre::ConduitMemory::conduitAllocIdToAxom(device.allocator()), allocatorID);
+    EXPECT_EQ(axom::getAllocatorIDFromPointer(device.data_ptr()), allocatorID);
+    EXPECT_EQ(axom::getAllocatorIDFromPointer(device["array"].data_ptr()), allocatorID);
+    EXPECT_EQ(axom::getAllocatorIDFromPointer(device["scalar"].data_ptr()), allocatorID);
+    EXPECT_EQ(axom::getAllocatorIDFromPointer(device["label"].data_ptr()), allocatorID);
+    EXPECT_EQ(axom::getAllocatorIDFromPointer(device["nested/ids"].data_ptr()), allocatorID);
+
+    EXPECT_EQ(device["array"].dtype().stride(), device["array"].dtype().element_bytes());
+    EXPECT_EQ(device["nested/ids"].dtype().stride(), device["nested/ids"].dtype().element_bytes());
+
+    // Make views and test the device data.
+    auto arrayView = utils::make_array_view<double>(device["array"]);
+    auto scalarView = utils::make_array_view<int>(device["scalar"]);
+    auto idsView = utils::make_array_view<int>(device["nested/ids"]);
+
+    axom::ReduceSum<ExecSpace, double> arraySumReduce(0.);
+    axom::for_all<ExecSpace>(n, [=] AXOM_HOST_DEVICE(axom::IndexType index) {
+      arraySumReduce += arrayView[index];
+    });
+    EXPECT_DOUBLE_EQ(arraySumReduce.get(), 12.5);
+
+    axom::ReduceSum<ExecSpace, int> scalarReduce(0);
+    axom::for_all<ExecSpace>(1, [=] AXOM_HOST_DEVICE(axom::IndexType) {
+      scalarReduce += scalarView[0];
+    });
+    EXPECT_EQ(scalarReduce.get(), 42);
+
+    axom::ReduceSum<ExecSpace, int> idsReduce(0);
+    axom::for_all<ExecSpace>(idsView.size(), [=] AXOM_HOST_DEVICE(axom::IndexType index) {
+      idsReduce += idsView[index];
+    });
+    EXPECT_EQ(idsReduce.get(), 16);
+
+    // Copy the device data back to a new Node on the host.
+    conduit::Node newHost;
+    device.compact_to(newHost);
+
+    // Test the newHost node data.
+    EXPECT_TRUE(newHost.is_compact());
+    EXPECT_TRUE(newHost.is_contiguous());
+    EXPECT_EQ(newHost["array"].dtype().stride(), newHost["array"].dtype().element_bytes());
+
+    auto newHostArray = newHost["array"].as_double_accessor();
+    ASSERT_EQ(newHostArray.number_of_elements(), n);
+    EXPECT_DOUBLE_EQ(newHostArray[0], 1.25);
+    EXPECT_DOUBLE_EQ(newHostArray[1], 2.5);
+    EXPECT_DOUBLE_EQ(newHostArray[2], 3.75);
+    EXPECT_DOUBLE_EQ(newHostArray[3], 5.);
+    EXPECT_EQ(newHost["scalar"].to_int(), 42);
+    EXPECT_EQ(newHost["label"].as_string(), std::string("compact_to"));
+
+    auto newHostIds = newHost["nested/ids"].as_int_accessor();
+    ASSERT_EQ(newHostIds.number_of_elements(), 2);
+    EXPECT_EQ(newHostIds[0], 7);
+    EXPECT_EQ(newHostIds[1], 9);
+  }
+};
+
+TEST(bump_utilities, compact_to_seq) { test_conduit_compact_to<seq_exec>::test(); }
+#if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
+TEST(bump_utilities, compact_to_omp) { test_conduit_compact_to<omp_exec>::test(); }
+#endif
+#if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
+TEST(bump_utilities, compact_to_cuda) { test_conduit_compact_to<cuda_exec>::test(); }
+#endif
+#if defined(AXOM_RUNTIME_POLICY_USE_HIP)
+TEST(bump_utilities, compact_to_hip) { test_conduit_compact_to<hip_exec>::test(); }
 #endif
 
 //------------------------------------------------------------------------------
@@ -248,397 +352,6 @@ TEST(bump_utilities, conduit_single_value_vector_matches_scalar_representation)
   EXPECT_EQ(vector_float.dtype().number_of_elements(), 1);
   EXPECT_FLOAT_EQ(vector_float.to_float(), 3.5f);
 }
-
-namespace
-{
-void expectSameLeafType(const conduit::Node& src, const conduit::Node& copied)
-{
-  EXPECT_EQ(src.dtype().id(), copied.dtype().id());
-  EXPECT_EQ(src.dtype().number_of_elements(), copied.dtype().number_of_elements());
-  EXPECT_EQ(src.dtype().element_bytes(), copied.dtype().element_bytes());
-}
-
-[[maybe_unused]] void expectPointerInBucket(const conduit::Node& leaf, const conduit::Node& bucket)
-{
-  const auto leaf_begin = reinterpret_cast<std::uintptr_t>(leaf.data_ptr());
-  const auto leaf_end = leaf_begin + static_cast<std::uintptr_t>(leaf.dtype().bytes_compact());
-  const auto bucket_begin = reinterpret_cast<std::uintptr_t>(bucket.data_ptr());
-  const auto bucket_end = bucket_begin + static_cast<std::uintptr_t>(bucket.dtype().bytes_compact());
-
-  EXPECT_GE(leaf_begin, bucket_begin);
-  EXPECT_LE(leaf_end, bucket_end);
-}
-}  // namespace
-
-//------------------------------------------------------------------------------
-template <typename ExecSpace>
-struct test_copy_single_value_blueprint_leaves
-{
-  static void create(conduit::Node& n)
-  {
-    n["coordsets/coords/type"] = "explicit";
-    n["coordsets/coords/values/x"].set(std::vector<float> {1.5f});
-
-    n["topologies/mesh/type"] = "unstructured";
-    n["topologies/mesh/coordset"] = "coords";
-    n["topologies/mesh/elements/shape"] = "point";
-    n["topologies/mesh/elements/connectivity"].set(std::vector<int> {0});
-    n["topologies/mesh/elements/sizes"].set(std::vector<int> {1});
-    n["topologies/mesh/elements/offsets"].set(std::vector<int> {0});
-
-    n["fields/one/topology"] = "mesh";
-    n["fields/one/association"] = "element";
-    n["fields/one/values"].set(std::vector<double> {2.5});
-
-    n["fields/mixed/topology"] = "mesh";
-    n["fields/mixed/association"] = "element";
-    n["fields/mixed/matset"] = "mat";
-    n["fields/mixed/matset_values"].set(std::vector<float> {3.5f});
-
-    n["fields/mixed_nested/topology"] = "mesh";
-    n["fields/mixed_nested/association"] = "element";
-    n["fields/mixed_nested/matset"] = "mat_multi";
-    n["fields/mixed_nested/matset_values/A/values"].set(std::vector<float> {4.5f});
-
-    n["fields/flag/topology"] = "mesh";
-    n["fields/flag/association"] = "element";
-    n["fields/flag/values"].set(std::vector<conduit::uint8> {9});
-
-    n["fields/small/topology"] = "mesh";
-    n["fields/small/association"] = "element";
-    n["fields/small/values"].set(std::vector<conduit::uint16> {12});
-
-    n["matsets/mat/topology"] = "mesh";
-    n["matsets/mat/material_ids"].set(std::vector<int> {22});
-    n["matsets/mat/volume_fractions"].set(std::vector<float> {1.f});
-    n["matsets/mat/sizes"].set(std::vector<int> {1});
-    n["matsets/mat/offsets"].set(std::vector<int> {0});
-    n["matsets/mat/indices"].set(std::vector<int> {0});
-
-    n["matsets/mat_multi/topology"] = "mesh";
-    n["matsets/mat_multi/volume_fractions/A/values"].set(std::vector<float> {0.75f});
-    n["matsets/mat_multi/volume_fractions/A/indices"].set(std::vector<int> {0});
-
-    n["metadata/scalar_int"] = 7;
-  }
-
-  static void test()
-  {
-    conduit::Node host, copied;
-    create(host);
-    utils::copy<ExecSpace>(copied, host);
-
-    if constexpr(axom::execution_space<ExecSpace>::onDevice())
-    {
-      ASSERT_TRUE(copied.has_child("_axom_single_elements"));
-      const conduit::Node& storage = copied["_axom_single_elements"];
-      ASSERT_TRUE(storage.has_child("bytes_1"));
-      ASSERT_TRUE(storage.has_child("bytes_2"));
-      ASSERT_TRUE(storage.has_child("bytes_4"));
-      ASSERT_TRUE(storage.has_child("bytes_8"));
-
-      EXPECT_TRUE(utils::isDeviceAllocated(storage["bytes_1"]));
-      EXPECT_TRUE(utils::isDeviceAllocated(storage["bytes_2"]));
-      EXPECT_TRUE(utils::isDeviceAllocated(storage["bytes_4"]));
-      EXPECT_TRUE(utils::isDeviceAllocated(storage["bytes_8"]));
-
-      EXPECT_TRUE(utils::isDeviceAllocated(copied["coordsets/coords/values/x"]));
-      EXPECT_TRUE(utils::isDeviceAllocated(copied["topologies/mesh/elements/connectivity"]));
-      EXPECT_TRUE(utils::isDeviceAllocated(copied["topologies/mesh/elements/sizes"]));
-      EXPECT_TRUE(utils::isDeviceAllocated(copied["topologies/mesh/elements/offsets"]));
-      EXPECT_TRUE(utils::isDeviceAllocated(copied["fields/one/values"]));
-      EXPECT_TRUE(utils::isDeviceAllocated(copied["fields/mixed/matset_values"]));
-      EXPECT_TRUE(utils::isDeviceAllocated(copied["fields/mixed_nested/matset_values/A/values"]));
-      EXPECT_TRUE(utils::isDeviceAllocated(copied["fields/flag/values"]));
-      EXPECT_TRUE(utils::isDeviceAllocated(copied["fields/small/values"]));
-      EXPECT_TRUE(utils::isDeviceAllocated(copied["matsets/mat/material_ids"]));
-      EXPECT_TRUE(utils::isDeviceAllocated(copied["matsets/mat/volume_fractions"]));
-      EXPECT_TRUE(utils::isDeviceAllocated(copied["matsets/mat/sizes"]));
-      EXPECT_TRUE(utils::isDeviceAllocated(copied["matsets/mat/offsets"]));
-      EXPECT_TRUE(utils::isDeviceAllocated(copied["matsets/mat/indices"]));
-      EXPECT_TRUE(utils::isDeviceAllocated(copied["matsets/mat_multi/volume_fractions/A/values"]));
-      EXPECT_TRUE(utils::isDeviceAllocated(copied["matsets/mat_multi/volume_fractions/A/indices"]));
-      EXPECT_FALSE(utils::isDeviceAllocated(copied["metadata/scalar_int"]));
-
-      EXPECT_TRUE(copied["coordsets/coords/values/x"].is_data_external());
-      EXPECT_TRUE(copied["topologies/mesh/elements/connectivity"].is_data_external());
-      EXPECT_TRUE(copied["fields/one/values"].is_data_external());
-      EXPECT_TRUE(copied["fields/mixed/matset_values"].is_data_external());
-      EXPECT_TRUE(copied["fields/mixed_nested/matset_values/A/values"].is_data_external());
-      EXPECT_TRUE(copied["fields/flag/values"].is_data_external());
-      EXPECT_TRUE(copied["fields/small/values"].is_data_external());
-      EXPECT_TRUE(copied["matsets/mat/material_ids"].is_data_external());
-      EXPECT_TRUE(copied["matsets/mat/volume_fractions"].is_data_external());
-      EXPECT_TRUE(copied["matsets/mat/sizes"].is_data_external());
-      EXPECT_TRUE(copied["matsets/mat/offsets"].is_data_external());
-      EXPECT_TRUE(copied["matsets/mat/indices"].is_data_external());
-      EXPECT_TRUE(copied["matsets/mat_multi/volume_fractions/A/values"].is_data_external());
-      EXPECT_TRUE(copied["matsets/mat_multi/volume_fractions/A/indices"].is_data_external());
-      EXPECT_FALSE(copied["metadata/scalar_int"].is_data_external());
-
-      expectPointerInBucket(copied["fields/flag/values"], storage["bytes_1"]);
-      expectPointerInBucket(copied["fields/small/values"], storage["bytes_2"]);
-      expectPointerInBucket(copied["coordsets/coords/values/x"], storage["bytes_4"]);
-      expectPointerInBucket(copied["fields/one/values"], storage["bytes_8"]);
-      expectPointerInBucket(copied["fields/mixed_nested/matset_values/A/values"], storage["bytes_4"]);
-      expectPointerInBucket(copied["matsets/mat_multi/volume_fractions/A/values"],
-                            storage["bytes_4"]);
-      expectPointerInBucket(copied["matsets/mat_multi/volume_fractions/A/indices"],
-                            storage["bytes_4"]);
-    }
-    else
-    {
-      EXPECT_FALSE(copied.has_child("_axom_single_elements"));
-      EXPECT_FALSE(copied["coordsets/coords/values/x"].is_data_external());
-      EXPECT_FALSE(copied["fields/one/values"].is_data_external());
-      EXPECT_FALSE(copied["fields/flag/values"].is_data_external());
-    }
-
-    expectSameLeafType(host["coordsets/coords/values/x"], copied["coordsets/coords/values/x"]);
-    expectSameLeafType(host["topologies/mesh/elements/connectivity"],
-                       copied["topologies/mesh/elements/connectivity"]);
-    expectSameLeafType(host["fields/one/values"], copied["fields/one/values"]);
-    expectSameLeafType(host["fields/mixed/matset_values"], copied["fields/mixed/matset_values"]);
-    expectSameLeafType(host["fields/mixed_nested/matset_values/A/values"],
-                       copied["fields/mixed_nested/matset_values/A/values"]);
-    expectSameLeafType(host["fields/flag/values"], copied["fields/flag/values"]);
-    expectSameLeafType(host["fields/small/values"], copied["fields/small/values"]);
-    expectSameLeafType(host["matsets/mat/material_ids"], copied["matsets/mat/material_ids"]);
-    expectSameLeafType(host["matsets/mat/volume_fractions"], copied["matsets/mat/volume_fractions"]);
-    expectSameLeafType(host["matsets/mat/sizes"], copied["matsets/mat/sizes"]);
-    expectSameLeafType(host["matsets/mat/offsets"], copied["matsets/mat/offsets"]);
-    expectSameLeafType(host["matsets/mat/indices"], copied["matsets/mat/indices"]);
-    expectSameLeafType(host["matsets/mat_multi/volume_fractions/A/values"],
-                       copied["matsets/mat_multi/volume_fractions/A/values"]);
-    expectSameLeafType(host["matsets/mat_multi/volume_fractions/A/indices"],
-                       copied["matsets/mat_multi/volume_fractions/A/indices"]);
-    expectSameLeafType(host["metadata/scalar_int"], copied["metadata/scalar_int"]);
-
-    const int allocatorID = axom::execution_space<ExecSpace>::allocatorID();
-    axom::Array<double> results(16, 16, allocatorID);
-    auto resultsView = results.view();
-    auto xView = utils::make_array_view<float>(copied["coordsets/coords/values/x"]);
-    auto connView = utils::make_array_view<int>(copied["topologies/mesh/elements/connectivity"]);
-    auto sizesView = utils::make_array_view<int>(copied["topologies/mesh/elements/sizes"]);
-    auto offsetsView = utils::make_array_view<int>(copied["topologies/mesh/elements/offsets"]);
-    auto fieldView = utils::make_array_view<double>(copied["fields/one/values"]);
-    auto mixedFieldView = utils::make_array_view<float>(copied["fields/mixed/matset_values"]);
-    auto nestedMixedFieldView =
-      utils::make_array_view<float>(copied["fields/mixed_nested/matset_values/A/values"]);
-    auto flagFieldView = utils::make_array_view<conduit::uint8>(copied["fields/flag/values"]);
-    auto smallFieldView = utils::make_array_view<conduit::uint16>(copied["fields/small/values"]);
-    auto materialIDsView = utils::make_array_view<int>(copied["matsets/mat/material_ids"]);
-    auto volumeFractionsView =
-      utils::make_array_view<float>(copied["matsets/mat/volume_fractions"]);
-    auto matSizesView = utils::make_array_view<int>(copied["matsets/mat/sizes"]);
-    auto matOffsetsView = utils::make_array_view<int>(copied["matsets/mat/offsets"]);
-    auto matIndicesView = utils::make_array_view<int>(copied["matsets/mat/indices"]);
-    auto matMultiValuesView =
-      utils::make_array_view<float>(copied["matsets/mat_multi/volume_fractions/A/values"]);
-    auto matMultiIndicesView =
-      utils::make_array_view<int>(copied["matsets/mat_multi/volume_fractions/A/indices"]);
-
-    axom::for_all<ExecSpace>(1, [=] AXOM_HOST_DEVICE(axom::IndexType) {
-      resultsView[0] = xView[0];
-      resultsView[1] = fieldView[0];
-      resultsView[2] = mixedFieldView[0];
-      resultsView[3] = nestedMixedFieldView[0];
-      resultsView[4] = flagFieldView[0];
-      resultsView[5] = smallFieldView[0];
-      resultsView[6] = connView[0];
-      resultsView[7] = sizesView[0];
-      resultsView[8] = offsetsView[0];
-      resultsView[9] = materialIDsView[0];
-      resultsView[10] = volumeFractionsView[0];
-      resultsView[11] = matSizesView[0];
-      resultsView[12] = matOffsetsView[0];
-      resultsView[13] = matIndicesView[0];
-      resultsView[14] = matMultiValuesView[0];
-      resultsView[15] = matMultiIndicesView[0];
-    });
-
-    double resultsHost[16] = {};
-    axom::copy(resultsHost, results.data(), sizeof(resultsHost));
-    EXPECT_DOUBLE_EQ(resultsHost[0], 1.5);
-    EXPECT_DOUBLE_EQ(resultsHost[1], 2.5);
-    EXPECT_DOUBLE_EQ(resultsHost[2], 3.5);
-    EXPECT_DOUBLE_EQ(resultsHost[3], 4.5);
-    EXPECT_DOUBLE_EQ(resultsHost[4], 9.);
-    EXPECT_DOUBLE_EQ(resultsHost[5], 12.);
-    EXPECT_DOUBLE_EQ(resultsHost[6], 0.);
-    EXPECT_DOUBLE_EQ(resultsHost[7], 1.);
-    EXPECT_DOUBLE_EQ(resultsHost[8], 0.);
-    EXPECT_DOUBLE_EQ(resultsHost[9], 22.);
-    EXPECT_DOUBLE_EQ(resultsHost[10], 1.);
-    EXPECT_DOUBLE_EQ(resultsHost[11], 1.);
-    EXPECT_DOUBLE_EQ(resultsHost[12], 0.);
-    EXPECT_DOUBLE_EQ(resultsHost[13], 0.);
-    EXPECT_DOUBLE_EQ(resultsHost[14], 0.75);
-    EXPECT_DOUBLE_EQ(resultsHost[15], 0.);
-  }
-};
-
-TEST(bump_utilities, copy_single_value_blueprint_leaves_seq)
-{
-  test_copy_single_value_blueprint_leaves<seq_exec>::test();
-}
-#if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
-TEST(bump_utilities, copy_single_value_blueprint_leaves_omp)
-{
-  test_copy_single_value_blueprint_leaves<omp_exec>::test();
-}
-#endif
-#if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
-TEST(bump_utilities, copy_single_value_blueprint_leaves_cuda)
-{
-  test_copy_single_value_blueprint_leaves<cuda_exec>::test();
-}
-#endif
-#if defined(AXOM_RUNTIME_POLICY_USE_HIP)
-TEST(bump_utilities, copy_single_value_blueprint_leaves_hip)
-{
-  test_copy_single_value_blueprint_leaves<hip_exec>::test();
-}
-#endif
-
-//------------------------------------------------------------------------------
-template <typename ExecSpace>
-struct test_copy_single_value_blueprint_subtrees
-{
-  static void test()
-  {
-    conduit::Node hostCoordset;
-    hostCoordset["type"] = "explicit";
-    hostCoordset["values/x"].set(std::vector<float> {6.5f});
-
-    conduit::Node hostTopology;
-    hostTopology["type"] = "unstructured";
-    hostTopology["coordset"] = "coords";
-    hostTopology["elements/shape"] = "point";
-    hostTopology["elements/connectivity"].set(std::vector<int> {0});
-    hostTopology["elements/sizes"].set(std::vector<int> {1});
-    hostTopology["elements/offsets"].set(std::vector<int> {0});
-
-    conduit::Node hostField;
-    hostField["topology"] = "mesh";
-    hostField["association"] = "element";
-    hostField["values"].set(std::vector<double> {7.5});
-
-    conduit::Node hostMixedField;
-    hostMixedField["topology"] = "mesh";
-    hostMixedField["association"] = "element";
-    hostMixedField["matset"] = "mat";
-    hostMixedField["matset_values/A/values"].set(std::vector<float> {8.5f});
-
-    conduit::Node hostMatset;
-    hostMatset["topology"] = "mesh";
-    hostMatset["volume_fractions/A/values"].set(std::vector<float> {1.f});
-    hostMatset["volume_fractions/A/indices"].set(std::vector<int> {0});
-
-    conduit::Node copiedCoordset, copiedTopology, copiedField, copiedMixedField, copiedMatset;
-    utils::copy<ExecSpace>(copiedCoordset, hostCoordset);
-    utils::copy<ExecSpace>(copiedTopology, hostTopology);
-    utils::copy<ExecSpace>(copiedField, hostField);
-    utils::copy<ExecSpace>(copiedMixedField, hostMixedField);
-    utils::copy<ExecSpace>(copiedMatset, hostMatset);
-
-    if constexpr(axom::execution_space<ExecSpace>::onDevice())
-    {
-      EXPECT_TRUE(copiedCoordset.has_child("_axom_single_elements"));
-      EXPECT_TRUE(copiedTopology.has_child("_axom_single_elements"));
-      EXPECT_TRUE(copiedField.has_child("_axom_single_elements"));
-      EXPECT_TRUE(copiedMixedField.has_child("_axom_single_elements"));
-      EXPECT_TRUE(copiedMatset.has_child("_axom_single_elements"));
-
-      EXPECT_TRUE(copiedCoordset["values/x"].is_data_external());
-      EXPECT_TRUE(copiedTopology["elements/connectivity"].is_data_external());
-      EXPECT_TRUE(copiedTopology["elements/sizes"].is_data_external());
-      EXPECT_TRUE(copiedTopology["elements/offsets"].is_data_external());
-      EXPECT_TRUE(copiedField["values"].is_data_external());
-      EXPECT_TRUE(copiedMixedField["matset_values/A/values"].is_data_external());
-      EXPECT_TRUE(copiedMatset["volume_fractions/A/values"].is_data_external());
-      EXPECT_TRUE(copiedMatset["volume_fractions/A/indices"].is_data_external());
-    }
-    else
-    {
-      EXPECT_FALSE(copiedCoordset.has_child("_axom_single_elements"));
-      EXPECT_FALSE(copiedTopology.has_child("_axom_single_elements"));
-      EXPECT_FALSE(copiedField.has_child("_axom_single_elements"));
-      EXPECT_FALSE(copiedMixedField.has_child("_axom_single_elements"));
-      EXPECT_FALSE(copiedMatset.has_child("_axom_single_elements"));
-    }
-
-    expectSameLeafType(hostCoordset["values/x"], copiedCoordset["values/x"]);
-    expectSameLeafType(hostTopology["elements/connectivity"],
-                       copiedTopology["elements/connectivity"]);
-    expectSameLeafType(hostTopology["elements/sizes"], copiedTopology["elements/sizes"]);
-    expectSameLeafType(hostTopology["elements/offsets"], copiedTopology["elements/offsets"]);
-    expectSameLeafType(hostField["values"], copiedField["values"]);
-    expectSameLeafType(hostMixedField["matset_values/A/values"],
-                       copiedMixedField["matset_values/A/values"]);
-    expectSameLeafType(hostMatset["volume_fractions/A/values"],
-                       copiedMatset["volume_fractions/A/values"]);
-    expectSameLeafType(hostMatset["volume_fractions/A/indices"],
-                       copiedMatset["volume_fractions/A/indices"]);
-
-    const int allocatorID = axom::execution_space<ExecSpace>::allocatorID();
-    axom::Array<double> results(8, 8, allocatorID);
-    auto resultsView = results.view();
-    auto xView = utils::make_array_view<float>(copiedCoordset["values/x"]);
-    auto connView = utils::make_array_view<int>(copiedTopology["elements/connectivity"]);
-    auto sizesView = utils::make_array_view<int>(copiedTopology["elements/sizes"]);
-    auto offsetsView = utils::make_array_view<int>(copiedTopology["elements/offsets"]);
-    auto fieldView = utils::make_array_view<double>(copiedField["values"]);
-    auto mixedFieldView = utils::make_array_view<float>(copiedMixedField["matset_values/A/values"]);
-    auto vfView = utils::make_array_view<float>(copiedMatset["volume_fractions/A/values"]);
-    auto vfIndicesView = utils::make_array_view<int>(copiedMatset["volume_fractions/A/indices"]);
-
-    axom::for_all<ExecSpace>(1, [=] AXOM_HOST_DEVICE(axom::IndexType) {
-      resultsView[0] = xView[0];
-      resultsView[1] = connView[0];
-      resultsView[2] = sizesView[0];
-      resultsView[3] = offsetsView[0];
-      resultsView[4] = fieldView[0];
-      resultsView[5] = mixedFieldView[0];
-      resultsView[6] = vfView[0];
-      resultsView[7] = vfIndicesView[0];
-    });
-
-    double resultsHost[8] = {};
-    axom::copy(resultsHost, results.data(), sizeof(resultsHost));
-    EXPECT_DOUBLE_EQ(resultsHost[0], 6.5);
-    EXPECT_DOUBLE_EQ(resultsHost[1], 0.);
-    EXPECT_DOUBLE_EQ(resultsHost[2], 1.);
-    EXPECT_DOUBLE_EQ(resultsHost[3], 0.);
-    EXPECT_DOUBLE_EQ(resultsHost[4], 7.5);
-    EXPECT_DOUBLE_EQ(resultsHost[5], 8.5);
-    EXPECT_DOUBLE_EQ(resultsHost[6], 1.);
-    EXPECT_DOUBLE_EQ(resultsHost[7], 0.);
-  }
-};
-
-TEST(bump_utilities, copy_single_value_blueprint_subtrees_seq)
-{
-  test_copy_single_value_blueprint_subtrees<seq_exec>::test();
-}
-#if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
-TEST(bump_utilities, copy_single_value_blueprint_subtrees_omp)
-{
-  test_copy_single_value_blueprint_subtrees<omp_exec>::test();
-}
-#endif
-#if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
-TEST(bump_utilities, copy_single_value_blueprint_subtrees_cuda)
-{
-  test_copy_single_value_blueprint_subtrees<cuda_exec>::test();
-}
-#endif
-#if defined(AXOM_RUNTIME_POLICY_USE_HIP)
-TEST(bump_utilities, copy_single_value_blueprint_subtrees_hip)
-{
-  test_copy_single_value_blueprint_subtrees<hip_exec>::test();
-}
-#endif
 
 //------------------------------------------------------------------------------
 // Bump uses topology node ids to access flat vertex fields.
