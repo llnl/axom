@@ -114,15 +114,29 @@ struct test_conduit_compact_to
     constexpr conduit::index_t n = 4;
     axom::Array<double> interleaved {{-1., 1.25, -2., 2.5, -3., 3.75, -4., 5., -5.}};
 
-    // Build a host Node that contains different types of data.
+    const int sourceAllocatorID = axom::execution_space<axom::SEQ_EXEC>::allocatorID();
+    int destAllocatorID = axom::execution_space<ExecSpace>::allocatorID();
+#if defined(AXOM_USE_UMPIRE)
+    if(!axom::execution_space<ExecSpace>::onDevice())
+    {
+      const int hostAllocatorID = axom::detail::getAllocatorID<axom::MemorySpace::Host>();
+      if(hostAllocatorID != sourceAllocatorID)
+      {
+        destAllocatorID = hostAllocatorID;
+      }
+    }
+#endif
+    const auto sourceConduitAllocatorId =
+      axom::sidre::ConduitMemory::axomAllocIdToConduit(sourceAllocatorID);
+
     conduit::Node host;
-    // Select 1.25, 2.5, 3.75, 5. from the interleaved array.
+    host.set_allocator(sourceConduitAllocatorId);
     host["array"].set_external(conduit::DataType(conduit::DataType::FLOAT64_ID,
-                                                  n,
-                                                  sizeof(double),
-                                                  2 * sizeof(double),
-                                                  sizeof(double),
-                                                  conduit::Endianness::DEFAULT_ID),
+                                                 n,
+                                                 sizeof(double),
+                                                 2 * sizeof(double),
+                                                 sizeof(double),
+                                                 conduit::Endianness::DEFAULT_ID),
                                interleaved.data());
     host["scalar"] = 42;
     host["label"] = "compact_to";
@@ -130,29 +144,25 @@ struct test_conduit_compact_to
 
     EXPECT_FALSE(host.is_compact());
 
-    // Copy the host Node to the device Node.
-    const int allocatorID = axom::execution_space<ExecSpace>::allocatorID();
-    const auto conduitAllocatorId = axom::sidre::ConduitMemory::axomAllocIdToConduit(allocatorID);
+    const auto conduitAllocatorId = axom::sidre::ConduitMemory::axomAllocIdToConduit(destAllocatorID);
     conduit::Node device;
     device.set_allocator(conduitAllocatorId);
     host.compact_to(device);
 
-    // Make sure the device node's data has the right metadata.
     EXPECT_TRUE(device.is_compact());
     EXPECT_TRUE(device.is_contiguous());
     EXPECT_EQ(device.total_bytes_allocated(), device.total_bytes_compact());
     EXPECT_EQ(device.total_bytes_compact(), host.total_bytes_compact());
-    EXPECT_EQ(axom::sidre::ConduitMemory::conduitAllocIdToAxom(device.allocator()), allocatorID);
-    EXPECT_EQ(axom::getAllocatorIDFromPointer(device.data_ptr()), allocatorID);
-    EXPECT_EQ(axom::getAllocatorIDFromPointer(device["array"].data_ptr()), allocatorID);
-    EXPECT_EQ(axom::getAllocatorIDFromPointer(device["scalar"].data_ptr()), allocatorID);
-    EXPECT_EQ(axom::getAllocatorIDFromPointer(device["label"].data_ptr()), allocatorID);
-    EXPECT_EQ(axom::getAllocatorIDFromPointer(device["nested/ids"].data_ptr()), allocatorID);
+    EXPECT_EQ(axom::sidre::ConduitMemory::conduitAllocIdToAxom(device.allocator()), destAllocatorID);
+    EXPECT_EQ(axom::getAllocatorIDFromPointer(device.data_ptr()), destAllocatorID);
+    EXPECT_EQ(axom::getAllocatorIDFromPointer(device["array"].data_ptr()), destAllocatorID);
+    EXPECT_EQ(axom::getAllocatorIDFromPointer(device["scalar"].data_ptr()), destAllocatorID);
+    EXPECT_EQ(axom::getAllocatorIDFromPointer(device["label"].data_ptr()), destAllocatorID);
+    EXPECT_EQ(axom::getAllocatorIDFromPointer(device["nested/ids"].data_ptr()), destAllocatorID);
 
     EXPECT_EQ(device["array"].dtype().stride(), device["array"].dtype().element_bytes());
     EXPECT_EQ(device["nested/ids"].dtype().stride(), device["nested/ids"].dtype().element_bytes());
 
-    // Make views and test the device data.
     auto arrayView = utils::make_array_view<double>(device["array"]);
     auto scalarView = utils::make_array_view<int>(device["scalar"]);
     auto idsView = utils::make_array_view<int>(device["nested/ids"]);
@@ -175,11 +185,9 @@ struct test_conduit_compact_to
     });
     EXPECT_EQ(idsReduce.get(), 16);
 
-    // Copy the device data back to a new Node on the host.
     conduit::Node newHost;
     device.compact_to(newHost);
 
-    // Test the newHost node data.
     EXPECT_TRUE(newHost.is_compact());
     EXPECT_TRUE(newHost.is_contiguous());
     EXPECT_EQ(newHost["array"].dtype().stride(), newHost["array"].dtype().element_bytes());
@@ -209,6 +217,142 @@ TEST(bump_utilities, compact_to_cuda) { test_conduit_compact_to<cuda_exec>::test
 #endif
 #if defined(AXOM_RUNTIME_POLICY_USE_HIP)
 TEST(bump_utilities, compact_to_hip) { test_conduit_compact_to<hip_exec>::test(); }
+#endif
+
+//------------------------------------------------------------------------------
+template <typename ExecSpace>
+struct test_conduit_host_read
+{
+  static void test(bool checkDeviceAllocated = false)
+  {
+    conduit::Node host;
+    host["int_scalar"] = 42;
+    host["double_scalar"] = 3.25;
+    host["label"] = "host_read";
+    host["int_array"].set(std::vector<int> {5, 10, 15, 20});
+    host["double_array"].set(std::vector<double> {1.25, 2.5, 3.75});
+
+    EXPECT_EQ(utils::hostRead<int>(host["int_scalar"]), 42);
+    EXPECT_EQ(utils::hostReadInt(host["int_scalar"]), 42);
+    EXPECT_DOUBLE_EQ(utils::hostRead<double>(host["double_scalar"]), 3.25);
+    EXPECT_DOUBLE_EQ(utils::hostReadDouble(host["double_scalar"]), 3.25);
+    EXPECT_EQ(utils::hostRead<std::string>(host["label"]), std::string("host_read"));
+    EXPECT_EQ(utils::hostReadString(host["label"]), std::string("host_read"));
+
+    conduit::Node device;
+    utils::copy<ExecSpace>(device, host);
+
+    EXPECT_EQ(utils::hostReadInt(device["int_scalar"]), 42);
+    EXPECT_DOUBLE_EQ(utils::hostReadDouble(device["double_scalar"]), 3.25);
+    EXPECT_EQ(utils::hostReadString(device["label"]), std::string("host_read"));
+
+    const auto intValues = utils::hostReadArray<int>(device["int_array"]);
+    ASSERT_EQ(intValues.size(), 4);
+    EXPECT_EQ(intValues[0], 5);
+    EXPECT_EQ(intValues[1], 10);
+    EXPECT_EQ(intValues[2], 15);
+    EXPECT_EQ(intValues[3], 20);
+
+    const auto doubleValues = utils::hostReadArray<double>(device["double_array"]);
+    ASSERT_EQ(doubleValues.size(), 3);
+    EXPECT_DOUBLE_EQ(doubleValues[0], 1.25);
+    EXPECT_DOUBLE_EQ(doubleValues[1], 2.5);
+    EXPECT_DOUBLE_EQ(doubleValues[2], 3.75);
+
+    if(checkDeviceAllocated)
+    {
+      EXPECT_TRUE(utils::isDeviceAllocated(device["int_scalar"]));
+      EXPECT_TRUE(utils::isDeviceAllocated(device["double_scalar"]));
+      EXPECT_TRUE(utils::isDeviceAllocated(device["label"]));
+      EXPECT_TRUE(utils::isDeviceAllocated(device["int_array"]));
+      EXPECT_TRUE(utils::isDeviceAllocated(device["double_array"]));
+    }
+  }
+};
+
+TEST(bump_utilities, host_read_seq) { test_conduit_host_read<seq_exec>::test(); }
+#if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
+TEST(bump_utilities, host_read_omp) { test_conduit_host_read<omp_exec>::test(); }
+#endif
+#if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
+TEST(bump_utilities, host_read_cuda) { test_conduit_host_read<cuda_exec>::test(true); }
+#endif
+#if defined(AXOM_RUNTIME_POLICY_USE_HIP)
+TEST(bump_utilities, host_read_hip) { test_conduit_host_read<hip_exec>::test(true); }
+#endif
+
+TEST(bump_utilities, host_read_rejects_non_leaf_nodes)
+{
+  axom::slic::ScopedAbortToThrow abort_guard;
+
+  conduit::Node empty, object, list, array;
+  object["child"] = 5;
+  list.append() = 7;
+  array.set(std::vector<int> {1, 2});
+
+  EXPECT_THROW(utils::hostRead<int>(empty), axom::slic::SlicAbortException);
+  EXPECT_THROW(utils::hostRead<int>(object), axom::slic::SlicAbortException);
+  EXPECT_THROW(utils::hostRead<int>(list), axom::slic::SlicAbortException);
+  EXPECT_THROW(utils::hostRead<int>(array), axom::slic::SlicAbortException);
+}
+
+//------------------------------------------------------------------------------
+template <typename ExecSpace>
+struct test_conduit_host_read_nested_copy
+{
+  static void test()
+  {
+    conduit::Node host;
+    host["metadata/count"] = 42;
+    host["metadata/scale"] = 3.25;
+    host["metadata/label"] = "nested_host_read";
+    host["fields/ids"].set(std::vector<int> {2, 4, 6, 8});
+    host["fields/weights"].set(std::vector<double> {1.5, 2.5, 3.5});
+
+    conduit::Node copied;
+    utils::copy<ExecSpace>(copied, host);
+
+    EXPECT_EQ(utils::hostReadInt(copied["metadata/count"]), 42);
+    EXPECT_DOUBLE_EQ(utils::hostReadDouble(copied["metadata/scale"]), 3.25);
+    EXPECT_EQ(utils::hostReadString(copied["metadata/label"]),
+              std::string("nested_host_read"));
+
+    const auto ids = utils::hostReadArray<int>(copied["fields/ids"]);
+    ASSERT_EQ(ids.size(), 4);
+    EXPECT_EQ(ids[0], 2);
+    EXPECT_EQ(ids[1], 4);
+    EXPECT_EQ(ids[2], 6);
+    EXPECT_EQ(ids[3], 8);
+
+    const auto weights = utils::hostReadArray<double>(copied["fields/weights"]);
+    ASSERT_EQ(weights.size(), 3);
+    EXPECT_DOUBLE_EQ(weights[0], 1.5);
+    EXPECT_DOUBLE_EQ(weights[1], 2.5);
+    EXPECT_DOUBLE_EQ(weights[2], 3.5);
+  }
+};
+
+TEST(bump_utilities, host_read_nested_copy_seq)
+{
+  test_conduit_host_read_nested_copy<seq_exec>::test();
+}
+#if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
+TEST(bump_utilities, host_read_nested_copy_omp)
+{
+  test_conduit_host_read_nested_copy<omp_exec>::test();
+}
+#endif
+#if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
+TEST(bump_utilities, host_read_nested_copy_cuda)
+{
+  test_conduit_host_read_nested_copy<cuda_exec>::test();
+}
+#endif
+#if defined(AXOM_RUNTIME_POLICY_USE_HIP)
+TEST(bump_utilities, host_read_nested_copy_hip)
+{
+  test_conduit_host_read_nested_copy<hip_exec>::test();
+}
 #endif
 
 //------------------------------------------------------------------------------
@@ -314,6 +458,7 @@ TEST(bump_utilities, fill_from_node_lengths)
   n["exact"].set(std::vector<int> {2, 3});
   n["long"].set(std::vector<int> {4, 5, 6});
   n["short"].set(std::vector<int> {7});
+  n["double_long"].set(std::vector<double> {1.5, 2.5, 3.5});
 
   axom::StackArray<int, 2> arr {{-1, -1}};
   EXPECT_FALSE(utils::fillFromNode(n, "missing", arr));
@@ -324,14 +469,65 @@ TEST(bump_utilities, fill_from_node_lengths)
   EXPECT_EQ(arr[1], 3);
 
   // Extra values are ignored.
-  EXPECT_TRUE(utils::fillFromNode(n, "long", arr, true));
+  EXPECT_TRUE(utils::fillFromNode(n, "long", arr));
   EXPECT_EQ(arr[0], 4);
   EXPECT_EQ(arr[1], 5);
 
+  axom::StackArray<double, 2> darr {{-1., -1.}};
+  EXPECT_TRUE(utils::fillFromNode(n, "double_long", darr));
+  EXPECT_DOUBLE_EQ(darr[0], 1.5);
+  EXPECT_DOUBLE_EQ(darr[1], 2.5);
+
   // Too few values would read past the end of the node's data.
   EXPECT_THROW(utils::fillFromNode(n, "short", arr), axom::slic::SlicAbortException);
-  EXPECT_THROW(utils::fillFromNode(n, "short", arr, true), axom::slic::SlicAbortException);
 }
+
+template <typename ExecSpace>
+struct test_fill_from_node_after_copy
+{
+  static void test()
+  {
+    conduit::Node host;
+    host["ints"].set(std::vector<int> {8, 9, 10});
+    host["weights"].set(std::vector<double> {0.25, 0.5});
+
+    conduit::Node copied;
+    utils::copy<ExecSpace>(copied, host);
+
+    axom::StackArray<int, 2> ints {{-1, -1}};
+    EXPECT_TRUE(utils::fillFromNode(copied, "ints", ints));
+    EXPECT_EQ(ints[0], 8);
+    EXPECT_EQ(ints[1], 9);
+
+    axom::StackArray<double, 2> weights {{-1., -1.}};
+    EXPECT_TRUE(utils::fillFromNode(copied, "weights", weights));
+    EXPECT_DOUBLE_EQ(weights[0], 0.25);
+    EXPECT_DOUBLE_EQ(weights[1], 0.5);
+  }
+};
+
+TEST(bump_utilities, fill_from_node_after_copy_seq)
+{
+  test_fill_from_node_after_copy<seq_exec>::test();
+}
+#if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
+TEST(bump_utilities, fill_from_node_after_copy_omp)
+{
+  test_fill_from_node_after_copy<omp_exec>::test();
+}
+#endif
+#if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
+TEST(bump_utilities, fill_from_node_after_copy_cuda)
+{
+  test_fill_from_node_after_copy<cuda_exec>::test();
+}
+#endif
+#if defined(AXOM_RUNTIME_POLICY_USE_HIP)
+TEST(bump_utilities, fill_from_node_after_copy_hip)
+{
+  test_fill_from_node_after_copy<hip_exec>::test();
+}
+#endif
 
 TEST(bump_utilities, conduit_single_value_vector_matches_scalar_representation)
 {
