@@ -103,17 +103,22 @@ struct make_uniform_coordset<3>
    */
   static CoordsetView view(const conduit::Node& coordset)
   {
+    namespace utils = axom::bump::utilities;
     verify(coordset, "coordset");
+
+    conduit::Node hostCoordset;
+    utils::copy<axom::SEQ_EXEC>(hostCoordset, coordset);
+
     const std::string keys[] = {"i", "j", "k"};
-    const conduit::Node& n_dims = coordset["dims"];
+    const conduit::Node& n_dims = hostCoordset["dims"];
     axom::StackArray<axom::IndexType, 3> dims;
     axom::StackArray<double, 3> origin {0., 0., 0.}, spacing {1., 1., 1.};
     for(int i = 0; i < 3; i++)
     {
       dims[i] = n_dims.fetch_existing(keys[i]).to_int();
       SLIC_ERROR_IF(dims[i] <= 0, "Dimension must be greater than or equal to 1.");
-      if(coordset.has_child("origin")) origin[i] = coordset["origin"][i].to_double();
-      if(coordset.has_child("spacing")) spacing[i] = coordset["spacing"][i].to_double();
+      if(hostCoordset.has_child("origin")) origin[i] = hostCoordset["origin"][i].to_double();
+      if(hostCoordset.has_child("spacing")) spacing[i] = hostCoordset["spacing"][i].to_double();
     }
     return CoordsetView(dims, origin, spacing);
   }
@@ -134,17 +139,22 @@ struct make_uniform_coordset<2>
    */
   static CoordsetView view(const conduit::Node& coordset)
   {
+    namespace utils = axom::bump::utilities;
     verify(coordset, "coordset");
+
+    conduit::Node hostCoordset;
+    utils::copy<axom::SEQ_EXEC>(hostCoordset, coordset);
+
     const std::string keys[] = {"i", "j"};
-    const conduit::Node& n_dims = coordset["dims"];
+    const conduit::Node& n_dims = hostCoordset["dims"];
     axom::StackArray<axom::IndexType, 2> dims;
     axom::StackArray<double, 2> origin {0., 0.}, spacing {1., 1.};
     for(int i = 0; i < 2; i++)
     {
       dims[i] = n_dims.fetch_existing(keys[i]).to_int();
       SLIC_ERROR_IF(dims[i] <= 0, "Dimension must be greater than or equal to 1.");
-      if(coordset.has_child("origin")) origin[i] = coordset["origin"][i].to_double();
-      if(coordset.has_child("spacing")) spacing[i] = coordset["spacing"][i].to_double();
+      if(hostCoordset.has_child("origin")) origin[i] = hostCoordset["origin"][i].to_double();
+      if(hostCoordset.has_child("spacing")) spacing[i] = hostCoordset["spacing"][i].to_double();
     }
     return CoordsetView(dims, origin, spacing);
   }

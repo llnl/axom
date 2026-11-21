@@ -80,8 +80,8 @@ void setLayoutFromNode(const conduit::Node& node, Indexing& indexing)
                                       NDIMS));
     }
   }
-  axom::bump::utilities::fillFromNode(node, "offsets", offsets, true);
-  axom::bump::utilities::fillFromNode(node, "strides", strides, true);
+  axom::bump::utilities::fillFromNode(node, "offsets", offsets);
+  axom::bump::utilities::fillFromNode(node, "strides", strides);
   for(int d = 0; d < NDIMS; d++)
   {
     SLIC_ERROR_IF(offsets[d] < 0 || strides[d] < 1,

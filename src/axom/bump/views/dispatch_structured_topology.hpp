@@ -66,11 +66,11 @@ struct make_strided_structured_topology<3>
                                       zoneDims[d]));
     }
     LogicalIndex offsets {{0, 0, 0}}, strides {{1, 1, 1}};
-    utils::fillFromNode(topo, offsetsKey, offsets, true);
+    utils::fillFromNode(topo, offsetsKey, offsets);
     SLIC_ERROR_IF(
       !topo.has_path(stridesKey),
       axom::fmt::format("Strided-structured topology '{}' requires strides.", topo.path()));
-    utils::fillFromNode(topo, stridesKey, strides, true);
+    utils::fillFromNode(topo, stridesKey, strides);
     const auto nx = strides[1];
     const auto nxy = strides[2];
     const auto ny = nxy / nx;
@@ -123,11 +123,11 @@ struct make_strided_structured_topology<2>
     }
 
     LogicalIndex offsets {{0, 0}}, strides {{1, 1}};
-    utils::fillFromNode(topo, offsetsKey, offsets, true);
+    utils::fillFromNode(topo, offsetsKey, offsets);
     SLIC_ERROR_IF(
       !topo.has_path(stridesKey),
       axom::fmt::format("Strided-structured topology '{}' requires strides.", topo.path()));
-    utils::fillFromNode(topo, stridesKey, strides, true);
+    utils::fillFromNode(topo, stridesKey, strides);
 
     // Make zone striding.
     strides[1]--;
@@ -172,11 +172,11 @@ struct make_strided_structured_topology<1>
       axom::fmt::format("Dimension was {}. It must be greater than or equal to 1.", zoneDims[0]));
 
     LogicalIndex offsets {0}, strides {1};
-    utils::fillFromNode(topo, offsetsKey, offsets, true);
+    utils::fillFromNode(topo, offsetsKey, offsets);
     SLIC_ERROR_IF(
       !topo.has_path(stridesKey),
       axom::fmt::format("Strided-structured topology '{}' requires strides.", topo.path()));
-    utils::fillFromNode(topo, stridesKey, strides, true);
+    utils::fillFromNode(topo, stridesKey, strides);
 
     return Indexing(zoneDims, offsets, strides);
   }
