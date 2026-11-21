@@ -24,12 +24,52 @@ namespace bump
 namespace utilities
 {
 
+const conduit::Node* findReferenceNode(const conduit::Node& node,
+                                       const std::string& refKey)
+{
+  SLIC_ERROR_IF(refKey.empty(), "Reference key must not be empty.");
+
+  const conduit::Node* result = nullptr;
+
+  const std::string refSection =
+    (refKey.back() != 'y') ? refKey + "s" : refKey.substr(0, refKey.length() - 1) + "ies";
+
+  if(node.has_child(refKey))
+  {
+    const std::string refValue = hostReadString(node.fetch_existing(refKey));
+
+    const conduit::Node* traverseNode = node.parent();
+    while(traverseNode != nullptr)
+    {
+      if(traverseNode->has_child(refSection))
+      {
+        const conduit::Node& refParent = traverseNode->fetch_existing(refSection);
+        if(refParent.has_child(refValue))
+        {
+          result = &refParent.fetch_existing(refValue);
+        }
+        break;
+      }
+
+      traverseNode = traverseNode->parent();
+    }
+  }
+
+  return result;
+}
+
+conduit::Node* findReferenceNode(conduit::Node& node, const std::string& refKey)
+{
+  return const_cast<conduit::Node*>(findReferenceNode(static_cast<const conduit::Node&>(node),
+                                                      refKey));
+}
+
 std::vector<std::string> coordsetAxes(const conduit::Node& n_input)
 {
   std::vector<std::string> axes;
   // Get the axis names for the output coordset. For uniform, prefer x,y,z
   // instead of i,j,k since we're making an explicit coordset.
-  if(n_input.fetch_existing("type").as_string() == "uniform")
+  if(hostReadString(n_input.fetch_existing("type")) == "uniform")
   {
     if(n_input.has_path("dims/i")) axes.push_back("x");
     if(n_input.has_path("dims/j")) axes.push_back("y");

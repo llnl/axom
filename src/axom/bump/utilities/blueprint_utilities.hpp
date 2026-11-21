@@ -21,6 +21,39 @@ namespace utilities
 //------------------------------------------------------------------------------
 
 /*!
+ * \brief Find a referenced Blueprint sibling node using a device-safe read of the
+ *        reference string.
+ *
+ * \param[in] node    The node containing the Blueprint reference child.
+ * \param[in] refKey  The name of the reference child, such as `"coordset"` or
+ *                    `"topology"`.
+ *
+ * \return A pointer to the referenced node, or `nullptr` if the reference child
+ *         or referenced node does not exist.
+ *
+ * This mirrors `conduit::blueprint::mesh::utils::find_reference_node()`, but it
+ * reads the reference string with `hostReadString()` so it remains safe when the
+ * referenced leaf storage is device-resident.
+ */
+const conduit::Node* findReferenceNode(const conduit::Node& node,
+                                       const std::string& refKey);
+
+/*!
+ * \brief Find a referenced Blueprint sibling node using a device-safe read of the
+ *        reference string.
+ *
+ * \param[in,out] node  The node containing the Blueprint reference child.
+ * \param[in] refKey    The name of the reference child, such as `"coordset"` or
+ *                      `"topology"`.
+ *
+ * \return A pointer to the referenced node, or `nullptr` if the reference child
+ *         or referenced node does not exist.
+ */
+conduit::Node* findReferenceNode(conduit::Node& node, const std::string& refKey);
+
+//------------------------------------------------------------------------------
+
+/*!
  * \brief Return the names of the axes for a coordset.
  *
  * \param n_input A Conduit node containing a coordset.

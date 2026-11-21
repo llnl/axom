@@ -8,9 +8,9 @@
 
 #include "axom/bump/views/StructuredTopologyView.hpp"
 #include "axom/bump/views/dispatch_utilities.hpp"
+#include "axom/bump/utilities/blueprint_utilities.hpp"
 
 #include <conduit/conduit.hpp>
-#include <conduit/conduit_blueprint_mesh_utils.hpp>
 
 namespace axom
 {
@@ -43,8 +43,7 @@ struct make_uniform_topology<3>
   static Indexing indexing(const conduit::Node& topo)
   {
     verify(topo, "topology");
-    const conduit::Node* coordset =
-      conduit::blueprint::mesh::utils::find_reference_node(topo, "coordset");
+    const conduit::Node* coordset = utilities::findReferenceNode(topo, "coordset");
     SLIC_ASSERT(coordset != nullptr);
     const conduit::Node& n_dims = coordset->fetch_existing("dims");
     LogicalIndex zoneDims;
@@ -80,8 +79,7 @@ struct make_uniform_topology<2>
   static Indexing indexing(const conduit::Node& topo)
   {
     verify(topo, "topology");
-    const conduit::Node* coordset =
-      conduit::blueprint::mesh::utils::find_reference_node(topo, "coordset");
+    const conduit::Node* coordset = utilities::findReferenceNode(topo, "coordset");
     SLIC_ASSERT(coordset != nullptr);
     const conduit::Node& n_dims = coordset->fetch_existing("dims");
     LogicalIndex zoneDims;
@@ -116,8 +114,7 @@ struct make_uniform_topology<1>
   static Indexing indexing(const conduit::Node& topo)
   {
     verify(topo, "topology");
-    const conduit::Node* coordset =
-      conduit::blueprint::mesh::utils::find_reference_node(topo, "coordset");
+    const conduit::Node* coordset = utilities::findReferenceNode(topo, "coordset");
     SLIC_ASSERT(coordset != nullptr);
     const conduit::Node& n_dims = coordset->fetch_existing("dims");
     LogicalIndex zoneDims;
@@ -224,8 +221,7 @@ template <int SelectedDimensions = select_dimensions(1, 2, 3), typename FuncType
 void dispatch_uniform_topology(const conduit::Node& topo, FuncType&& func)
 {
   verify(topo, "topology");
-  const conduit::Node* coordset =
-    conduit::blueprint::mesh::utils::find_reference_node(topo, "coordset");
+  const conduit::Node* coordset = utilities::findReferenceNode(topo, "coordset");
   SLIC_ASSERT(coordset != nullptr);
   const conduit::Node& n_dims = coordset->fetch_existing("dims");
   switch(n_dims.dtype().number_of_elements())

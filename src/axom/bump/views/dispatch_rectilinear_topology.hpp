@@ -9,8 +9,8 @@
 #include "axom/bump/views/StructuredTopologyView.hpp"
 #include "axom/bump/views/StructuredIndexing.hpp"
 #include "axom/bump/views/dispatch_utilities.hpp"
+#include "axom/bump/utilities/blueprint_utilities.hpp"
 #include <conduit/conduit.hpp>
-#include <conduit/conduit_blueprint_mesh_utils.hpp>
 
 namespace axom
 {
@@ -41,10 +41,9 @@ struct make_rectilinear_topology<3>
   static Indexing indexing(const conduit::Node& topo)
   {
     verify(topo, "topology");
-    const conduit::Node* coordset =
-      conduit::blueprint::mesh::utils::find_reference_node(topo, "coordset");
+    const conduit::Node* coordset = utilities::findReferenceNode(topo, "coordset");
     SLIC_ASSERT(coordset != nullptr);
-    const auto axes = conduit::blueprint::mesh::utils::coordset::axes(*coordset);
+    const auto axes = utilities::coordsetAxes(*coordset);
     const conduit::Node& values = coordset->fetch_existing("values");
     LogicalIndex zoneDims;
     zoneDims[0] = values.fetch_existing(axes[0]).dtype().number_of_elements() - 1;
@@ -79,10 +78,9 @@ struct make_rectilinear_topology<2>
   static Indexing indexing(const conduit::Node& topo)
   {
     verify(topo, "topology");
-    const conduit::Node* coordset =
-      conduit::blueprint::mesh::utils::find_reference_node(topo, "coordset");
+    const conduit::Node* coordset = utilities::findReferenceNode(topo, "coordset");
     SLIC_ASSERT(coordset != nullptr);
-    const auto axes = conduit::blueprint::mesh::utils::coordset::axes(*coordset);
+    const auto axes = utilities::coordsetAxes(*coordset);
     const conduit::Node& values = coordset->fetch_existing("values");
     LogicalIndex zoneDims;
     zoneDims[0] = values.fetch_existing(axes[0]).dtype().number_of_elements() - 1;
@@ -116,10 +114,9 @@ struct make_rectilinear_topology<1>
   static Indexing indexing(const conduit::Node& topo)
   {
     verify(topo, "topology");
-    const conduit::Node* coordset =
-      conduit::blueprint::mesh::utils::find_reference_node(topo, "coordset");
+    const conduit::Node* coordset = utilities::findReferenceNode(topo, "coordset");
     SLIC_ASSERT(coordset != nullptr);
-    const auto axes = conduit::blueprint::mesh::utils::coordset::axes(*coordset);
+    const auto axes = utilities::coordsetAxes(*coordset);
     const conduit::Node& values = coordset->fetch_existing("values");
     LogicalIndex zoneDims;
     zoneDims[0] = values.fetch_existing(axes[0]).dtype().number_of_elements() - 1;
@@ -225,10 +222,9 @@ template <int SelectedDimensions = select_dimensions(1, 2, 3), typename FuncType
 void dispatch_rectilinear_topology(const conduit::Node& topo, FuncType&& func)
 {
   verify(topo, "topology");
-  const conduit::Node* coordset =
-    conduit::blueprint::mesh::utils::find_reference_node(topo, "coordset");
+  const conduit::Node* coordset = utilities::findReferenceNode(topo, "coordset");
   SLIC_ASSERT(coordset != nullptr);
-  const auto axes = conduit::blueprint::mesh::utils::coordset::axes(*coordset);
+  const auto axes = utilities::coordsetAxes(*coordset);
   switch(axes.size())
   {
   case 3:

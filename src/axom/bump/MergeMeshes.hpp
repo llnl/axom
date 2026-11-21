@@ -16,6 +16,7 @@
 #include "axom/bump/views/dispatch_unstructured_topology.hpp"
 #include "axom/bump/utilities/conduit_memory.hpp"
 #include "axom/bump/utilities/conduit_traits.hpp"
+#include "axom/bump/utilities/blueprint_utilities.hpp"
 #include "axom/bump/MakePolyhedralTopology.hpp"
 #include "axom/bump/MergePolyhedralFaces.hpp"
 #include "axom/sidre/core/ConduitMemory.hpp"
@@ -2215,8 +2216,7 @@ private:
       SLIC_ERROR_IF(fi.m_components.size() > 0, "Vector mixed vars not supported");
 
       // Get the Conduit node for the matset we built previously
-      conduit::Node* n_matset = const_cast<conduit::Node*>(
-        conduit::blueprint::mesh::utils::find_reference_node(n_field, "matset"));
+      conduit::Node* n_matset = utilities::findReferenceNode(n_field, "matset");
       SLIC_ERROR_IF(n_matset == nullptr,
                     axom::fmt::format("The new matset {} was not found.", matsetName));
 

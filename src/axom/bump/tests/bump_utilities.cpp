@@ -9,6 +9,7 @@
 #include "axom/core.hpp"
 #include "axom/slic.hpp"
 #include "axom/bump.hpp"
+#include "axom/bump/utilities/blueprint_utilities.hpp"
 #include "axom/bump/tests/blueprint_testing_data_helpers.hpp"
 #include "axom/bump/tests/blueprint_testing_helpers.hpp"
 
@@ -352,6 +353,60 @@ TEST(bump_utilities, host_read_nested_copy_cuda)
 TEST(bump_utilities, host_read_nested_copy_hip)
 {
   test_conduit_host_read_nested_copy<hip_exec>::test();
+}
+#endif
+
+//------------------------------------------------------------------------------
+template <typename ExecSpace>
+struct test_blueprint_find_reference_node
+{
+  static void test()
+  {
+    conduit::Node host;
+    host["coordsets/coords/type"] = "uniform";
+    host["coordsets/coords/dims/i"] = 5;
+    host["coordsets/coords/dims/j"] = 4;
+    host["topologies/mesh/type"] = "uniform";
+    host["topologies/mesh/coordset"] = "coords";
+
+    conduit::Node copied;
+    utils::copy<ExecSpace>(copied, host);
+
+    const conduit::Node* coordset =
+      utils::findReferenceNode(copied["topologies/mesh"], "coordset");
+    ASSERT_NE(coordset, nullptr);
+    EXPECT_EQ(coordset->path(), "coordsets/coords");
+    EXPECT_EQ(utils::hostReadString(coordset->fetch_existing("type")), std::string("uniform"));
+
+    const auto axes = utils::coordsetAxes(*coordset);
+    ASSERT_EQ(axes.size(), 2);
+    EXPECT_EQ(axes[0], "x");
+    EXPECT_EQ(axes[1], "y");
+
+    EXPECT_EQ(utils::findReferenceNode(copied["coordsets/coords"], "topology"), nullptr);
+  }
+};
+
+TEST(bump_utilities, find_reference_node_seq)
+{
+  test_blueprint_find_reference_node<seq_exec>::test();
+}
+#if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
+TEST(bump_utilities, find_reference_node_omp)
+{
+  test_blueprint_find_reference_node<omp_exec>::test();
+}
+#endif
+#if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
+TEST(bump_utilities, find_reference_node_cuda)
+{
+  test_blueprint_find_reference_node<cuda_exec>::test();
+}
+#endif
+#if defined(AXOM_RUNTIME_POLICY_USE_HIP)
+TEST(bump_utilities, find_reference_node_hip)
+{
+  test_blueprint_find_reference_node<hip_exec>::test();
 }
 #endif
 
