@@ -67,6 +67,7 @@ conduit::Node* findReferenceNode(conduit::Node& node, const std::string& refKey)
 std::vector<std::string> coordsetAxes(const conduit::Node& n_input)
 {
   std::vector<std::string> axes;
+
   // Get the axis names for the output coordset. For uniform, prefer x,y,z
   // instead of i,j,k since we're making an explicit coordset.
   if(hostReadString(n_input.fetch_existing("type")) == "uniform")
@@ -79,6 +80,7 @@ std::vector<std::string> coordsetAxes(const conduit::Node& n_input)
   {
     axes = conduit::blueprint::mesh::utils::coordset::axes(n_input);
   }
+
   return axes;
 }
 

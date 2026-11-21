@@ -9,6 +9,7 @@
 #include "axom/bump/views/StructuredTopologyView.hpp"
 #include "axom/bump/views/dispatch_utilities.hpp"
 #include "axom/bump/utilities/blueprint_utilities.hpp"
+#include "axom/bump/utilities/conduit_memory.hpp"
 
 #include <conduit/conduit.hpp>
 
@@ -46,10 +47,12 @@ struct make_uniform_topology<3>
     const conduit::Node* coordset = utilities::findReferenceNode(topo, "coordset");
     SLIC_ASSERT(coordset != nullptr);
     const conduit::Node& n_dims = coordset->fetch_existing("dims");
+    conduit::Node hostDims;
+    utilities::copy<axom::SEQ_EXEC>(hostDims, n_dims);
     LogicalIndex zoneDims;
-    zoneDims[0] = n_dims[0].to_index_t() - 1;
-    zoneDims[1] = n_dims[1].to_index_t() - 1;
-    zoneDims[2] = n_dims[2].to_index_t() - 1;
+    zoneDims[0] = hostDims[0].to_index_t() - 1;
+    zoneDims[1] = hostDims[1].to_index_t() - 1;
+    zoneDims[2] = hostDims[2].to_index_t() - 1;
     return Indexing(zoneDims);
   }
 
@@ -82,9 +85,11 @@ struct make_uniform_topology<2>
     const conduit::Node* coordset = utilities::findReferenceNode(topo, "coordset");
     SLIC_ASSERT(coordset != nullptr);
     const conduit::Node& n_dims = coordset->fetch_existing("dims");
+    conduit::Node hostDims;
+    utilities::copy<axom::SEQ_EXEC>(hostDims, n_dims);
     LogicalIndex zoneDims;
-    zoneDims[0] = n_dims[0].to_index_t() - 1;
-    zoneDims[1] = n_dims[1].to_index_t() - 1;
+    zoneDims[0] = hostDims[0].to_index_t() - 1;
+    zoneDims[1] = hostDims[1].to_index_t() - 1;
     return Indexing(zoneDims);
   }
 
@@ -118,7 +123,7 @@ struct make_uniform_topology<1>
     SLIC_ASSERT(coordset != nullptr);
     const conduit::Node& n_dims = coordset->fetch_existing("dims");
     LogicalIndex zoneDims;
-    zoneDims[0] = n_dims[0].to_index_t() - 1;
+    zoneDims[0] = hostRead<conduit::index_t>(n_dims[0]) - 1;
     return Indexing(zoneDims);
   }
 
