@@ -16,6 +16,7 @@
 #include "axom/bump/utilities/blueprint_utilities.hpp"
 
 #include <conduit/conduit.hpp>
+#include <conduit/conduit_blueprint_mesh_utils.hpp>
 
 #include <utility>
 
@@ -51,13 +52,13 @@ struct make_strided_structured_topology<3>
   {
     namespace utils = axom::bump::utilities;
     verify(topo, "topology");
-    const std::string offsetsKey("elements/dims/offsets");
-    const std::string stridesKey("elements/dims/strides");
+    conduit::Node hostDims;
+    utilities::copy<axom::SEQ_EXEC>(hostDims, topo.fetch_existing("elements/dims"));
 
     LogicalIndex zoneDims;
-    zoneDims[0] = topo.fetch_existing("elements/dims/i").to_int();
-    zoneDims[1] = topo.fetch_existing("elements/dims/j").to_int();
-    zoneDims[2] = topo.fetch_existing("elements/dims/k").to_int();
+    zoneDims[0] = hostDims.fetch_existing("i").to_int();
+    zoneDims[1] = hostDims.fetch_existing("j").to_int();
+    zoneDims[2] = hostDims.fetch_existing("k").to_int();
     for(int d = 0; d < 3; d++)
     {
       SLIC_ERROR_IF(zoneDims[d] < 1,
@@ -66,11 +67,11 @@ struct make_strided_structured_topology<3>
                                       zoneDims[d]));
     }
     LogicalIndex offsets {{0, 0, 0}}, strides {{1, 1, 1}};
-    utils::fillFromNode(topo, offsetsKey, offsets);
+    utils::fillFromNode(hostDims, "offsets", offsets);
     SLIC_ERROR_IF(
       !topo.has_path(stridesKey),
       axom::fmt::format("Strided-structured topology '{}' requires strides.", topo.path()));
-    utils::fillFromNode(topo, stridesKey, strides);
+    utils::fillFromNode(hostDims, "strides", strides);
     const auto nx = strides[1];
     const auto nxy = strides[2];
     const auto ny = nxy / nx;
@@ -109,11 +110,12 @@ struct make_strided_structured_topology<2>
   {
     namespace utils = axom::bump::utilities;
     verify(topo, "topology");
-    const std::string offsetsKey("elements/dims/offsets");
-    const std::string stridesKey("elements/dims/strides");
+    conduit::Node hostDims;
+    utilities::copy<axom::SEQ_EXEC>(hostDims, topo.fetch_existing("elements/dims"));
+
     LogicalIndex zoneDims;
-    zoneDims[0] = topo.fetch_existing("elements/dims/i").to_int();
-    zoneDims[1] = topo.fetch_existing("elements/dims/j").to_int();
+    zoneDims[0] = hostDims.fetch_existing("i").to_int();
+    zoneDims[1] = hostDims.fetch_existing("j").to_int();
     for(int d = 0; d < 2; d++)
     {
       SLIC_ERROR_IF(zoneDims[d] < 1,
@@ -123,11 +125,11 @@ struct make_strided_structured_topology<2>
     }
 
     LogicalIndex offsets {{0, 0}}, strides {{1, 1}};
-    utils::fillFromNode(topo, offsetsKey, offsets);
+    utils::fillFromNode(hostDims, "offsets", offsets);
     SLIC_ERROR_IF(
       !topo.has_path(stridesKey),
       axom::fmt::format("Strided-structured topology '{}' requires strides.", topo.path()));
-    utils::fillFromNode(topo, stridesKey, strides);
+    utils::fillFromNode(hostDims, "strides", strides);
 
     // Make zone striding.
     strides[1]--;
@@ -162,21 +164,21 @@ struct make_strided_structured_topology<1>
   {
     namespace utils = axom::bump::utilities;
     verify(topo, "topology");
-    const std::string offsetsKey("elements/dims/offsets");
-    const std::string stridesKey("elements/dims/strides");
+    conduit::Node hostDims;
+    utilities::copy<axom::SEQ_EXEC>(hostDims, topo.fetch_existing("elements/dims"));
 
     LogicalIndex zoneDims;
-    zoneDims[0] = topo.fetch_existing("elements/dims/i").to_int();
+    zoneDims[0] = hostDims.fetch_existing("i").to_int();
     SLIC_ERROR_IF(
       zoneDims[0] < 1,
       axom::fmt::format("Dimension was {}. It must be greater than or equal to 1.", zoneDims[0]));
 
     LogicalIndex offsets {0}, strides {1};
-    utils::fillFromNode(topo, offsetsKey, offsets);
+    utils::fillFromNode(hostDims, "offsets", offsets);
     SLIC_ERROR_IF(
       !topo.has_path(stridesKey),
       axom::fmt::format("Strided-structured topology '{}' requires strides.", topo.path()));
-    utils::fillFromNode(topo, stridesKey, strides);
+    utils::fillFromNode(hostDims, "strides", strides);
 
     return Indexing(zoneDims, offsets, strides);
   }
@@ -214,10 +216,13 @@ struct make_structured_topology<3>
   static Indexing indexing(const conduit::Node& topo)
   {
     verify(topo, "topology");
+    conduit::Node hostDims;
+    utilities::copy<axom::SEQ_EXEC>(hostDims, topo.fetch_existing("elements/dims"));
+
     LogicalIndex zoneDims;
-    zoneDims[0] = topo.fetch_existing("elements/dims/i").to_int();
-    zoneDims[1] = topo.fetch_existing("elements/dims/j").to_int();
-    zoneDims[2] = topo.fetch_existing("elements/dims/k").to_int();
+    zoneDims[0] = hostDims.fetch_existing("i").to_int();
+    zoneDims[1] = hostDims.fetch_existing("j").to_int();
+    zoneDims[2] = hostDims.fetch_existing("k").to_int();
 
     return Indexing(zoneDims);
   }
@@ -248,9 +253,13 @@ struct make_structured_topology<2>
   static Indexing indexing(const conduit::Node& topo)
   {
     verify(topo, "topology");
+    conduit::Node hostDims;
+    utilities::copy<axom::SEQ_EXEC>(hostDims, topo.fetch_existing("elements/dims"));
+
     LogicalIndex zoneDims;
-    zoneDims[0] = topo.fetch_existing("elements/dims/i").to_int();
-    zoneDims[1] = topo.fetch_existing("elements/dims/j").to_int();
+    zoneDims[0] = hostDims.fetch_existing("i").to_int();
+    zoneDims[1] = hostDims.fetch_existing("j").to_int();
+
     return Indexing(zoneDims);
   }
 
@@ -281,7 +290,7 @@ struct make_structured_topology<1>
   {
     verify(topo, "topology");
     LogicalIndex zoneDims;
-    zoneDims[0] = topo.fetch_existing("elements/dims/i").to_int();
+    zoneDims[0] = utilities::hostReadInt("elements/dims/i");
 
     return Indexing(zoneDims);
   }
@@ -438,7 +447,7 @@ struct dispatch_any_structured_topology<true, 3, FuncType>
   static void execute(const conduit::Node& topo, FuncType&& func)
   {
     const std::string offsetsKey("elements/dims/offsets"), stridesKey("elements/dims/strides");
-    const std::string type = topo.fetch_existing("type").as_string();
+    const std::string type = axom::bump::utilities::topologyType(topo);
     const std::string shape("hex");
 
     SLIC_ERROR_IF(type == "structured" && topo.has_path(offsetsKey) && !topo.has_path(stridesKey),
@@ -480,7 +489,7 @@ struct dispatch_any_structured_topology<true, 2, FuncType>
   static void execute(const conduit::Node& topo, FuncType&& func)
   {
     const std::string offsetsKey("elements/dims/offsets"), stridesKey("elements/dims/strides");
-    const std::string type = topo.fetch_existing("type").as_string();
+    const std::string type = axom::bump::utilities::topologyType(topo);
     const std::string shape("quad");
     SLIC_ERROR_IF(type == "structured" && topo.has_path(offsetsKey) && !topo.has_path(stridesKey),
                   axom::fmt::format("Strided-structured topology '{}' has offsets but no strides.",
@@ -521,7 +530,7 @@ struct dispatch_any_structured_topology<true, 1, FuncType>
   static void execute(const conduit::Node& topo, FuncType&& func)
   {
     const std::string offsetsKey("elements/dims/offsets"), stridesKey("elements/dims/strides");
-    const std::string type = topo.fetch_existing("type").as_string();
+    const std::string type = axom::bump::utilities::topologyType(topo);
     const std::string shape("line");
 
     SLIC_ERROR_IF(type == "structured" && topo.has_path(offsetsKey) && !topo.has_path(stridesKey),

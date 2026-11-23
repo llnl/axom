@@ -35,8 +35,7 @@ template <int SelectedDimensions = select_dimensions(1, 2, 3), int ShapeTypes = 
 void dispatch_topology(const conduit::Node& topo, FuncType&& func)
 {
   verify(topo, "topology");
-  const auto type = topo.fetch_existing("type").as_string();
-
+  const auto type = utilities::topologyType(topo);
   if(type == "unstructured")
   {
     dispatch_unstructured_topology<ShapeTypes>(topo, func);

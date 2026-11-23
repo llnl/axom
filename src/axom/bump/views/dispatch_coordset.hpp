@@ -365,7 +365,7 @@ void dispatch_explicit_coordset(const conduit::Node& coordset, FuncType&& func)
 template <int SelectedDimensions = select_dimensions(1, 2, 3), typename FuncType>
 void dispatch_coordset(const conduit::Node& coordset, FuncType&& func)
 {
-  const std::string cstype = coordset["type"].as_string();
+  const std::string cstype = utilities::hostReadString(coordset["type"]);
   if(cstype == "uniform")
   {
     dispatch_uniform_coordset<SelectedDimensions>(coordset, func);

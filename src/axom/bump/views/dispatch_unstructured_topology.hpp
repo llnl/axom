@@ -17,12 +17,22 @@
 
 #include <conduit/conduit_blueprint.hpp>
 
-namespace axom
+namespace axom::bump::views
 {
-namespace bump
+/*!
+ * \brief Get the unstructured topology shape string.
+ *
+ * \param n_topo The topology node.
+ * 
+ * \return The string for elements/shape.
+ *
+ * \note We use hostReadString in case the string is in device memory.
+ */
+std::string unstructuredTopologyShape(const conduit::Node &n_topo)
 {
-namespace views
-{
+  return axom::bump::utilities::hostReadString(n_topo["elements/shape"]);
+}
+
 // Turn on all bits so all shapes will be enabled.
 constexpr int AnyShape = -1;
 
@@ -50,8 +60,9 @@ struct make_unstructured_single_shape_topology
     namespace utils = axom::bump::utilities;
     verify(n_topo, "topology");
 
-    const std::string shape = n_topo["elements/shape"].as_string();
-    SLIC_ERROR_IF(n_topo["type"].as_string() != "unstructured", "Type must be unstructured");
+    const std::string type = utils::topologyType(n_topo);
+    const std::string shape = detail::unstructuredTopologyShape(n_topo);
+    SLIC_ERROR_IF(type != "unstructured", "Type must be unstructured");
     SLIC_ERROR_IF(shape != ShapeType::name(), "Incompatible shape type");
 
     // Connectivity must exist.
@@ -99,8 +110,9 @@ struct make_unstructured_polyhedral_topology
     namespace utils = axom::bump::utilities;
     verify(n_topo, "topology");
 
-    const std::string shape = n_topo["elements/shape"].as_string();
-    SLIC_ERROR_IF(n_topo["type"].as_string() != "unstructured", "Type must be unstructured");
+    const std::string type = utils::topologyType(n_topo);
+    const std::string shape = detail::unstructuredTopologyShape(n_topo);
+    SLIC_ERROR_IF(type != "unstructured", "Type must be unstructured");
     SLIC_ERROR_IF(shape != TopologyView::ShapeType::name(), "Incompatible shape type");
 
     // _bump_views_ph_topoview_begin
@@ -129,7 +141,7 @@ template <typename FuncType>
 void dispatch_unstructured_polyhedral_topology(const conduit::Node& topo, FuncType&& func)
 {
   verify(topo, "topology");
-  const std::string shape = topo["elements/shape"].as_string();
+  const std::string shape = detail::unstructuredTopologyShape(n_topo);
   if(shape == "polyhedral")
   {
     indexNodeToArrayViewSame(  //
@@ -162,7 +174,7 @@ void typed_dispatch_unstructured_polyhedral_topology(const conduit::Node& topo, 
 {
   namespace utils = axom::bump::utilities;
   verify(topo, "topology");
-  const std::string shape = topo["elements/shape"].as_string();
+  const std::string shape = detail::unstructuredTopologyShape(n_topo);
   if(shape == "polyhedral")
   {
     auto ugView = make_unstructured_polyhedral_topology<ConnType>::view(topo);
@@ -188,7 +200,7 @@ template <typename FuncType>
 void dispatch_unstructured_mixed_topology(const conduit::Node& topo, FuncType&& func)
 {
   verify(topo, "topology");
-  const std::string shape = topo["elements/shape"].as_string();
+  const std::string shape = detail::unstructuredTopologyShape(n_topo);
   if(shape == "mixed")
   {
     indexNodeToArrayViewSame(topo["elements/connectivity"],
@@ -222,7 +234,7 @@ void typed_dispatch_unstructured_mixed_topology(const conduit::Node& topo, FuncT
 {
   namespace utils = axom::bump::utilities;
   verify(topo, "topology");
-  const std::string shape = topo["elements/shape"].as_string();
+  const std::string shape = detail::unstructuredTopologyShape(n_topo);
   if(shape == "mixed")
   {
     auto connView = utils::make_array_view<ConnType>(topo["elements/connectivity"]);
@@ -497,10 +509,10 @@ void typed_dispatch_unstructured_topology(const conduit::Node& topo, FuncType&& 
 {
   namespace utils = axom::bump::utilities;
   verify(topo, "topology");
-  const std::string type = topo["type"].as_string();
+  const std::string type = utils::topologyType(topo);
   if(type == "unstructured")
   {
-    const std::string shape = topo["elements/shape"].as_string();
+    const std::string shape = detail::unstructuredTopologyShape(n_topo);
     const auto connView = utils::make_array_view<ConnType>(topo["elements/connectivity"]);
     bool eligible = true;
 
@@ -603,6 +615,4 @@ void dispatch_unstructured_topology(const conduit::Node& topo, FuncType&& func)
   });
 }
 
-}  // end namespace views
-}  // end namespace bump
-}  // end namespace axom
+}  // end namespace axom::bump::views

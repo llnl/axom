@@ -28,9 +28,11 @@ static bool needToPerformCheck(const conduit::Node& obj, const std::string& prot
   if(protocol == "topology")
   {
     const conduit::Node& n_topo = obj;
-    if(n_topo["type"].as_string() == "unstructured" && n_topo.has_path("elements/shape"))
+    const std::string type = axom::bump::utilities::hostReadString(n_topo["type"]);
+    if(type == "unstructured" && n_topo.has_path("elements/shape"))
     {
-      if(n_topo["elements/shape"].as_string() == "mixed" && n_topo.has_path("elements/shapes"))
+      const std::string shape = axom::bump::utilities::hostReadString(n_topo["elements/shape"]);
+      if(shape == "mixed" && n_topo.has_path("elements/shapes"))
       {
         performCheck = !axom::bump::utilities::isDeviceAllocated(n_topo["elements/shapes"]);
       }

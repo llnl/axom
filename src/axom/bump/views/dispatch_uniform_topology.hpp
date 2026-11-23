@@ -123,7 +123,7 @@ struct make_uniform_topology<1>
     SLIC_ASSERT(coordset != nullptr);
     const conduit::Node& n_dims = coordset->fetch_existing("dims");
     LogicalIndex zoneDims;
-    zoneDims[0] = hostRead<conduit::index_t>(n_dims[0]) - 1;
+    zoneDims[0] = utilities::hostRead<conduit::index_t>(n_dims[0]) - 1;
     return Indexing(zoneDims);
   }
 

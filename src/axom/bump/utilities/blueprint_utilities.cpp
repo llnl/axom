@@ -17,11 +17,7 @@
 #include <string>
 #include <vector>
 
-namespace axom
-{
-namespace bump
-{
-namespace utilities
+namespace axom::bump::utilities
 {
 
 const conduit::Node* findReferenceNode(const conduit::Node& node,
@@ -177,6 +173,22 @@ void validateVertexFieldIndexing(const conduit::Node& n_topology,
   }
 }
 
-}  // end namespace utilities
-}  // end namespace bump
-}  // end namespace axom
+std::string coordsetType(const conduit::Node &n_coordset)
+{
+  SLIC_ERROR_IF(!n_coordset.has_path("type"), "The coordset must contain \"type\".");
+  return hostReadString(n_coordset["type"]);
+}
+
+std::string topologyType(const conduit::Node &n_topo);
+{
+  SLIC_ERROR_IF(!n_topo.has_path("type"), "The topology must contain \"type\".");
+  return hostReadString(n_topo["type"]);
+}
+
+std::string unstructuredTopologyShape(const conduit::Node &n_topo)
+{
+  SLIC_ERROR_IF(!n_topo.has_path("elements/shape"), "The topology must contain \"elements/shape\".");
+  return hostReadString(n_topo["elements/shape"]);
+}
+
+}  // end namespace axom::bump::utilities

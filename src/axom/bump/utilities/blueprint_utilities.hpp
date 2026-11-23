@@ -11,11 +11,7 @@
 
 #include <conduit/conduit.hpp>
 
-namespace axom
-{
-namespace bump
-{
-namespace utilities
+namespace axom::bump::utilities
 {
 
 //------------------------------------------------------------------------------
@@ -81,6 +77,37 @@ void validateVertexFieldIndexing(const conduit::Node& n_topology,
                                  const conduit::Node& n_field,
                                  const std::string& fieldName);
 
-}  // end namespace utilities
-}  // end namespace bump
-}  // end namespace axom
+/*!
+ * \brief Get the coordset type string.
+ *
+ * \param n_coordset The coordset node.
+ * 
+ * \return The string for "type".
+ *
+ * \note We use hostReadString in case the string is in device memory.
+ */
+std::string coordsetType(const conduit::Node &n_coordset);
+
+/*!
+ * \brief Get the topology type string.
+ *
+ * \param n_topo The topology node.
+ * 
+ * \return The string for "type".
+ *
+ * \note We use hostReadString in case the string is in device memory.
+ */
+std::string topologyType(const conduit::Node &n_topo);
+
+/*!
+ * \brief Get the unstructured topology shape string.
+ *
+ * \param n_topo The topology node.
+ * 
+ * \return The string for elements/shape.
+ *
+ * \note We use hostReadString in case the string is in device memory.
+ */
+std::string unstructuredTopologyShape(const conduit::Node &n_topo);
+
+}  // end namespace axom::bump::utilities
