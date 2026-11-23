@@ -76,6 +76,7 @@
 #cmakedefine AXOM_USE_SOL
 #cmakedefine AXOM_USE_SPARSEHASH
 #cmakedefine AXOM_USE_UMPIRE
+#cmakedefine AXOM_USE_ZFPOLY
 
 /*
  * Compiler defines for library capabilities
