@@ -8,6 +8,7 @@
 
 #include "axom/core.hpp"
 #include "axom/slic.hpp"
+#include "axom/bump/utilities/blueprint_utilities.hpp"
 #include "axom/bump/utilities/conduit_memory.hpp"
 #include "axom/bump/utilities/utilities.hpp"
 #include "axom/bump/views/dispatch_unstructured_topology.hpp"
@@ -282,7 +283,7 @@ public:
    */
   void execute(const conduit::Node& topo, const conduit::Node& coordset, conduit::Node& relation)
   {
-    const std::string type = topo.fetch_existing("type").as_string();
+    const std::string type = utilities::topologyType(topo);
 
     const auto conduitAllocatorID =
       axom::sidre::ConduitMemory::axomAllocIdToConduit(getAllocatorID());
@@ -298,7 +299,7 @@ public:
     {
       conduit::blueprint::mesh::utils::ShapeType shape(topo);
       const conduit::Node& n_connectivity = topo["elements/connectivity"];
-      const std::string shapeType = topo["elements/shape"].as_string();
+      const std::string shapeType = utilities::unstructuredTopologyShape(topo);
       const auto intTypeId = n_connectivity.dtype().id();
       const auto connSize = n_connectivity.dtype().number_of_elements();
 

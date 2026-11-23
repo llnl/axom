@@ -7,6 +7,7 @@
 
 #include "axom/core.hpp"
 #include "axom/bump/views/NodeArrayView.hpp"
+#include "axom/bump/utilities/blueprint_utilities.hpp"
 #include "axom/bump/utilities/utilities.hpp"
 #include "axom/bump/utilities/conduit_memory.hpp"
 #include "axom/bump/views/dispatch_coordset.hpp"
@@ -36,7 +37,7 @@ public:
   static void execute(conduit::Node& n_coordset,
                       int allocator_id = axom::execution_space<ExecSpace>::allocatorID())
   {
-    const std::string cstype = n_coordset["type"].as_string();
+    const std::string cstype = utilities::coordsetType(n_coordset);
     if(cstype != "explicit")
     {
       conduit::Node n_dest_coordset;

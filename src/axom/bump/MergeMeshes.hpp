@@ -157,12 +157,12 @@ protected:
           }
         }
         const conduit::Node& n_topo = getTopology(inputs[i]);
-        if(n_topo["type"].as_string() != "unstructured")
+        if(utilities::topologyType(n_topo) != "unstructured")
         {
           return false;
         }
         const conduit::Node& n_coordset = getCoordset(inputs[i]);
-        if(n_coordset["type"].as_string() != "explicit")
+        if(utilities::coordsetType(n_coordset) != "explicit")
         {
           return false;
         }
@@ -269,7 +269,7 @@ protected:
       const conduit::Node& n_srcCoordset = getCoordset(inputs[i]);
       const conduit::Node& n_srcValues = n_srcCoordset.fetch_existing("values");
 
-      const auto type = n_srcCoordset.fetch_existing("type").as_string();
+      const auto type = utils::coordsetType(n_srcCoordset);
       SLIC_ASSERT(type == "explicit");
 
       // Make all of the components the first time.
@@ -428,7 +428,7 @@ protected:
     for(axom::IndexType i = 0; i < n; i++)
     {
       const conduit::Node& n_topo = getTopology(inputs[i]);
-      const std::string type = n_topo.fetch_existing("type").as_string();
+      const std::string type = utils::topologyType(n_topo);
       SLIC_ASSERT(type == "unstructured");
 
       const conduit::Node& n_size = n_topo.fetch_existing(elem_sizes);
@@ -484,8 +484,8 @@ protected:
     for(axom::IndexType i = 0; i < n; i++)
     {
       const conduit::Node& n_srcTopo = getTopology(inputs[i]);
-      const auto type = n_srcTopo.fetch_existing("type").as_string();
-      const auto shape = n_srcTopo.fetch_existing("elements/shape").as_string();
+      const auto type = utils::topologyType(n_srcTopo);
+      const auto shape = utils::unstructuredTopologyShape(n_srcTopo);
       SLIC_ASSERT(type == "unstructured");
       if(shape == "mixed")
       {
@@ -566,7 +566,7 @@ protected:
     for(axom::IndexType i = 0; i < n; i++)
     {
       const conduit::Node& n_srcTopo = getTopology(inputs[i]);
-      const std::string srcShape = n_srcTopo.fetch_existing("elements/shape").as_string();
+      const std::string srcShape = utils::unstructuredTopologyShape(n_srcTopo);
       const conduit::Node& n_srcConn = n_srcTopo.fetch_existing("elements/connectivity");
       const conduit::Node& n_srcSizes = n_srcTopo.fetch_existing("elements/sizes");
       const conduit::Node& n_srcOffsets = n_srcTopo.fetch_existing("elements/offsets");
@@ -726,7 +726,7 @@ protected:
       // We need coordsets linked in.
       n_phCoordset.set_external(n_srcCoordset);
 
-      if(n_srcTopo.fetch_existing("elements/shape").as_string() == "polyhedral")
+      if(utils::unstructuredTopologyShape(n_srcTopo) == "polyhedral")
       {
         // The PH input is already polyhedral. Link in
         n_phTopo.set_external(n_srcTopo);
@@ -734,7 +734,7 @@ protected:
       else
       {
         // Convert the mesh to polyhedral.
-        const std::string shape = n_srcTopo.fetch_existing("elements/shape").as_string();
+        const std::string shape = utils::unstructuredTopologyShape(n_srcTopo);
         const conduit::Node& n_elem_conn = n_srcTopo.fetch_existing("elements/connectivity");
         views::indexNodeToArrayView(n_elem_conn, [&](auto connView) {
           using ConnectivityType = typename decltype(connView)::value_type;

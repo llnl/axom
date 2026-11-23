@@ -467,8 +467,8 @@ private:
     using SrcTopologyView = views::UnstructuredTopologyMixedShapeView<conduit::index_t>;
     axom::Array<axom::IndexType> shapeValues, shapeIds;
     const conduit::Node& n_srcTopo = n_dev["topologies/epm"];
-    EXPECT_EQ(n_srcTopo["type"].as_string(), "unstructured");
-    EXPECT_EQ(n_srcTopo["elements/shape"].as_string(), "mixed");
+    EXPECT_EQ(utils::topologyType(n_srcTopo), "unstructured");
+    EXPECT_EQ(utils::unstructuredTopologyShape(n_srcTopo), "mixed");
 
     const int allocatorID = axom::execution_space<ExecSpace>::allocatorID();
     auto shapeMap = views::buildShapeMap(n_srcTopo, shapeValues, shapeIds, allocatorID);

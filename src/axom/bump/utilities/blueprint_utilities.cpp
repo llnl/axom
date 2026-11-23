@@ -179,7 +179,7 @@ std::string coordsetType(const conduit::Node &n_coordset)
   return hostReadString(n_coordset["type"]);
 }
 
-std::string topologyType(const conduit::Node &n_topo);
+std::string topologyType(const conduit::Node &n_topo)
 {
   SLIC_ERROR_IF(!n_topo.has_path("type"), "The topology must contain \"type\".");
   return hostReadString(n_topo["type"]);

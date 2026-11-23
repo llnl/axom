@@ -8,6 +8,7 @@
 
 #include "axom/core.hpp"
 #include "axom/bump/views/NodeArrayView.hpp"
+#include "axom/bump/utilities/blueprint_utilities.hpp"
 #include "axom/bump/utilities/utilities.hpp"
 #include "axom/bump/utilities/conduit_memory.hpp"
 #include "axom/bump/views/dispatch_structured_topology.hpp"
@@ -46,9 +47,9 @@ public:
                       conduit::Node& mesh,
                       int allocator_id = axom::execution_space<ExecSpace>::allocatorID())
   {
-    const std::string type = topo.fetch_existing("type").as_string();
-    const auto conduitAllocatorId = axom::sidre::ConduitMemory::axomAllocIdToConduit(allocator_id);
     namespace utils = axom::bump::utilities;
+    const std::string type = utils::topologyType(topo);
+    const auto conduitAllocatorId = axom::sidre::ConduitMemory::axomAllocIdToConduit(allocator_id);
 
     mesh["coordsets"][coordset.name()].set_external(coordset);
     conduit::Node& n_newtopo = mesh["topologies"][topoName];

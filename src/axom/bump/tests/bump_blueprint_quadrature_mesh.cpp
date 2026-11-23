@@ -8,6 +8,7 @@
 
 #include "axom/core.hpp"
 #include "axom/bump/GenerateQuadratureMesh.hpp"
+#include "axom/bump/utilities/blueprint_utilities.hpp"
 #include "axom/bump/utilities/conduit_memory.hpp"
 #include "axom/bump/views/dispatch_coordset.hpp"
 #include "axom/bump/views/dispatch_topology.hpp"
@@ -195,9 +196,9 @@ TEST(bump_blueprint_quadrature_mesh, generate_closed_uniform_quad_mesh)
   EXPECT_TRUE(conduit::blueprint::mesh::verify(mesh, info)) << info.to_yaml();
 
   const conduit::Node& quadTopo = mesh["topologies/quadrature_points"];
-  EXPECT_EQ(quadTopo["type"].as_string(), "unstructured");
+  EXPECT_EQ(axom::bump::utilities::topologyType(quadTopo), "unstructured");
   EXPECT_EQ(quadTopo["coordset"].as_string(), "quadrature_points");
-  EXPECT_EQ(quadTopo["elements/shape"].as_string(), "point");
+  EXPECT_EQ(axom::bump::utilities::unstructuredTopologyShape(quadTopo), "point");
 
   namespace utils = axom::bump::utilities;
   const auto connView = utils::make_array_view<conduit::index_t>(

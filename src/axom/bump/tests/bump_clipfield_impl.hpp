@@ -265,7 +265,7 @@ void braid2d_clip_test(const std::string& type, const std::string& name)
   options["fields/color"] = "new_color";
   options["fields/new_radial"] = "new_radial2";
 
-  const auto shape = n_device_topo.fetch_existing("elements/shape").as_string();
+  const auto shape = utils::unstructuredTopologyShape(n_device_topo);
 
   conduit::Node deviceClipMesh2;
   if(shape == "polygonal")

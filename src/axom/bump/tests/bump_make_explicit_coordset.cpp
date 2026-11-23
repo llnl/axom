@@ -78,7 +78,7 @@ CoordsetData collectCoordsetData(const conduit::Node& coordset)
 void expectExplicitCoordsetMatches(const conduit::Node& coordset, const CoordsetData& expected)
 {
   ASSERT_TRUE(coordset.has_path("type"));
-  EXPECT_EQ(coordset["type"].as_string(), "explicit");
+  EXPECT_EQ(axom::bump::utilities::coordsetType(coordset), "explicit");
 
   views::dispatch_explicit_coordset(coordset, [&](auto coordsetView) {
     EXPECT_EQ(coordsetView.dimension(), expected.dimension);

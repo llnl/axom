@@ -8,6 +8,7 @@
 
 #include "axom/core.hpp"
 #include "axom/slic.hpp"
+#include "axom/bump/utilities/blueprint_utilities.hpp"
 #include "axom/bump/utilities/conduit_memory.hpp"
 #include "axom/bump/utilities/conduit_traits.hpp"
 #include "axom/bump/CoordsetSlicer.hpp"
@@ -156,7 +157,7 @@ public:
     const int allocatorID = getAllocatorID();
 
     // If the coordset is not explicit then there is nothing to do.
-    if(n_coordset["type"].as_string() != "explicit")
+    if(utils::coordsetType(n_coordset) != "explicit")
     {
       SLIC_ERROR("The input coordset was not explicit.");
       return false;

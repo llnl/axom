@@ -51,8 +51,8 @@ public:
   static void execute(conduit::Node& n_topo,
                       int allocator_id = axom::execution_space<ExecSpace>::allocatorID())
   {
-    SLIC_ASSERT(n_topo.fetch_existing("elements/shape").as_string() == "polyhedral");
     namespace utils = axom::bump::utilities;
+    SLIC_ASSERT(utils::unstructuredTopologyShape(n_topo) == "polyhedral");
 
     AXOM_ANNOTATE_SCOPE("MergePolyhedralFaces");
     const auto allocatorID = allocator_id;

@@ -13,6 +13,7 @@
 #include "axom/bump/FieldSlicer.hpp"
 #include "axom/bump/MatsetSlicer.hpp"
 #include "axom/bump/Options.hpp"
+#include "axom/bump/utilities/blueprint_utilities.hpp"
 #include "axom/bump/views/view_traits.hpp"
 #include "axom/sidre/core/ConduitMemory.hpp"
 
@@ -682,9 +683,9 @@ protected:
   std::string outputShape(const conduit::Node& n_topo) const
   {
     std::string shape;
-    if(n_topo["type"].as_string() == "unstructured")
+    if(utilities::topologyType(n_topo) == "unstructured")
     {
-      shape = n_topo["elements/shape"].as_string();
+      shape = utilities::unstructuredTopologyShape(n_topo);
     }
     else
     {

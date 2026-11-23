@@ -5,6 +5,7 @@
 // SPDX-License-Identifier: (BSD-3-Clause)
 
 #include "axom/bump/io/save.hpp"
+#include "axom/bump/utilities/blueprint_utilities.hpp"
 #include "axom/bump/views/Shapes.hpp"
 #include "axom/bump/views/dispatch_coordset.hpp"
 
@@ -148,7 +149,8 @@ static void save_unstructured_vtk(const conduit::Node& mesh, const std::string& 
   }
   else
   {
-    const auto type = ShapeID_to_vtk_cell(views::shapeNameToID(elements["shape"].as_string()));
+    const auto type =
+      ShapeID_to_vtk_cell(views::shapeNameToID(utilities::unstructuredTopologyShape(topo)));
     for(size_t i = 0; i < num_cells; ++i)
     {
       fprintf(file, "%d\n", type);
@@ -171,7 +173,7 @@ void save_vtk(const conduit::Node& mesh, const std::string& path)
   }
 
   // For now.
-  if(n_topologies[0].fetch_existing("type").as_string() != "unstructured")
+  if(utilities::topologyType(n_topologies[0]) != "unstructured")
   {
     SLIC_ERROR("The mesh must have a single unstructured topology.");
     return;
