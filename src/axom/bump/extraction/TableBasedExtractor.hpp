@@ -693,11 +693,12 @@ public:
    */
   void execute(const conduit::Node& n_input, const conduit::Node& n_options, conduit::Node& n_output)
   {
+    namespace utils = axom::bump::utilities;
     // Get the topo/coordset names in the input.
     ExtractorOptions opts(n_options);
     const std::string& topoName = m_intersector.getTopologyName(n_input, n_options);
     const conduit::Node& n_topo = n_input.fetch_existing("topologies/" + topoName);
-    const std::string coordsetName = n_topo["coordset"].as_string();
+    const std::string coordsetName = utils::topologyCoordset(n_topo);
     const conduit::Node& n_coordset = n_input.fetch_existing("coordsets/" + coordsetName);
     const conduit::Node& n_fields = n_input.fetch_existing("fields");
 
@@ -941,10 +942,10 @@ public:
       for(auto it = fieldsToProcess.begin(); it != fieldsToProcess.end(); it++)
       {
         const conduit::Node& n_field = n_fields.fetch_existing(it->first);
-        if(n_field.fetch_existing("topology").as_string() == n_topo.name())
+        if(utils::hostReadString(n_field.fetch_existing("topology")) == n_topo.name())
         {
           numElementFields +=
-            (n_field.fetch_existing("association").as_string() == "element") ? 1 : 0;
+            (utils::fieldAssociation(n_field) == "element") ? 1 : 0;
         }
       }
     }
@@ -954,10 +955,10 @@ public:
       for(conduit::index_t i = 0; i < n_fields.number_of_children(); i++)
       {
         const conduit::Node& n_field = n_fields[i];
-        if(n_field.fetch_existing("topology").as_string() == n_topo.name())
+        if(utils::hostReadString(n_field.fetch_existing("topology")) == n_topo.name())
         {
           numElementFields +=
-            (n_field.fetch_existing("association").as_string() == "element") ? 1 : 0;
+            (utils::fieldAssociation(n_field) == "element") ? 1 : 0;
 
           fieldsToProcess[n_field.name()] = n_field.name();
         }
@@ -1974,8 +1975,9 @@ private:
                        const conduit::Node& n_field,
                        conduit::Node& n_out_field) const
   {
+    namespace utils = axom::bump::utilities;
     constexpr bool ss = axom::bump::views::view_traits<TopologyView>::supports_strided_structured();
-    const std::string association = n_field["association"].as_string();
+    const std::string association = utils::fieldAssociation(n_field);
 
     if(association == "element")
     {

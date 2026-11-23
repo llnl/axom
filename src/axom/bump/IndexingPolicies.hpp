@@ -235,8 +235,8 @@ struct SSVertexFieldIndexing
 template <typename TopologyView>
 auto makeElementFieldIndexing(const TopologyView& topologyView, const conduit::Node& n_field)
 {
-  SLIC_ERROR_IF(!n_field.has_path("association") ||
-                  n_field.fetch_existing("association").as_string() != "element",
+  const std::string association = utilities::fieldAssociation(n_field);
+  SLIC_ERROR_IF(association != "element",
                 axom::fmt::format("Field '{}' is not element-associated.", n_field.name()));
 
   const auto indexing = [&]() {

@@ -91,18 +91,18 @@ public:
     namespace utils = axom::bump::utilities;
     namespace views = axom::bump::views;
     AXOM_ANNOTATE_SCOPE("Extrude::execute");
-    int nz = n_options.has_child("nz") ? n_options["nz"].to_int() : 2;
+    int nz = n_options.has_child("nz") ? utils::hostReadInt(n_options["nz"]) : 2;
 
     // Get some properties from the options.
     const std::string srcTopoName =
-      n_options.has_child("topologyName") ? n_options["topologyName"].as_string() : "main";
+      n_options.has_child("topologyName") ? utils::hostReadString(n_options["topologyName"]) : "main";
     const conduit::Node& n_srcTopo = n_mesh.fetch_existing("topologies/" + srcTopoName);
-    const std::string srcCoordsetName = n_srcTopo["coordset"].as_string();
+    const std::string srcCoordsetName = utils::topologyCoordset(n_srcTopo);
     const std::string outputTopoName = n_options.has_child("outputTopologyName")
-      ? n_options["outputTopologyName"].as_string()
+      ? utils::hostReadString(n_options["outputTopologyName"])
       : srcTopoName;
     const std::string outputCoordsetName = n_options.has_child("outputCoordsetName")
-      ? n_options["outputCoordsetName"].as_string()
+      ? utils::hostReadString(n_options["outputCoordsetName"])
       : srcCoordsetName;
 
     // Count the number of values needed to store the connectivity.
@@ -304,7 +304,7 @@ public:
     {
       const conduit::Node& n_srcMatset = n_mesh.fetch_existing("matsets/" + matsetName);
       std::string outputMatsetName = n_options.has_child("outputMatsetName")
-        ? n_options["outputMatsetName"].as_string()
+        ? utils::hostReadString(n_options["outputMatsetName"])
         : matsetName;
       conduit::Node& n_outputMatset = n_output["matsets/" + outputMatsetName];
       extrudeMatset(n_srcMatset, n_outputMatset, outputTopoName, nz);
@@ -333,7 +333,7 @@ private:
       const conduit::Node& n_matsets = n_mesh["matsets"];
       for(conduit::index_t i = 0; i < n_matsets.number_of_children(); i++)
       {
-        if(n_matsets[i]["topology"].as_string() == topoName)
+        if(utilities::matsetTopology(n_matsets[i]) == topoName)
         {
           matset = n_matsets[i].name();
           break;

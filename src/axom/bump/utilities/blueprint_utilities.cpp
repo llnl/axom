@@ -185,10 +185,34 @@ std::string topologyType(const conduit::Node &n_topo)
   return hostReadString(n_topo["type"]);
 }
 
+std::string topologyCoordset(const conduit::Node &n_topo)
+{
+  SLIC_ERROR_IF(!n_topo.has_path("coordset"), "The topology must contain \"coordset\".");
+  return hostReadString(n_topo["coordset"]);
+}
+
 std::string unstructuredTopologyShape(const conduit::Node &n_topo)
 {
   SLIC_ERROR_IF(!n_topo.has_path("elements/shape"), "The topology must contain \"elements/shape\".");
   return hostReadString(n_topo["elements/shape"]);
+}
+
+std::string matsetTopology(const conduit::Node &n_matset)
+{
+  SLIC_ERROR_IF(!n_matset.has_path("topology"), "The matset must contain \"topology\".");
+  return hostReadString(n_matset["topology"]);
+}
+
+std::string fieldAssociation(const conduit::Node &n_field)
+{
+  SLIC_ERROR_IF(!n_field.has_path("association"), "The field must contain \"association\".");
+  return hostReadString(n_field["association"]);
+}
+
+std::string fieldTopology(const conduit::Node &n_field)
+{
+  SLIC_ERROR_IF(!n_field.has_path("topology"), "The field must contain \"topology\".");
+  return hostReadString(n_field["topology"]);
 }
 
 }  // end namespace axom::bump::utilities

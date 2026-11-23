@@ -555,9 +555,10 @@ public:
         return;
       }
     }
-    const std::string srcMatsetName = n_options_copy[SRC_MATSET_NAME].as_string();
-    const std::string targetTopologyName = n_options_copy[TARGET_TOPOLOGY_NAME].as_string();
-    const std::string targetMatsetName = n_options_copy[TARGET_MATSET_NAME].as_string();
+    // These are names so we can possibly save a transfer by using n_options if it is on host.
+    const std::string srcMatsetName = utils::hostReadString(n_options[SRC_MATSET_NAME]);
+    const std::string targetTopologyName = utils::hostReadString(n_options[TARGET_TOPOLOGY_NAME]);
+    const std::string targetMatsetName = utils::hostReadString(n_options[TARGET_MATSET_NAME]);
 
     // Look at the source mesh's matset. Count the number of materials.
     const conduit::Node& n_matset = n_srcMesh.fetch_existing("matsets/" + srcMatsetName);
@@ -569,7 +570,7 @@ public:
     int maxMatId = 0;
     for(conduit::index_t i = 0; i < nmats; i++)
     {
-      int matId = n_materialMap[i].to_int();
+      int matId = utils::hostReadInt(n_materialMap[i]);
       if(i == 0 || matId > maxMatId)
       {
         maxMatId = matId;

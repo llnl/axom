@@ -137,7 +137,7 @@ public:
     // Make a new coordset.
     SliceData nSlice;
     nSlice.m_indicesView = nodeSlice.view();
-    const std::string coordsetName = n_topo.fetch_existing("coordset").as_string();
+    const std::string coordsetName = utils::topologyCoordset(n_topo);
     const conduit::Node& n_coordset = n_input.fetch_existing("coordsets/" + coordsetName);
     const std::string newCoordsetName = opts.coordsetName(coordsetName);
     conduit::Node& n_newCoordset = n_output["coordsets/" + newCoordsetName];
@@ -238,18 +238,19 @@ protected:
    */
   Sizes getExtra(const conduit::Node& n_options) const
   {
+    namespace utils = axom::bump::utilities;
     Sizes extra {};
     if(n_options.has_path("extra/nodes"))
     {
-      extra.nodes = std::max(0, n_options["extra/nodes"].to_int());
+      extra.nodes = std::max(0, utils::hostReadInt(n_options["extra/nodes"]));
     }
     if(n_options.has_path("extra/zones"))
     {
-      extra.zones = std::max(0, n_options["extra/zones"].to_int());
+      extra.zones = std::max(0, utils::hostReadInt(n_options["extra/zones"]));
     }
     if(n_options.has_path("extra/connectivity"))
     {
-      extra.connectivity = std::max(0, n_options["extra/connectivity"].to_int());
+      extra.connectivity = std::max(0, utils::hostReadInt(n_options["extra/connectivity"]));
     }
     return extra;
   }
@@ -466,7 +467,7 @@ protected:
     {
       // The topology is not polyhedral. We'll output unstructured.
       n_newTopo["type"] = "unstructured";
-      n_newTopo["coordset"] = n_topo["coordset"].as_string();
+      n_newTopo["coordset"] = utils::topologyCoordset(n_topo);
       n_newTopo["elements/shape"] = outputShape(n_topo);
 
       conduit::Node& n_conn = n_newTopo["elements/connectivity"];
@@ -617,7 +618,7 @@ protected:
     for(conduit::index_t i = 0; i < n_fields.number_of_children(); i++)
     {
       const conduit::Node& n_field = n_fields[i];
-      const std::string association = n_field["association"].as_string();
+      const std::string association = utilities::fieldAssociation(n_field);
       conduit::Node& n_newField = n_newFields[n_field.name()];
       axom::bump::FieldSlicer<ExecSpace> fs;
       fs.setAllocatorID(getAllocatorID());
@@ -646,7 +647,7 @@ protected:
     std::string name;
     if(n_options.has_path("topology"))
     {
-      name = n_options["topology"].as_string();
+      name = utilities::hostReadString(n_options["topology"]);
     }
     else
     {
@@ -668,7 +669,7 @@ protected:
     bool retval = true;
     if(n_options.has_path("compact"))
     {
-      retval = n_options["compact"].to_int() != 0;
+      retval = utilities::hostReadInt(n_options["compact"]) != 0;
     }
     return retval;
   }
@@ -814,7 +815,7 @@ protected:
       for(conduit::index_t i = 0; i < n_matsets.number_of_children(); i++)
       {
         const conduit::Node& n_matset = n_matsets[i];
-        if(n_matset["topology"].as_string() == topoName)
+        if(utilities::matsetTopology(n_matset) == topoName)
         {
           matset = n_matset.name();
           break;

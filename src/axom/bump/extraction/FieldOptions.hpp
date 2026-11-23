@@ -32,7 +32,7 @@ public:
    * \brief Return the name of the field used for clipping.
    * \return The name of the field used for clipping.
    */
-  std::string field() const { return options().fetch_existing("field").as_string(); }
+  std::string field() const { return axom::bump::utilities::hostReadString(options().fetch_existing("field")); }
 
   /**
    * \brief Return the clip value.
@@ -40,7 +40,7 @@ public:
    */
   float value() const
   {
-    return options().has_child("value") ? options().fetch_existing("value").to_float() : 0.f;
+    return options().has_child("value") ? axom::bump::utilities::hostReadFloat(options().fetch_existing("value")) : 0.f;
   }
 };
 

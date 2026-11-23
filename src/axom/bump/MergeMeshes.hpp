@@ -221,7 +221,7 @@ protected:
   const conduit::Node& getCoordset(const MeshInput& input) const
   {
     const conduit::Node& n_topo = getTopology(input);
-    const std::string coordsetName = n_topo["coordset"].as_string();
+    const std::string coordsetName = utilities::topologyCoordset(n_topo);
     return input.m_input->fetch_existing("coordsets/" + coordsetName);
   }
 
@@ -490,6 +490,7 @@ protected:
       SLIC_ASSERT(type == "unstructured");
       if(shape == "mixed")
       {
+        // Copy the shape_map to the host.
         conduit::Node hostShapeMap;
         utils::copy<axom::SEQ_EXEC>(hostShapeMap, n_srcTopo.fetch_existing("elements/shape_map"));
 
@@ -580,13 +581,13 @@ protected:
         std::string newTopoName(n_srcTopo.name());
         if(n_options.has_child("topologyName"))
         {
-          newTopoName = n_options["topologyName"].as_string();
+          newTopoName = utils::hostReadString(n_options["topologyName"]);
         }
         conduit::Node& n_newTopo = n_newTopologies[newTopoName];
         n_newTopoPtr = n_newTopologies.fetch_ptr(newTopoName);
 
         n_newTopo["type"] = "unstructured";
-        n_newTopo["coordset"] = n_srcTopo["coordset"].as_string();
+        n_newTopo["coordset"] = utils::topologyCoordset(n_srcTopo);
 
         conduit::Node& n_newConn = n_newTopo["elements/connectivity"];
         n_newConn.set_allocator(conduitAllocatorId);
@@ -898,7 +899,7 @@ protected:
         std::string newTopoName(n_srcTopo.name());
         if(n_options.has_child("topologyName"))
         {
-          newTopoName = n_options["topologyName"].as_string();
+          newTopoName = utils::hostReadString(n_options["topologyName"]);
         }
 
         // Start making new topo.
@@ -906,7 +907,7 @@ protected:
         n_newTopoPtr = n_newTopologies.fetch_ptr(newTopoName);
 
         n_newTopo["type"] = "unstructured";
-        n_newTopo["coordset"] = n_srcTopo["coordset"].as_string();
+        n_newTopo["coordset"] = utils::topologyCoordset(n_srcTopo);
         n_newTopo["elements/shape"] = "polyhedral";
         n_newTopo["subelements/shape"] = "polygonal";
 
@@ -1186,8 +1187,8 @@ protected:
           {
             const conduit::Node& n_field = n_fields[c];
             FieldInformation fi;
-            fi.m_topology = n_field.fetch_existing("topology").as_string();
-            fi.m_association = n_field.fetch_existing("association").as_string();
+            fi.m_topology = utils::fieldTopology(n_field);
+            fi.m_association = utils::fieldAssociation(n_field);
             fi.m_matset = std::string();
             fi.m_volume_dependent = InvalidVolumeDependent;
             fi.m_dtype = -1;
@@ -1199,18 +1200,18 @@ protected:
               const auto& vd = n_field["volume_dependent"];
               if(vd.dtype().is_string())
               {
-                fi.m_volume_dependent = (vd.as_string() == "true") ? 1 : 0;
+                fi.m_volume_dependent = (utils::hostReadString(vd) == "true") ? 1 : 0;
               }
               else if(vd.dtype().is_number())
               {
-                fi.m_volume_dependent = (vd.to_int() != 0) ? 1 : 0;
+                fi.m_volume_dependent = (utils::hostReadInt(vd) != 0) ? 1 : 0;
               }
             }
 
             // If the field is a material field, save metadata.
             if(n_field.has_path("matset") && n_field.has_path("matset_values"))
             {
-              fi.m_matset = n_field["matset"].as_string();
+              fi.m_matset = utils::hostReadString(n_field["matset"]);
               fi.m_have_matset_values = 1;
               const conduit::Node& matset_values = n_field["matset_values"];
               fi.m_dtype = matset_values.dtype().is_object() ? matset_values[0].dtype().id()
@@ -1708,7 +1709,7 @@ private:
         conduit::Node& n_matsets = inputs[i].m_input->fetch_existing("matsets");
         conduit::Node& n_matset = n_matsets[0];
         mi.matsetName = n_matset.name();
-        mi.topoName = n_matset.fetch_existing("topology").as_string();
+        mi.topoName = utilities::matsetTopology(n_matset);
         mi.elementDominant = conduit::blueprint::mesh::matset::is_element_dominant(n_matset);
         mi.multiBuffer = conduit::blueprint::mesh::matset::is_multi_buffer(n_matset) &&
           !n_matset.has_child("material_ids");

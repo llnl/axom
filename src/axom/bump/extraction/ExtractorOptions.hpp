@@ -32,7 +32,7 @@ public:
    * \brief Return the name of the field used for clipping.
    * \return The name of the field used for clipping.
    */
-  std::string clipField() const { return options().fetch_existing("clipField").as_string(); }
+  std::string clipField() const { return axom::bump::utilities::hostReadString(options().fetch_existing("clipField")); }
 
   /**
    * \brief Return the clip value.
@@ -40,7 +40,7 @@ public:
    */
   float clipValue() const
   {
-    return options().has_child("clipValue") ? options().fetch_existing("clipValue").to_float() : 0.f;
+    return options().has_child("clipValue") ? axom::bump::utilities::hostReadFloat(options().fetch_existing("clipValue")) : 0.f;
   }
 
   /**
@@ -50,7 +50,7 @@ public:
   std::string colorField() const
   {
     std::string name("color");
-    if(options().has_child("colorField")) name = options().fetch_existing("colorField").as_string();
+    if(options().has_child("colorField")) name = axom::bump::utilities::hostReadString(options().fetch_existing("colorField"));
     return name;
   }
 
@@ -62,7 +62,7 @@ public:
   {
     std::string name("originalElements");
     if(options().has_child("originalElementsField"))
-      name = options().fetch_existing("originalElementsField").as_string();
+      name = axom::bump::utilities::hostReadString(options().fetch_existing("originalElementsField"));
     return name;
   }
 
@@ -75,7 +75,7 @@ public:
   {
     std::string name;
     if(options().has_child("newNodesField"))
-      name = options().fetch_existing("newNodesField").as_string();
+      name = axom::bump::utilities::hostReadString(options().fetch_existing("newNodesField"));
     return name;
   }
 
@@ -85,7 +85,7 @@ public:
    */
   bool inside() const
   {
-    return options().has_path("inside") ? (options().fetch_existing("inside").to_int() > 0) : true;
+    return options().has_path("inside") ? (axom::bump::utilities::hostReadInt(options().fetch_existing("inside")) > 0) : true;
   }
 
   /**
@@ -94,7 +94,7 @@ public:
    */
   bool outside() const
   {
-    return options().has_path("outside") ? (options().fetch_existing("outside").to_int() > 0) : false;
+    return options().has_path("outside") ? (axom::bump::utilities::hostReadInt(options().fetch_existing("outside")) > 0) : false;
   }
 
 protected:

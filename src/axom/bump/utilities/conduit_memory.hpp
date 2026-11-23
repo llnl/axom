@@ -248,6 +248,15 @@ axom::Array<T> hostReadArray(const conduit::Node& n)
 inline int hostReadInt(const conduit::Node& n) { return hostRead<int>(n); }
 
 /*!
+ * \brief Read a Conduit leaf node as a `float` on the host.
+ *
+ * \param n The Conduit leaf node to read.
+ *
+ * \return The node value converted to `float`.
+ */
+inline double hostReadFloat(const conduit::Node& n) { return hostRead<float>(n); }
+
+/*!
  * \brief Read a Conduit leaf node as a `double` on the host.
  *
  * \param n The Conduit leaf node to read.

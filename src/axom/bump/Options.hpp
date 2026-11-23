@@ -7,6 +7,7 @@
 #pragma once
 
 #include "axom/core.hpp"
+#include "axom/bump/utilities/conduit_memory.hpp"
 
 #include <conduit/conduit.hpp>
 #include <string>
@@ -40,7 +41,7 @@ public:
     std::string name(default_value);
     if(m_options.has_child("topologyName"))
     {
-      name = m_options.fetch_existing("topologyName").as_string();
+      name = utilities::hostReadString(m_options.fetch_existing("topologyName"));
     }
     return name;
   }
@@ -55,7 +56,7 @@ public:
     std::string name(default_value);
     if(m_options.has_child("coordsetName"))
     {
-      name = m_options.fetch_existing("coordsetName").as_string();
+      name = utilities::hostReadString(m_options.fetch_existing("coordsetName"));
     }
     return name;
   }
@@ -69,7 +70,7 @@ public:
     std::string name("originalElements");
     if(m_options.has_child("originalElementsField"))
     {
-      name = m_options.fetch_existing("originalElementsField").as_string();
+      name = utilities::hostReadString(m_options.fetch_existing("originalElementsField"));
     }
     return name;
   }
@@ -92,7 +93,7 @@ public:
       {
         if(n_opt_fields[i].dtype().is_string())
         {
-          f[n_opt_fields[i].name()] = n_opt_fields[i].as_string();
+          f[n_opt_fields[i].name()] = utilities::hostReadString(n_opt_fields[i]);
         }
         else
         {
@@ -113,7 +114,7 @@ public:
    * \brief Get the name of the matset on which we'll operate.
    * \return The name of the matset.
    */
-  std::string matset() const { return options().fetch_existing("matset").as_string(); }
+  std::string matset() const { return utilities::hostReadString(options().fetch_existing("matset")); }
 
   /**
    * \brief Return the name of the matset to make in the output.
@@ -125,7 +126,7 @@ public:
     std::string name(default_value.empty() ? matset() : default_value);
     if(options().has_child("matsetName"))
     {
-      name = options().fetch_existing("matsetName").as_string();
+      name = utilities::hostReadString(options().fetch_existing("matsetName"));
     }
     return name;
   }
@@ -150,7 +151,7 @@ protected:
     bool retval = defaultValue;
     if(options().has_path(key))
     {
-      retval = options().fetch_existing(key).to_int() != 0;
+      retval = utilities::hostReadInt(options().fetch_existing(key)) != 0;
     }
     return retval;
   }

@@ -100,6 +100,17 @@ std::string coordsetType(const conduit::Node &n_coordset);
 std::string topologyType(const conduit::Node &n_topo);
 
 /*!
+ * \brief Get the topology coordset string.
+ *
+ * \param n_topo The topology node.
+ * 
+ * \return The string for "coordset".
+ *
+ * \note We use hostReadString in case the string is in device memory.
+ */
+std::string topologyCoordset(const conduit::Node &n_topo);
+
+/*!
  * \brief Get the unstructured topology shape string.
  *
  * \param n_topo The topology node.
@@ -109,5 +120,38 @@ std::string topologyType(const conduit::Node &n_topo);
  * \note We use hostReadString in case the string is in device memory.
  */
 std::string unstructuredTopologyShape(const conduit::Node &n_topo);
+
+/*!
+ * \brief Get the matset topology string.
+ *
+ * \param n_matset The matset node.
+ * 
+ * \return The string for "topology".
+ *
+ * \note We use hostReadString in case the string is in device memory.
+ */
+std::string matsetTopology(const conduit::Node &n_matset);
+
+/*!
+ * \brief Get the field topology string.
+ *
+ * \param n_field The field node.
+ * 
+ * \return The string for "topology".
+ *
+ * \note We use hostReadString in case the string is in device memory.
+ */
+std::string fieldTopology(const conduit::Node &n_field);
+
+/*!
+ * \brief Get the field association string.
+ *
+ * \param n_field The field node.
+ * 
+ * \return The string for "association".
+ *
+ * \note We use hostReadString in case the string is in device memory.
+ */
+std::string fieldAssociation(const conduit::Node &n_field);
 
 }  // end namespace axom::bump::utilities

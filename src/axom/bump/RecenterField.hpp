@@ -59,7 +59,7 @@ public:
    */
   void execute(const conduit::Node& field, const conduit::Node& relation, conduit::Node& out_field) const
   {
-    const std::string association = field.fetch_existing("association").as_string();
+    const std::string association = utilities::fieldAssociation(field);
 
     // Assume that we're flipping the association.
     out_field["association"] = (association == "element") ? "vertex" : "element";

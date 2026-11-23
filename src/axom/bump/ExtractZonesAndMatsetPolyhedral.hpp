@@ -193,7 +193,7 @@ protected:
     AXOM_ANNOTATE_BEGIN("allocate");
 
     n_newTopo["type"] = "unstructured";
-    n_newTopo["coordset"] = n_topo["coordset"].as_string();
+    n_newTopo["coordset"] = utils::topologyCoordset(n_topo);
     n_newTopo["elements/shape"] = "polyhedral";
     n_newTopo["subelements/shape"] = "polygonal";
 
