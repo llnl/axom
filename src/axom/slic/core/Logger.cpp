@@ -16,29 +16,33 @@ namespace axom
 {
 namespace slic
 {
+//------------------------------------------------------------------------------
+// Slic's singleton state, scope-limited to this file.
+//
+// Defined the singleton state at namespace scope so its destructors are registered
+// late and runs early during teardown.
+//------------------------------------------------------------------------------
+
 using Loggermap = std::map<std::string, Logger*>;
 
 //------------------------------------------------------------------------------
-// This is a singleton, scope-limited to this file.
+static Loggermap s_loggers;
 Loggermap& getLoggers()
 {
-  static Loggermap s_loggers;
   return s_loggers;
 }
 
 //------------------------------------------------------------------------------
-// This is a singleton, scope-limited to this file.
+static Logger* s_Logger = nullptr;
 Logger*& getLogger()
 {
-  static Logger* s_Logger = nullptr;
   return s_Logger;
 }
 
 //------------------------------------------------------------------------------
-// This is a singleton, scope-limited to this file.
+static LogStreamStatusMonitor s_logStreamStatusMonitor;
 LogStreamStatusMonitor& getLogStreamStatusMonitor()
 {
-  static LogStreamStatusMonitor s_logStreamStatusMonitor;
   return s_logStreamStatusMonitor;
 }
 
