@@ -69,7 +69,7 @@ struct make_strided_structured_topology<3>
     LogicalIndex offsets {{0, 0, 0}}, strides {{1, 1, 1}};
     utils::fillFromNode(hostDims, "offsets", offsets);
     SLIC_ERROR_IF(
-      !topo.has_path(stridesKey),
+      !hostDims.has_path("strides"),
       axom::fmt::format("Strided-structured topology '{}' requires strides.", topo.path()));
     utils::fillFromNode(hostDims, "strides", strides);
     const auto nx = strides[1];
@@ -127,7 +127,7 @@ struct make_strided_structured_topology<2>
     LogicalIndex offsets {{0, 0}}, strides {{1, 1}};
     utils::fillFromNode(hostDims, "offsets", offsets);
     SLIC_ERROR_IF(
-      !topo.has_path(stridesKey),
+      !hostDims.has_path("strides"),
       axom::fmt::format("Strided-structured topology '{}' requires strides.", topo.path()));
     utils::fillFromNode(hostDims, "strides", strides);
 
@@ -176,7 +176,7 @@ struct make_strided_structured_topology<1>
     LogicalIndex offsets {0}, strides {1};
     utils::fillFromNode(hostDims, "offsets", offsets);
     SLIC_ERROR_IF(
-      !topo.has_path(stridesKey),
+      !hostDims.has_path("strides"),
       axom::fmt::format("Strided-structured topology '{}' requires strides.", topo.path()));
     utils::fillFromNode(hostDims, "strides", strides);
 
@@ -290,7 +290,7 @@ struct make_structured_topology<1>
   {
     verify(topo, "topology");
     LogicalIndex zoneDims;
-    zoneDims[0] = utilities::hostReadInt("elements/dims/i");
+    zoneDims[0] = utilities::hostReadInt(topo.fetch_existing("elements/dims/i"));
 
     return Indexing(zoneDims);
   }

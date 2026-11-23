@@ -428,7 +428,7 @@ protected:
     for(axom::IndexType i = 0; i < n; i++)
     {
       const conduit::Node& n_topo = getTopology(inputs[i]);
-      const std::string type = utils::topologyType(n_topo);
+      const std::string type = axom::bump::utilities::topologyType(n_topo);
       SLIC_ASSERT(type == "unstructured");
 
       const conduit::Node& n_size = n_topo.fetch_existing(elem_sizes);
@@ -479,6 +479,7 @@ protected:
    */
   std::map<std::string, int> buildShapeMap(const std::vector<MeshInput>& inputs) const
   {
+    namespace utils = axom::bump::utilities;
     std::map<std::string, int> shape_map;
     const axom::IndexType n = static_cast<axom::IndexType>(inputs.size());
     for(axom::IndexType i = 0; i < n; i++)
@@ -489,12 +490,14 @@ protected:
       SLIC_ASSERT(type == "unstructured");
       if(shape == "mixed")
       {
-        const conduit::Node& n_shape_map = n_srcTopo.fetch_existing("elements/shape_map");
-        for(int s = 0; s < n_shape_map.number_of_children(); s++)
+        conduit::Node hostShapeMap;
+        utils::copy<axom::SEQ_EXEC>(hostShapeMap, n_srcTopo.fetch_existing("elements/shape_map"));
+
+        for(int s = 0; s < hostShapeMap.number_of_children(); s++)
         {
-          const std::string sname = n_shape_map[s].name();
+          const std::string sname = hostShapeMap[s].name();
           const auto id = axom::bump::views::shapeNameToID(sname);
-          SLIC_ASSERT(id == n_shape_map[s].to_int());
+          SLIC_ASSERT(id == hostShapeMap[s].to_int());
           shape_map[sname] = id;
         }
       }
