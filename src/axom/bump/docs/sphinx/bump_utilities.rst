@@ -21,11 +21,19 @@ classes allow the BUMP component to provide specialized versions of templated al
 
 Blueprint meshes consist of various parts such as coordsets, topologies, fields, and matsets.
 These constructs are organized as various paths within a root Conduit node. Elements such
-as strings and scalar values can be stored as usual within a Conduit node in host memory.
-Conduit nodes that contain bulk data such as coordinate or field data should point to
-memory blocks that are valid for the execution environment in which algorithms will run.
-To achieve this, entire Conduit node hierarchies can be copied to the proper memory space
-or they can be constructed by forcing Conduit to allocate memory in the proper memory space.
+as strings and scalar values can be stored as usual within a Conduit node in host memory,
+though they may also be stored in device memory. BUMP algorithms will read scalar and
+string values into host memory on demand, if needed. Conduit nodes that contain bulk data
+such as coordinate or field data should point to memory blocks that are valid for the
+execution environment in which algorithms will run. To achieve this, entire Conduit node
+hierarchies can be copied to the proper memory space or they can be constructed by
+forcing Conduit to allocate memory in the proper memory space.
+
+BUMP algorithms typically create new Conduit nodes containing mesh output. Bulk arrays
+that describe the Blueprint mesh are allocated in the memory space used to instantiate the
+BUMP algorithm. String and scalar metadata is output as host memory to make it easier to
+access in the consuming algorithms; this means the resulting Blueprint hierarchy can contain
+a mix of memory spaces.
 
  * `NOTE: Some code examples use a utils:: namespace prefix as shorthand for axom::bump::utilities.`
 
