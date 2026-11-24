@@ -64,6 +64,23 @@ inline axom::ArrayView<T> make_array_view(const conduit::Node& n)
  */
 bool isDeviceAllocated(const conduit::Node& n);
 
+/*!
+ * \brief Returns the allocator associated with the Conduit node's data.
+ *
+ * \param n The node to check.
+ *
+ * \return The allocator ID for the Conduit node. This is the Axom allocator ID
+ *         as opposed to the Conduit registered allocator that might be set in
+ *         the node.
+ *
+ * \note Conduit nodes in a tree may have their own memory or in the case of
+ *       compact_to, all of their data_ptr() methods can return the same value
+ *       while the nodes maintain different offsets to their data in the single
+ *       buffer. We use Node::data_ptr() to check in the event that the storage
+ *       was allocated in one block.
+ */
+int getAllocatorIDFromNode(const conduit::Node &n);
+
 //------------------------------------------------------------------------------
 /*!
  * \brief Copies a Conduit tree in the \a src node to a new Conduit \a dest node,

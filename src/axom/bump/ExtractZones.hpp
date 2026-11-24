@@ -171,7 +171,7 @@ public:
       n_origElements["values"].set_allocator(conduitAllocatorId);
       n_origElements["values"].set(
         conduit::DataType(utils::cpp2conduit<axom::IndexType>::id, selectedZonesView.size()));
-      axom::copy(n_origElements["values"].data_ptr(),
+      axom::copy(n_origElements["values"].element_ptr(0),
                  selectedZonesView.data(),
                  sizeof(axom::IndexType) * selectedZonesView.size());
     }

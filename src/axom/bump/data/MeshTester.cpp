@@ -930,9 +930,9 @@ void MeshTester::generateGrid3D(int gridSize, conduit::Node& mesh)
   n_x.set(conduit::DataType::float32(nnodes));
   n_y.set(conduit::DataType::float32(nnodes));
   n_z.set(conduit::DataType::float32(nnodes));
-  auto* x = static_cast<float*>(n_x.data_ptr());
-  auto* y = static_cast<float*>(n_y.data_ptr());
-  auto* z = static_cast<float*>(n_z.data_ptr());
+  auto* x = n_x.as_float32_ptr();
+  auto* y = n_y.as_float32_ptr();
+  auto* z = n_z.as_float32_ptr();
 
   for(int k = 0; k < dims[2]; k++)
   {
@@ -967,9 +967,9 @@ void MeshTester::generateGrid3D(int gridSize, conduit::Node& mesh)
     conn.set(conduit::DataType::int32(8 * nzones));
     sizes.set(conduit::DataType::int32(nzones));
     offsets.set(conduit::DataType::int32(nzones));
-    auto* conn_ptr = static_cast<int*>(conn.data_ptr());
-    auto* sizes_ptr = static_cast<int*>(sizes.data_ptr());
-    auto* offsets_ptr = static_cast<int*>(offsets.data_ptr());
+    auto* conn_ptr = conn.as_int32_ptr();
+    auto* sizes_ptr = sizes.as_int32_ptr();
+    auto* offsets_ptr = offsets.as_int32_ptr();
 
     for(int k = 0; k < gridSize; k++)
     {

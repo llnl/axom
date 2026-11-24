@@ -942,7 +942,7 @@ public:
       for(auto it = fieldsToProcess.begin(); it != fieldsToProcess.end(); it++)
       {
         const conduit::Node& n_field = n_fields.fetch_existing(it->first);
-        if(utils::hostReadString(n_field.fetch_existing("topology")) == n_topo.name())
+        if(utils::fieldTopology(n_field) == n_topo.name())
         {
           numElementFields +=
             (utils::fieldAssociation(n_field) == "element") ? 1 : 0;
@@ -955,7 +955,7 @@ public:
       for(conduit::index_t i = 0; i < n_fields.number_of_children(); i++)
       {
         const conduit::Node& n_field = n_fields[i];
-        if(utils::hostReadString(n_field.fetch_existing("topology")) == n_topo.name())
+        if(utils::fieldTopology(n_field) == n_topo.name())
         {
           numElementFields +=
             (utils::fieldAssociation(n_field) == "element") ? 1 : 0;

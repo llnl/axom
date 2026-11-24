@@ -44,7 +44,7 @@ inline void add_distance(conduit::Node& mesh, float dist = 6.5f)
     conduit::Node& n_values = mesh["fields/distance/values"];
     const auto nnodes = coordsetView.size();
     n_values.set(conduit::DataType::float32(nnodes));
-    float* valuesPtr = static_cast<float*>(n_values.data_ptr());
+    float* valuesPtr = n_values.as_float32_ptr();
     SphereType s(dist);
     for(int index = 0; index < nnodes; index++)
     {

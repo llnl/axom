@@ -167,14 +167,15 @@ void test_one_shape(const conduit::Node& hostMesh, const std::string& name)
   conduit::Node& n_x = deviceMesh.fetch_existing("coordsets/coords/values/x");
   conduit::Node& n_y = deviceMesh.fetch_existing("coordsets/coords/values/y");
   conduit::Node& n_z = deviceMesh.fetch_existing("coordsets/coords/values/z");
-  axom::ArrayView<float> xView(static_cast<float*>(n_x.data_ptr()), n_x.dtype().number_of_elements());
-  axom::ArrayView<float> yView(static_cast<float*>(n_y.data_ptr()), n_y.dtype().number_of_elements());
-  axom::ArrayView<float> zView(static_cast<float*>(n_z.data_ptr()), n_z.dtype().number_of_elements());
+  axom::ArrayView<float> xView(n_x.as_float_ptr(), n_x.dtype().number_of_elements());
+  axom::ArrayView<float> yView(n_y.as_float_ptr(), n_y.dtype().number_of_elements());
+  axom::ArrayView<float> zView(n_z.as_float_ptr(), n_z.dtype().number_of_elements());
   CoordsetView coordsetView(xView, yView, zView);
 
   conduit::Node& n_conn = deviceMesh.fetch_existing("topologies/topo/elements/connectivity");
-  axom::ArrayView<int> connView(static_cast<int*>(n_conn.data_ptr()),
+  axom::ArrayView<int> connView(n_conn.as_int_ptr(),
                                 n_conn.dtype().number_of_elements());
+
   TopoView topoView(connView);
 
   // Clip the data
@@ -420,16 +421,16 @@ void braid3d_clip_test(const std::string& type, const std::string& name)
   conduit::Node& n_x = deviceMesh.fetch_existing("coordsets/coords/values/x");
   conduit::Node& n_y = deviceMesh.fetch_existing("coordsets/coords/values/y");
   conduit::Node& n_z = deviceMesh.fetch_existing("coordsets/coords/values/z");
-  const axom::ArrayView<double> x(static_cast<double*>(n_x.data_ptr()),
+  const axom::ArrayView<double> x(n_x.as_double_ptr(),
                                   n_x.dtype().number_of_elements());
-  const axom::ArrayView<double> y(static_cast<double*>(n_y.data_ptr()),
+  const axom::ArrayView<double> y(n_y.as_double_ptr(),
                                   n_y.dtype().number_of_elements());
-  const axom::ArrayView<double> z(static_cast<double*>(n_z.data_ptr()),
+  const axom::ArrayView<double> z(n_z.as_double_ptr(),
                                   n_z.dtype().number_of_elements());
   CoordsetView coordsetView(x, y, z);
 
   conduit::Node& n_conn = deviceMesh.fetch_existing("topologies/mesh/elements/connectivity");
-  const axom::ArrayView<int> conn(static_cast<int*>(n_conn.data_ptr()),
+  const axom::ArrayView<int> conn(n_conn.as_int_ptr(),
                                   n_conn.dtype().number_of_elements());
   TopoView topoView(conn);
 
@@ -475,11 +476,11 @@ void braid3d_mixed_clip_test(const std::string& name)
   conduit::Node& n_x = deviceMesh.fetch_existing("coordsets/coords/values/x");
   conduit::Node& n_y = deviceMesh.fetch_existing("coordsets/coords/values/y");
   conduit::Node& n_z = deviceMesh.fetch_existing("coordsets/coords/values/z");
-  const axom::ArrayView<CoordType> x(static_cast<CoordType*>(n_x.data_ptr()),
+  const axom::ArrayView<CoordType> x(n_x.as_float_ptr(),
                                      n_x.dtype().number_of_elements());
-  const axom::ArrayView<CoordType> y(static_cast<CoordType*>(n_y.data_ptr()),
+  const axom::ArrayView<CoordType> y(n_y.as_float_ptr(),
                                      n_y.dtype().number_of_elements());
-  const axom::ArrayView<CoordType> z(static_cast<CoordType*>(n_z.data_ptr()),
+  const axom::ArrayView<CoordType> z(n_z.as_float_ptr(),
                                      n_z.dtype().number_of_elements());
   CoordsetView coordsetView(x, y, z);
 
@@ -488,13 +489,13 @@ void braid3d_mixed_clip_test(const std::string& name)
   conduit::Node& n_shapes = n_device_topo.fetch_existing("elements/shapes");
   conduit::Node& n_sizes = n_device_topo.fetch_existing("elements/sizes");
   conduit::Node& n_offsets = n_device_topo.fetch_existing("elements/offsets");
-  axom::ArrayView<ConnType> connView(static_cast<ConnType*>(n_conn.data_ptr()),
+  axom::ArrayView<ConnType> connView(n_conn.as_int_ptr(),
                                      n_conn.dtype().number_of_elements());
-  axom::ArrayView<ConnType> shapesView(static_cast<ConnType*>(n_shapes.data_ptr()),
+  axom::ArrayView<ConnType> shapesView(n_shapes.as_int_ptr(),
                                        n_shapes.dtype().number_of_elements());
-  axom::ArrayView<ConnType> sizesView(static_cast<ConnType*>(n_sizes.data_ptr()),
+  axom::ArrayView<ConnType> sizesView(n_sizes.as_int_ptr(),
                                       n_sizes.dtype().number_of_elements());
-  axom::ArrayView<ConnType> offsetsView(static_cast<ConnType*>(n_offsets.data_ptr()),
+  axom::ArrayView<ConnType> offsetsView(n_offsets.as_int_ptr(),
                                         n_offsets.dtype().number_of_elements());
 
   // Make the shape map.

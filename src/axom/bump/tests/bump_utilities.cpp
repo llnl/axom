@@ -48,7 +48,7 @@ struct test_conduit_allocate
 
     // Get the values back to the host.
     std::vector<int> hostValues(nValues);
-    axom::copy(hostValues.data(), n.data_ptr(), sizeof(int) * nValues);
+    axom::copy(hostValues.data(), n.as_int32_ptr(), sizeof(int) * nValues);
 
     // Check that the values were set.
     for(int i = 0; i < nValues; i++)
@@ -79,7 +79,7 @@ struct test_conduit_allocate
     expectAllocator(childValues);
 
     childValues.set(conduit::DataType::int32(nValues));
-    EXPECT_EQ(axom::getAllocatorIDFromPointer(childValues.data_ptr()), allocatorID);
+    EXPECT_EQ(axom::bump::utilities::getAllocatorIDFromNode(childValues), allocatorID);
 
     auto childView = utils::make_array_view<int>(childValues);
     axom::for_all<ExecSpace>(nValues, [=] AXOM_HOST_DEVICE(axom::IndexType index) {
@@ -87,7 +87,7 @@ struct test_conduit_allocate
     });
 
     std::vector<int> hostChildValues(nValues);
-    axom::copy(hostChildValues.data(), childValues.data_ptr(), sizeof(int) * nValues);
+    axom::copy(hostChildValues.data(), childValues.as_int32_ptr(), sizeof(int) * nValues);
     for(int i = 0; i < nValues; i++)
     {
       EXPECT_EQ(hostChildValues[i], 2 * i);
@@ -156,10 +156,10 @@ struct test_conduit_compact_to
     EXPECT_EQ(device.total_bytes_compact(), host.total_bytes_compact());
     EXPECT_EQ(axom::sidre::ConduitMemory::conduitAllocIdToAxom(device.allocator()), destAllocatorID);
     EXPECT_EQ(axom::getAllocatorIDFromPointer(device.data_ptr()), destAllocatorID);
-    EXPECT_EQ(axom::getAllocatorIDFromPointer(device["array"].data_ptr()), destAllocatorID);
-    EXPECT_EQ(axom::getAllocatorIDFromPointer(device["scalar"].data_ptr()), destAllocatorID);
-    EXPECT_EQ(axom::getAllocatorIDFromPointer(device["label"].data_ptr()), destAllocatorID);
-    EXPECT_EQ(axom::getAllocatorIDFromPointer(device["nested/ids"].data_ptr()), destAllocatorID);
+    EXPECT_EQ(axom::bump::utilities::getAllocatorIDFromNode(device["array"]), destAllocatorID);
+    EXPECT_EQ(axom::bump::utilities::getAllocatorIDFromNode(device["scalar"]), destAllocatorID);
+    EXPECT_EQ(axom::bump::utilities::getAllocatorIDFromNode(device["label"]), destAllocatorID);
+    EXPECT_EQ(axom::bump::utilities::getAllocatorIDFromNode(device["nested/ids"]), destAllocatorID);
 
     EXPECT_EQ(device["array"].dtype().stride(), device["array"].dtype().element_bytes());
     EXPECT_EQ(device["nested/ids"].dtype().stride(), device["nested/ids"].dtype().element_bytes());

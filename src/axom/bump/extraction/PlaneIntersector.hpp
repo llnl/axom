@@ -153,7 +153,7 @@ public:
   std::string getTopologyName(const conduit::Node& AXOM_UNUSED_PARAM(n_input),
                               const conduit::Node& n_options) const
   {
-    return n_options["topology"].as_string();
+    return axom::bump::utilities::hostReadString(n_options["topology"]);
   }
 
   /*!

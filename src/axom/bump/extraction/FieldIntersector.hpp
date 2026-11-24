@@ -138,7 +138,12 @@ public:
     // Make sure the clipField is the right data type and store access to it in the view.
     const conduit::Node& n_field = n_fields.fetch_existing(opts.field());
     const conduit::Node& n_field_values = n_field["values"];
-    SLIC_ASSERT(n_field["association"].as_string() == "vertex");
+    const std::string association = utils::fieldAssociation(n_field);
+    SLIC_ERROR_IF(association != "vertex",
+                  axom::fmt::format("The clip field '{}' must be vertex-associated, but its "
+                                    "association is '{}'.",
+                                    opts.field(),
+                                    association));
 
     // A mismatched padded layout would make topology node ids address the wrong values.
     utils::validateVertexFieldIndexing(n_topology, n_field, opts.field());
@@ -172,7 +177,7 @@ public:
     FieldOptions opts(n_options);
     const conduit::Node& n_fields = n_input.fetch_existing("fields");
     const conduit::Node& n_field = n_fields.fetch_existing(opts.field());
-    return n_field["topology"].as_string();
+    return utilities::fieldTopology(n_field);
   }
 
   /*!
