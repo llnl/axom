@@ -581,6 +581,7 @@ public:
   using PointType = primal::Point<double, DIM>;
   using BoxType = primal::BoundingBox<double, DIM>;
   using PointArray = axom::Array<PointType>;
+  using IndexArray = axom::Array<axom::IndexType>;
   using BoxArray = axom::Array<BoxType>;
   using BVHTreeType = spin::BVH<DIM, ExecSpace>;
 
@@ -1230,6 +1231,9 @@ public:
   double computeLocalClosestPoints(conduit::Node& xferNode) const
   {
     using axom::primal::squared_distance;
+    // Only enable Morton-based sorting on GPU-enabled runs.
+    // Sorting provides no performance benefit on serial/OpenMP CPU runs.
+    constexpr bool EnableSorting = axom::execution_space<ExecSpace>::onDevice();
 
     // Note: There is some additional computation the first time this function
     // is called for a query node, even if the local object mesh is empty
@@ -1311,13 +1315,18 @@ public:
         /// Create an ArrayView in ExecSpace that is compatible with queryPts
         PointArray execPoints(queryPts, m_allocatorID);
         auto query_pts = execPoints.view();
-        auto query_order = mortonSortQueryPoints(query_pts);
-        auto query_order_view = query_order.view();
         const double sqDistThreshold = m_sqDistanceThreshold;
         auto it = m_bvh->getTraverser();
         const int rank = (m_replicatedObjRank == -1) ? m_rank : m_replicatedObjRank;
         auto ptCoordsView = m_objectPtCoords.view();
         auto ptDomainIdsView = m_objectPtDomainIds.view();
+
+        IndexArray query_order;
+        if(EnableSorting)
+        {
+          query_order = mortonSortQueryPoints(query_pts);
+        }
+        auto query_order_view = query_order.view();
 
         /// Update the query by finding the closest points in the local mesh
         if(m_dynamicDistanceFiltering)
@@ -1328,7 +1337,11 @@ public:
           AXOM_ANNOTATE_SCOPE("ComputeClosestPointsDynamic");
           axom::ReduceMax<ExecSpace, double> maxSqDistance(currentMaxSqDistance);
           axom::for_all<ExecSpace>(qPtCount, [=] AXOM_HOST_DEVICE(std::int32_t sorted_idx) {
-            const auto idx = query_order_view[sorted_idx];
+            IndexType idx = sorted_idx;
+            if constexpr(EnableSorting)
+            {
+              idx = query_order_view[sorted_idx];
+            }
             PointType qpt = query_pts[idx];
 
             MinCandidate curr_min {};
@@ -1384,7 +1397,11 @@ public:
         {
           AXOM_ANNOTATE_SCOPE("ComputeClosestPoints");
           axom::for_all<ExecSpace>(qPtCount, [=] AXOM_HOST_DEVICE(std::int32_t sorted_idx) {
-            const auto idx = query_order_view[sorted_idx];
+            IndexType idx = sorted_idx;
+            if constexpr(EnableSorting)
+            {
+              idx = query_order_view[sorted_idx];
+            }
             PointType qpt = query_pts[idx];
 
             MinCandidate curr_min {};
