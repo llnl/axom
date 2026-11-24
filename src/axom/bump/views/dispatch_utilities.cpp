@@ -7,6 +7,7 @@
 #include "axom/slic.hpp"
 #include "axom/bump/views/dispatch_utilities.hpp"
 #include "axom/bump/utilities/conduit_memory.hpp"
+#include "axom/bump/utilities/blueprint_utilities.hpp"
 
 #include <conduit/conduit_blueprint_mesh.hpp>
 
@@ -24,21 +25,36 @@ static bool needToPerformCheck(const conduit::Node& obj, const std::string& prot
   // NOTE: Some verification functions in conduit::blueprint::mesh::verify access
   //       array data. We need to skip verification for such things for now when
   //       data are on the GPU.
-
-  if(protocol == "topology")
+  if(protocol == "coordset")
   {
+    // All coordsets have "type". If the string is on GPU, we can't let Blueprint check it.
+    const conduit::Node& n_coordset = obj;
+    performCheck = !axom::bump::utilities::isDeviceAllocated(n_coordset["type"]);
+  }
+  else if(protocol == "topology")
+  {
+    // All topologies have "type". If the string is on GPU, we can't let Blueprint check it.
     const conduit::Node& n_topo = obj;
-    const std::string type = axom::bump::utilities::hostReadString(n_topo["type"]);
-    if(type == "unstructured" && n_topo.has_path("elements/shape"))
+    performCheck = !axom::bump::utilities::isDeviceAllocated(n_topo["type"]);
+    if(performCheck)
     {
-      const std::string shape = axom::bump::utilities::hostReadString(n_topo["elements/shape"]);
-      if(shape == "mixed" && n_topo.has_path("elements/shapes"))
+      const std::string type = axom::bump::utilities::topologyType(n_topo);
+      if(type == "unstructured" && n_topo.has_path("elements/shape"))
       {
-        performCheck = !axom::bump::utilities::isDeviceAllocated(n_topo["elements/shapes"]);
+        const std::string shape = axom::bump::utilities::unstructuredTopologyShape(n_topo);
+        if(shape == "mixed" && n_topo.has_path("elements/shapes"))
+        {
+          performCheck = !axom::bump::utilities::isDeviceAllocated(n_topo["elements/shapes"]);
+        }
       }
     }
   }
-
+  else if(protocol == "matset")
+  {
+    // All matsets have "topology". If the string is on GPU, we can't let Blueprint check it.
+    const conduit::Node& n_matset = obj;
+    performCheck = !axom::bump::utilities::isDeviceAllocated(n_matset["topology"]);
+  }
   return performCheck;
 }
 
