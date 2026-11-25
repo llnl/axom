@@ -9,6 +9,7 @@
 #include "axom/bump/views/MaterialView.hpp"
 #include "axom/bump/views/NodeArrayView.hpp"
 #include "axom/bump/views/dispatch_utilities.hpp"
+#include "axom/bump/utilities/conduit_memory.hpp"
 
 #include <conduit/conduit_blueprint.hpp>
 
@@ -98,7 +99,7 @@ IntElement getMaterialID(const conduit::Node& matset,
     const conduit::Node& n_mm = matset["material_map"];
     if(n_mm.has_child(matName))
     {
-      matno = static_cast<IntElement>(n_mm[matName].to_int());
+      matno = static_cast<IntElement>(utilities::hostReadInt(n_mm[matName]));
     }
   }
   return matno;
