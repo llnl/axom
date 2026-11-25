@@ -1338,7 +1338,7 @@ public:
           axom::ReduceMax<ExecSpace, double> maxSqDistance(currentMaxSqDistance);
           axom::for_all<ExecSpace>(qPtCount, [=] AXOM_HOST_DEVICE(std::int32_t sorted_idx) {
             IndexType idx = sorted_idx;
-            if constexpr(EnableSorting)
+            if(EnableSorting)
             {
               idx = query_order_view[sorted_idx];
             }
@@ -1398,7 +1398,7 @@ public:
           AXOM_ANNOTATE_SCOPE("ComputeClosestPoints");
           axom::for_all<ExecSpace>(qPtCount, [=] AXOM_HOST_DEVICE(std::int32_t sorted_idx) {
             IndexType idx = sorted_idx;
-            if constexpr(EnableSorting)
+            if(EnableSorting)
             {
               idx = query_order_view[sorted_idx];
             }
