@@ -6,9 +6,9 @@
 
 #include "axom/core.hpp"
 #include "axom/bump/utilities/blueprint_utilities.hpp"
+#include "axom/bump/utilities/conduit_memory.hpp"
 #include "axom/bump/IndexingPolicies.hpp"
 
-#include "axom/bump/utilities/conduit_memory.hpp"
 #include "axom/slic.hpp"
 #include "axom/fmt.hpp"
 
@@ -60,21 +60,32 @@ conduit::Node* findReferenceNode(conduit::Node& node, const std::string& refKey)
                                                       refKey));
 }
 
-std::vector<std::string> coordsetAxes(const conduit::Node& n_input)
+std::vector<std::string> coordsetAxes(const conduit::Node& n_coordset)
 {
   std::vector<std::string> axes;
 
   // Get the axis names for the output coordset. For uniform, prefer x,y,z
   // instead of i,j,k since we're making an explicit coordset.
-  if(hostReadString(n_input.fetch_existing("type")) == "uniform")
+  if(coordsetType(n_coordset) == "uniform")
   {
-    if(n_input.has_path("dims/i")) axes.push_back("x");
-    if(n_input.has_path("dims/j")) axes.push_back("y");
-    if(n_input.has_path("dims/k")) axes.push_back("z");
+    if(n_coordset.has_path("dims/i")) axes.push_back("x");
+    if(n_coordset.has_path("dims/j")) axes.push_back("y");
+    if(n_coordset.has_path("dims/k")) axes.push_back("z");
   }
   else
   {
-    axes = conduit::blueprint::mesh::utils::coordset::axes(n_input);
+    if(isDeviceAllocated(n_coordset.fetch_existing("type")))
+    {
+      const conduit::Node &n_values = n_coordset.fetch_existing("values");
+      for(conduit::index_t i = 0; i < n_values.number_of_children(); i++)
+      {
+        axes.push_back(n_values[i].name());
+      }
+    }
+    else
+    {
+      axes = conduit::blueprint::mesh::utils::coordset::axes(n_coordset);
+    }
   }
 
   return axes;
