@@ -283,6 +283,7 @@ public:
    */
   void execute(const conduit::Node& topo, const conduit::Node& coordset, conduit::Node& relation)
   {
+    namespace utils = axom::bump::utilities;
     const std::string type = utilities::topologyType(topo);
 
     const auto conduitAllocatorID =
@@ -297,7 +298,7 @@ public:
 
     if(type == "unstructured")
     {
-      conduit::blueprint::mesh::utils::ShapeType shape(topo);
+      const auto shape = utils::topologyShapeType(topo);
       const conduit::Node& n_connectivity = topo["elements/connectivity"];
       const std::string shapeType = utilities::unstructuredTopologyShape(topo);
       const auto intTypeId = n_connectivity.dtype().id();

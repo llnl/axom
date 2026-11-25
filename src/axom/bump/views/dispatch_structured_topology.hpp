@@ -613,8 +613,9 @@ void dispatch_structured_topology(const conduit::Node& topo, FuncType&& func)
 template <int SelectedDimensions = select_dimensions(1, 2, 3), typename FuncType>
 void dispatch_structured_topologies(const conduit::Node& topo, FuncType&& func)
 {
+  namespace utils = axom::bump::utilities;
   verify(topo, "topology");
-  const auto ndims = conduit::blueprint::mesh::utils::topology::dims(topo);
+  const auto ndims = utils::topologyDimension(topo);
   switch(ndims)
   {
   case 3:

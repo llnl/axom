@@ -10,6 +10,7 @@
 #include "axom/core.hpp"
 
 #include <conduit/conduit.hpp>
+#include <conduit/conduit_blueprint_mesh_utils.hpp>
 
 namespace axom::bump::utilities
 {
@@ -89,6 +90,15 @@ void validateVertexFieldIndexing(const conduit::Node& n_topology,
 std::string coordsetType(const conduit::Node &n_coordset);
 
 /*!
+ * \brief Return the coordset dimension.
+ *
+ * \param n_coordset The coordset node.
+ * 
+ * \return The coordset dimension.
+ */
+int coordsetDimension(const conduit::Node &n_coordset);
+
+/*!
  * \brief Get the topology type string.
  *
  * \param n_topo The topology node.
@@ -109,6 +119,26 @@ std::string topologyType(const conduit::Node &n_topo);
  * \note We use hostReadString in case the string is in device memory.
  */
 std::string topologyCoordset(const conduit::Node &n_topo);
+
+/*!
+ * \brief Return the topology dimension.
+ *
+ * \param n_topo The topology node.
+ * 
+ * \return The topology dimension.
+ */
+int topologyDimension(const conduit::Node &n_topo);
+
+/*!
+ * \brief Return the ShapeType for the topology.
+ *
+ * \param n_topo The topology node.
+ * 
+ * \return The ShapeType for the topology.
+ *
+ * \note This function uses helpers that are tolerant of strings in device memory.
+ */
+conduit::blueprint::mesh::utils::ShapeType topologyShapeType(const conduit::Node &n_topo);
 
 /*!
  * \brief Get the unstructured topology shape string.

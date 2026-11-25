@@ -190,6 +190,12 @@ std::string coordsetType(const conduit::Node &n_coordset)
   return hostReadString(n_coordset["type"]);
 }
 
+int coordsetDimension(const conduit::Node &n_coordset)
+{
+  const auto axes = coordsetAxes(n_coordset);
+  return static_cast<int>(axes.size());
+}
+
 std::string topologyType(const conduit::Node &n_topo)
 {
   SLIC_ERROR_IF(!n_topo.has_path("type"), "The topology must contain \"type\".");
@@ -200,6 +206,70 @@ std::string topologyCoordset(const conduit::Node &n_topo)
 {
   SLIC_ERROR_IF(!n_topo.has_path("coordset"), "The topology must contain \"coordset\".");
   return hostReadString(n_topo["coordset"]);
+}
+
+int topologyDimension(const conduit::Node &n_topo)
+{
+  int dims = 0;
+  const auto type = topologyType(n_topo);
+  if(type != "unstructured")
+  {
+    const conduit::Node *n_coordset = findReferenceNode(n_topo, "coordset");
+    SLIC_ERROR_IF(n_coordset == nullptr, "Coordset not found.");
+    dims = coordsetDimension(*n_coordset);
+  }
+  else
+  {
+    const auto shape = unstructuredTopologyShape(n_topo);
+    if(shape == "mixed")
+    {
+      SLIC_ERROR_IF(!n_topo.has_path("elements/shape_map"), "Mixed topologies need shape_map");
+      // Iterate over the shape names in the shape map and use ShapeType to
+      // determine the dimension.
+      const conduit::Node& n_shape_map = n_topo["elements/shape_map"];
+      for(conduit::index_t i = 0; i < n_shape_map.number_of_children(); i++)
+      {
+        conduit::blueprint::mesh::utils::ShapeType S(n_shape_map[i].name());
+        dims = axom::utilities::max(dims, static_cast<int>(S.dim));
+      }
+    }
+    else
+    {
+      conduit::blueprint::mesh::utils::ShapeType S(shape);
+      dims = static_cast<int>(S.dim);
+    }
+  }
+
+  return dims;
+}
+
+conduit::blueprint::mesh::utils::ShapeType topologyShapeType(const conduit::Node &n_topo)
+{
+  // NOTE: This function is based on ShapeType::ShapeType(const std::string &).
+  conduit::blueprint::mesh::utils::ShapeType S;
+
+  const auto type = topologyType(n_topo);
+  const int dim = topologyDimension(n_topo);
+  if(type == "unstructured")
+  {
+    const auto shape = unstructuredTopologyShape(n_topo);
+    S = conduit::blueprint::mesh::utils::ShapeType(shape);
+    if(shape == "mixed")
+    {
+      S.dim = dim;
+    }
+  }
+  else if(type == "points")
+  {
+    S = conduit::blueprint::mesh::utils::ShapeType("point");
+  }
+  else
+  {
+    const char *dimShapes[] = {"point", "line", "quad", "hex"};
+    S = conduit::blueprint::mesh::utils::ShapeType(dimShapes[dim]);
+  }
+
+  return S;
 }
 
 std::string unstructuredTopologyShape(const conduit::Node &n_topo)
