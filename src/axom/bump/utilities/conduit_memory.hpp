@@ -82,35 +82,44 @@ bool isDeviceAllocated(const conduit::Node& n);
 int getAllocatorIDFromNode(const conduit::Node &n);
 
 //------------------------------------------------------------------------------
+namespace internal
+{
 /*!
  * \brief Copies a Conduit tree in the \a src node to a new Conduit \a dest node,
- *        compacting the source into a single destination allocation in the
- *        appropriate memory space for the execution space.
+ *        making sure to allocate array data in the appropriate memory space for
+ *        the execution space.
  *
  * \tparam ExecSpace The destination execution space (e.g. axom::SEQ_EXEC).
  *
  * \param dest The conduit node that will receive the copied data.
- * \param src The source data to be copied.
- * \param destAllocatorID The allocator for the destination. It defaults to the allocator for ExecSpace.
+ * \param src The source node to be copied.
+ * \param destConduitAllocatorID A Conduit allocator ID.
+ */
+void copyImpl(conduit::Node& dest,
+              const conduit::Node& src,
+              int destConduitAllocatorID);
+
+}  // end namespace internal
+
+/*!
+ * \brief Copies a Conduit tree in the \a src node to a new Conduit \a dest node,
+ *        making sure to allocate array data in the appropriate memory space for
+ *        the execution space.
  *
- * \note The destination root node keeps the supplied allocator, and the compacted
- *       data buffer is allocated in that memory space. However, Conduit's
- *       `compact_to()` currently rebuilds nested destination child nodes using the
- *       source allocator id for their `Node::allocator()` metadata. Current `bump`
- *       code relies on the actual data pointers rather than nested `Node::allocator()`
- *       values, but this caveat may matter if future code starts allocating new
- *       children under copied nested subtrees.
+ * \tparam ExecSpace The destination execution space (e.g. axom::SEQ_EXEC).
+ *
+ * \param dest The conduit node that will receive the copied data.
+ * \param src The source node to be copied.
+ * \param destAllocatorID The allocator for the destination. It defaults to the allocator for ExecSpace.
  */
 template <typename ExecSpace>
 void copy(conduit::Node& dest,
           const conduit::Node& src,
           int destAllocatorID = axom::execution_space<ExecSpace>::allocatorID())
 {
-  // No explicit dest.reset() is needed here:
-  // - set_allocator() resets if the allocator changes, and
-  // - compact_to() resets the destination before rebuilding the compact tree.
-  dest.set_allocator(axom::sidre::ConduitMemory::axomAllocIdToConduit(destAllocatorID));
-  src.compact_to(dest);
+  const int destConduitAllocatorID = axom::sidre::ConduitMemory::axomAllocIdToConduit(destAllocatorID);
+  dest.reset();
+  internal::copyImpl(dest, src, destConduitAllocatorID);
   axom::synchronize<ExecSpace>();
 }
 

@@ -26,5 +26,36 @@ int getAllocatorIDFromNode(const conduit::Node &n)
   return axom::getAllocatorIDFromPointer(n.data_ptr());
 }
 
+namespace internal
+{
 
-}  // end namespace axom::bump::utilities
+void copyImpl(conduit::Node& dest,
+              const conduit::Node& src,
+              int destConduitAllocatorID)
+{
+  if(src.number_of_children() > 0)
+  {
+    for(conduit::index_t i = 0; i < src.number_of_children(); i++)
+    {
+      copyImpl(dest[src[i].name()], src[i], destConduitAllocatorID);
+    }
+  }
+  else
+  {
+    dest.set_allocator(destConduitAllocatorID);
+    dest.set(conduit::DataType(src.dtype().id(), src.dtype().number_of_elements()));
+    // Copy the data to the destination node. Axom uses Umpire to manage that.
+    if(src.is_compact())
+      axom::copy(dest.data_ptr(), src.data_ptr(), src.dtype().bytes_compact());
+    else
+    {
+      // NOTE: This assumes that src is on the host.
+      conduit::Node tmp;
+      src.compact_to(tmp);
+      axom::copy(dest.data_ptr(), tmp.data_ptr(), tmp.dtype().bytes_compact());
+    }
+  }
+}
+
+} // end namespace internal
+} // end namespace axom::bump::utilities
