@@ -370,7 +370,7 @@ protected:
     }
     else
     {
-      nnodes = conduit::blueprint::mesh::utils::coordset::length(coordset);
+      nnodes = axom::bump::utilities::coordsetLength(coordset);
     }
     return nnodes;
   }

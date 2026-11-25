@@ -196,6 +196,31 @@ int coordsetDimension(const conduit::Node &n_coordset)
   return static_cast<int>(axes.size());
 }
 
+conduit::index_t coordsetLength(const conduit::Node &n_coordset)
+{
+  conduit::index_t coordset_length = 1;
+
+  const std::string type = coordsetType(n_coordset);
+  const auto axes = coordsetAxes(n_coordset);
+  for(conduit::index_t i = 0; i < static_cast<conduit::index_t>(axes.size()); i++)
+  {
+    if(type == "uniform")
+    {
+      coordset_length *= static_cast<conduit::index_t>(hostReadInt(n_coordset["dims"][conduit::blueprint::mesh::utils::LOGICAL_AXES[i]]));
+    }
+    else if(type == "rectilinear")
+    {
+      coordset_length *= n_coordset["values"][axes[i]].dtype().number_of_elements();
+    }
+    else // if(type == "explicit")
+    {
+      coordset_length = n_coordset["values"][axes[i]].dtype().number_of_elements();
+    }
+  }
+
+  return coordset_length;
+}
+
 std::string topologyType(const conduit::Node &n_topo)
 {
   SLIC_ERROR_IF(!n_topo.has_path("type"), "The topology must contain \"type\".");

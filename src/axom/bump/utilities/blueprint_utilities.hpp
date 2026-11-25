@@ -99,6 +99,15 @@ std::string coordsetType(const conduit::Node &n_coordset);
 int coordsetDimension(const conduit::Node &n_coordset);
 
 /*!
+ * \brief Return the coordset length.
+ *
+ * \param n_coordset The coordset node.
+ * 
+ * \return The coordset length.
+ */
+conduit::index_t coordsetLength(const conduit::Node &n_coordset);
+
+/*!
  * \brief Get the topology type string.
  *
  * \param n_topo The topology node.

@@ -305,7 +305,7 @@ public:
       const auto connSize = n_connectivity.dtype().number_of_elements();
 
       // Use the coordset to get the number of nodes. Conduit should be able to do this using only metadata.
-      const auto nnodes = conduit::blueprint::mesh::utils::coordset::length(coordset);
+      const auto nnodes = utils::coordsetLength(coordset);
 
       if(shape.is_polyhedral())
       {
