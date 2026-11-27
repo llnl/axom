@@ -139,6 +139,9 @@ endif()
 if(CONDUIT_FOUND)
     set(quest_marching_cubes_sources)
 
+    list(APPEND quest_headers GregoryMesh.hpp)
+    list(APPEND quest_sources GregoryMesh.cpp)
+
     blt_list_append(
         TO       quest_headers
         ELEMENTS MarchingCubes.hpp

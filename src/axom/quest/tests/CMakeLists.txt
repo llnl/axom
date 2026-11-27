@@ -67,6 +67,16 @@ endforeach()
 # Tests that use Conduit when available
 #------------------------------------------------------------------------------
 
+if(CONDUIT_FOUND)
+    axom_add_executable(
+        NAME       quest_gregory_mesh_test
+        SOURCES    quest_gregory_mesh.cpp
+        OUTPUT_DIR ${TEST_OUTPUT_DIRECTORY}
+        DEPENDS_ON ${quest_tests_depends} conduit::conduit
+        FOLDER     axom/quest/tests)
+    axom_add_test(NAME quest_gregory_mesh COMMAND quest_gregory_mesh_test)
+endif()
+
 if(CONDUIT_FOUND AND AXOM_DATA_DIR)
     axom_add_executable(
             NAME        quest_mesh_view_util_test

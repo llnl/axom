@@ -45,6 +45,8 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
 - Spin: Adds a host-only `LinearBVHTraverser::traverse_leaves()` for actions that receive the original primitive ID directly.
 - Quest: Adds support for replicating object ranks across empty processors to spread out communication.
   This is controlled via a `DistributedClosestPoint::setMaxReplicationFactor()` method.
+- Quest: Adds a `GregoryMesh` class for composite, continuous Gregory surfaces (quad and triangle), built from
+  a Conduit mesh blueprint.
 
 ### Removed
 
