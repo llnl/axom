@@ -52,10 +52,8 @@ using PointType = GregoryMesh::PointType;
  * \param[in] offset First connectivity entry for this facet.
  * \param[in] num_nodes Number of vertices in the facet.
  * \param[in] num_points Number of points in the Blueprint coordinate set.
- *
- * \return True after appending the facet.
  */
-bool appendFacet(axom::Array<axom::Array<int>>& facet_node_ids,
+void appendFacet(axom::Array<axom::Array<int>>& facet_node_ids,
                  const conduit::index_t_accessor& connectivity,
                  conduit::index_t offset,
                  int num_nodes)
@@ -69,7 +67,6 @@ bool appendFacet(axom::Array<axom::Array<int>>& facet_node_ids,
   }
 
   facet_node_ids.push_back(std::move(this_facet_ids));
-  return true;
 }
 
 /*!

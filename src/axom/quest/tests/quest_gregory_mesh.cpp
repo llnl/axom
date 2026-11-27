@@ -294,4 +294,44 @@ TEST(quest_gregory_mesh, retains_degenerate_triangle_with_shared_vertices)
   EXPECT_EQ(flat.node_ids[2], 2);
 }
 
+TEST(quest_gregory_mesh, rejects_invalid_inputs)
+{
+  axom::slic::ScopedAbortToThrow abort_guard;
+  const auto expect_constructor_error = [](const conduit::Node& mesh, const char* description) {
+    SCOPED_TRACE(description);
+    EXPECT_THROW((void)quest::GregoryMesh(mesh), axom::slic::SlicAbortException);
+  };
+
+  // An empty node has no Blueprint domains.
+  conduit::Node empty_mesh;
+  expect_constructor_error(empty_mesh, "empty mesh");
+
+  // Blueprint verification rejects connectivity that references a missing point.
+  conduit::Node invalid_blueprint;
+  setCoords(invalid_blueprint, {0., 1., 0.}, {0., 0., 1.}, {0., 0., 0.});
+  setTopology(invalid_blueprint, "surface", "tri", {0, 1, 3});
+  expect_constructor_error(invalid_blueprint, "invalid Blueprint connectivity");
+
+  // A valid mesh with no supported surface topology cannot produce Gregory facets.
+  conduit::Node line_mesh;
+  setCoords(line_mesh, {0., 1.}, {0., 0.}, {0., 0.});
+  setTopology(line_mesh, "edge", "line", {0, 1});
+  expect_constructor_error(line_mesh, "no supported surface topology");
+
+  // A supported topology still requires an explicit coordinate set.
+  conduit::Node non_explicit_mesh;
+  non_explicit_mesh["coordsets/coords/type"] = "uniform";
+  non_explicit_mesh["coordsets/coords/values/dims/i"] = 2;
+  non_explicit_mesh["coordsets/coords/values/dims/j"] = 2;
+  setTopology(non_explicit_mesh, "surface", "tri", {0, 1, 2});
+  expect_constructor_error(non_explicit_mesh, "non-explicit coordinates");
+
+  // VTK export validates its subdivision argument before doing any work.
+  conduit::Node valid_mesh;
+  setCoords(valid_mesh, {0., 1., 0.}, {0., 0., 1.}, {0., 0., 0.});
+  setTopology(valid_mesh, "surface", "tri", {0, 1, 2});
+  const quest::GregoryMesh gregory_mesh(valid_mesh);
+  EXPECT_THROW(gregory_mesh.writeVtkFile("unused.vtk", 0), axom::slic::SlicAbortException);
+}
+
 }  // namespace
